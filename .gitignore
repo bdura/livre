@@ -1,0 +1,11 @@
+# OS
+.DS_Store
+
+# IDE
+.vscode
+
+# Rust
+/target
+
+# Data
+resource
