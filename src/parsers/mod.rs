@@ -2,6 +2,7 @@ mod header;
 pub use header::Header;
 
 pub mod object;
+pub use object::Object;
 
 mod comment;
 pub use comment::Comment;
@@ -9,12 +10,16 @@ pub use comment::Comment;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Pdf {
     pub header: Header,
+    pub body: Vec<Object>,
 }
 
 impl Pdf {
     pub fn parse(input: &[u8]) -> Result<Self, String> {
         let (_, header) = Header::parse(input).map_err(|e| format!("Error while parsing: {e}"))?;
-        Ok(Self { header })
+        Ok(Self {
+            header,
+            body: Vec::new(),
+        })
     }
 }
 
@@ -35,7 +40,8 @@ mod tests {
                 header: Header {
                     version: Version::Pdf14,
                     binary: true
-                }
+                },
+                body: Vec::new()
             }
         );
     }
