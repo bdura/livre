@@ -7,6 +7,8 @@ pub use object::Object;
 mod comment;
 pub use comment::Comment;
 
+pub mod utilities;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Pdf {
     pub header: Header,
