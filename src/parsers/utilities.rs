@@ -1,6 +1,6 @@
 use nom::{
     bytes::complete::{take_while, take_while1},
-    character::{is_newline, is_space},
+    character::{complete::oct_digit1, is_newline, is_space},
     error::{Error, ErrorKind, ParseError},
     Err, IResult,
 };
@@ -78,4 +78,17 @@ pub fn take_within_balanced(
             ErrorKind::TakeUntil,
         )))
     }
+}
+
+/// Parse up to 3 bytes to get the number represented by the underlying octal code.
+pub fn parse_octal(input: &[u8]) -> IResult<&[u8], u8> {
+    let value = &input[..input.len().min(3)];
+    let (_, num) = oct_digit1(value)?;
+
+    let input = &input[num.len()..];
+
+    let s = unsafe { std::str::from_utf8_unchecked(num) };
+    let n = u8::from_str_radix(s, 8).expect("We know it's a valid number.");
+
+    Ok((input, n))
 }

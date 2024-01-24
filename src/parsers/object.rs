@@ -2,14 +2,14 @@ use nom::{
     branch::alt,
     bytes::complete::{tag, take, take_till, take_while},
     character::complete::{digit0, digit1},
-    combinator::{map, opt, recognize, verify},
+    combinator::{map, opt, recognize},
     error::{Error, ErrorKind, ParseError},
     multi::many0,
     sequence::{pair, separated_pair, Tuple},
     Err, IResult,
 };
 
-use super::utilities::{take_whitespace, take_whitespace1, take_within_balanced};
+use super::utilities::{parse_octal, take_whitespace, take_whitespace1, take_within_balanced};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Object {
@@ -78,19 +78,10 @@ impl Object {
         }
     }
 
-    fn parse_string(input: &[u8]) -> IResult<&[u8], String> {
-        if input.is_empty() {
-            return Err(Err::Error(Error::from_error_kind(
-                input,
-                ErrorKind::TakeTill1,
-            )));
-        }
+    fn parse_escaped_string(input: &[u8]) -> IResult<&[u8], Option<char>> {
+        let (input, _) = take(1usize)(input)?;
 
-        let (input, s) = take_till(|b| b == b'\\')(input)?;
-
-        let mut res = std::str::from_utf8(s).unwrap().to_string();
-
-        let (input, modifier) = opt(alt((
+        alt((
             map(tag(b"\n"), |_| None),
             map(tag(b"n"), |_| Some('\n')),
             map(tag(b"r"), |_| Some('\r')),
@@ -100,15 +91,22 @@ impl Object {
             map(tag(b"("), |_| Some('(')),
             map(tag(b")"), |_| Some(')')),
             map(tag(b"\\"), |_| Some('\\')),
-            map(
-                verify(take(3usize), |s: &[u8]| s.iter().all(|&b| b < 8)),
-                |s: &[u8]| {
-                    let s = unsafe { std::str::from_utf8_unchecked(s) };
-                    let n = u8::from_str_radix(s, 8).expect("We know it's a valid number.");
-                    Some(n.into())
-                },
-            ),
-        )))(input)?;
+            map(parse_octal, |n| Some(n as char)),
+        ))(input)
+    }
+
+    fn parse_string(input: &[u8]) -> IResult<&[u8], String> {
+        if input.is_empty() {
+            return Err(Err::Error(Error::from_error_kind(
+                input,
+                ErrorKind::TakeTill1,
+            )));
+        }
+
+        let (input, s) = take_till(|b| b == b'\\')(input)?;
+        let mut res = std::str::from_utf8(s).unwrap().to_string();
+
+        let (input, modifier) = opt(Self::parse_escaped_string)(input)?;
 
         if let Some(m) = Option::flatten(modifier) {
             res.push(m);
@@ -204,9 +202,10 @@ mod tests {
         check_parse!(b"(test\n)" literal_string "test\n");
         check_parse!(b"(test (with inner parenthesis))" literal_string "test (with inner parenthesis)");
 
-        check_parse!(b"(te\\st)" literal_string "te\\st");
-        check_parse!(b"(te\
-st)" literal_string "test");
+        check_parse!(b"(\\0533)" literal_string "+3");
+
+        check_parse!(b"(te\\\\st)" literal_string "te\\st");
+        check_parse!(b"(te\\\nst)" literal_string "test");
     }
 
     #[test]
