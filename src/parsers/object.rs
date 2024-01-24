@@ -1,10 +1,12 @@
 use nom::{
     branch::alt,
-    bytes::complete::{tag, take_till, take_while},
+    bytes::complete::{tag, take, take_till, take_while},
     character::complete::{digit0, digit1},
-    combinator::{opt, recognize},
-    sequence::{pair, separated_pair, tuple, Tuple},
-    IResult,
+    combinator::{map, opt, recognize, verify},
+    error::{Error, ErrorKind, ParseError},
+    multi::many0,
+    sequence::{pair, separated_pair, Tuple},
+    Err, IResult,
 };
 
 use super::utilities::{take_whitespace, take_whitespace1, take_within_balanced};
@@ -76,12 +78,50 @@ impl Object {
         }
     }
 
+    fn parse_string(input: &[u8]) -> IResult<&[u8], String> {
+        if input.is_empty() {
+            return Err(Err::Error(Error::from_error_kind(
+                input,
+                ErrorKind::TakeTill1,
+            )));
+        }
+
+        let (input, s) = take_till(|b| b == b'\\')(input)?;
+
+        let mut res = std::str::from_utf8(s).unwrap().to_string();
+
+        let (input, modifier) = opt(alt((
+            map(tag(b"\n"), |_| None),
+            map(tag(b"n"), |_| Some('\n')),
+            map(tag(b"r"), |_| Some('\r')),
+            map(tag(b"t"), |_| Some('\t')),
+            map(tag(b"b"), |_| Some('\u{21A1}')),
+            map(tag(b"f"), |_| Some('\u{232B}')),
+            map(tag(b"("), |_| Some('(')),
+            map(tag(b")"), |_| Some(')')),
+            map(tag(b"\\"), |_| Some('\\')),
+            map(
+                verify(take(3usize), |s: &[u8]| s.iter().all(|&b| b < 8)),
+                |s: &[u8]| {
+                    let s = unsafe { std::str::from_utf8_unchecked(s) };
+                    let n = u8::from_str_radix(s, 8).expect("We know it's a valid number.");
+                    Some(n.into())
+                },
+            ),
+        )))(input)?;
+
+        if let Some(m) = Option::flatten(modifier) {
+            res.push(m);
+        }
+
+        Ok((input, res))
+    }
+
     fn parse_literal_string(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, value) = take_within_balanced(b'(', b')')(input)?;
-
-        let s = String::from_utf8(value.to_vec()).unwrap();
-
-        Ok((input, Self::LiteralString(s)))
+        let (d, lines) = many0(Self::parse_string)(value)?;
+        assert!(d.is_empty());
+        Ok((input, Self::LiteralString(lines.join(""))))
     }
 
     fn parse_any(input: &[u8]) -> IResult<&[u8], Self> {
@@ -161,7 +201,12 @@ mod tests {
     #[test]
     fn literal_string() {
         check_parse!(b"(test)" literal_string "test");
+        check_parse!(b"(test\n)" literal_string "test\n");
         check_parse!(b"(test (with inner parenthesis))" literal_string "test (with inner parenthesis)");
+
+        check_parse!(b"(te\\st)" literal_string "te\\st");
+        check_parse!(b"(te\
+st)" literal_string "test");
     }
 
     #[test]
@@ -170,6 +215,7 @@ mod tests {
         check_parse!(b"false" any Object::Boolean(false));
         check_parse!(b"true " any Object::Boolean(true));
         check_parse!(b"-123\n" any Object::Integer(-123));
+        check_parse!(b"(-123)\n" any Object::LiteralString("-123".to_string()));
     }
 
     mod object {
