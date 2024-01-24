@@ -1,13 +1,13 @@
 use nom::{
     branch::alt,
-    bytes::complete::tag,
+    bytes::complete::{tag, take_while},
     character::complete::{digit0, digit1},
     combinator::{opt, recognize},
     sequence::{pair, separated_pair, Tuple},
     IResult,
 };
 
-use super::utilities::take_whitespace1;
+use super::utilities::{take_whitespace, take_whitespace1};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Object {
@@ -20,7 +20,6 @@ pub enum Object {
 impl Object {
     fn parse_boolean(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, b) = alt((tag(b"true"), tag(b"false")))(input)?;
-        let (input, _) = take_whitespace1(input)?;
 
         let obj = match b {
             b"true" => Self::Boolean(true),
@@ -37,9 +36,8 @@ impl Object {
 
     fn parse_integer(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, num) = recognize(pair(opt(Self::parse_sign), digit1))(input)?;
-        let (input, _) = take_whitespace1(input)?;
 
-        // SAFETY: we know for a fact that `num` only includes digits
+        // SAFETY: we know for a fact that `num` only includes ascii characters
         let num = unsafe { std::str::from_utf8_unchecked(num) };
 
         Ok((input, Self::Integer(num.parse().unwrap())))
@@ -55,12 +53,27 @@ impl Object {
     fn parse_real(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, num) =
             recognize(pair(opt(Self::parse_sign), Self::parse_unsigned_real))(input)?;
-        let (input, _) = take_whitespace1(input)?;
 
-        // SAFETY: we know for a fact that `num` only includes digits
+        // SAFETY: we know for a fact that `num` only includes ascii characters
         let num = unsafe { std::str::from_utf8_unchecked(num) };
 
         Ok((input, Self::Real(num.parse().unwrap())))
+    }
+
+    /// Parse real or integer object.
+    ///
+    /// This is needed otherwise all numbers are interpreted as integers,
+    /// discarding digits after the decimal point.
+    fn parse_numeric(input: &[u8]) -> IResult<&[u8], Self> {
+        let (input, value) = take_while(|c| c != b' ')(input)?;
+
+        if value.contains(&b'.') {
+            let (_, obj) = Object::parse_real(value)?;
+            Ok((input, obj))
+        } else {
+            let (_, obj) = Object::parse_integer(value)?;
+            Ok((input, obj))
+        }
     }
 
     fn parse_literal_string(_input: &[u8]) -> IResult<&[u8], Self> {
@@ -68,12 +81,15 @@ impl Object {
     }
 
     fn parse_any(input: &[u8]) -> IResult<&[u8], Self> {
-        alt((
+        let (input, obj) = alt((
             Self::parse_boolean,
-            Self::parse_integer,
-            Self::parse_real,
+            Self::parse_numeric,
             Self::parse_literal_string,
-        ))(input)
+        ))(input)?;
+
+        let (input, _) = take_whitespace(input)?;
+
+        Ok((input, obj))
     }
 
     pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
@@ -87,82 +103,58 @@ impl Object {
 
 #[cfg(test)]
 mod tests {
-    mod boolean {
-        use super::super::*;
+    use super::*;
 
-        #[test]
-        fn parse_true() {
-            let (input, boolean) = Object::parse_boolean(b"true ").unwrap();
-            assert_eq!(boolean, Object::Boolean(true));
+    macro_rules! check_parse {
+        ($prev:literal boolean $next:literal) => {
+            let (input, obj) = Object::parse_boolean($prev).unwrap();
+            assert_eq!(obj, Object::Boolean($next));
             assert!(input.is_empty());
-        }
-
-        #[test]
-        fn parse_false() {
-            let (input, boolean) = Object::parse_boolean(b"false\n").unwrap();
-            assert_eq!(boolean, Object::Boolean(false));
+        };
+        ($prev:literal integer $next:literal) => {
+            let (input, obj) = Object::parse_integer($prev).unwrap();
+            assert_eq!(obj, Object::Integer($next));
             assert!(input.is_empty());
-        }
-
-        #[test]
-        fn parse_false_and_whitespaces() {
-            let (input, boolean) = Object::parse_boolean(b"false\n    \n\n").unwrap();
-            assert_eq!(boolean, Object::Boolean(false));
+        };
+        ($prev:literal real $next:literal) => {
+            let (input, obj) = Object::parse_real($prev).unwrap();
+            assert_eq!(obj, Object::Real($next));
             assert!(input.is_empty());
-        }
+        };
+        ($prev:literal any $next:expr) => {
+            let (input, obj) = Object::parse_any($prev).unwrap();
+            assert_eq!(obj, $next);
+            assert!(input.is_empty());
+        };
     }
 
-    mod numeric {
-        use super::super::*;
+    #[test]
+    fn bool() {
+        check_parse!(b"true" boolean true);
+        check_parse!(b"false" boolean false);
+    }
 
-        macro_rules! check_parse {
-            ($prev:literal integer $next:literal) => {
-                let (input, integer) = Object::parse_integer($prev).unwrap();
-                assert_eq!(integer, Object::Integer($next));
-                assert!(input.is_empty());
-            };
-            ($prev:literal real $next:literal) => {
-                let (input, integer) = Object::parse_real($prev).unwrap();
-                assert_eq!(integer, Object::Real($next));
-                assert!(input.is_empty());
-            };
-        }
+    #[test]
+    fn integer() {
+        check_parse!(b"123" integer 123);
+        check_parse!(b"+123" integer 123);
+        check_parse!(b"-123" integer -123);
+    }
 
-        #[test]
-        fn integer() {
-            check_parse!(b"123 " integer 123);
-            check_parse!(b"+123 " integer 123);
-            check_parse!(b"-123 " integer -123);
-        }
+    #[test]
+    fn real() {
+        check_parse!(b"123." real 123.0);
+        check_parse!(b"+123." real 123.0);
+        check_parse!(b"-123.0" real -123.0);
+        check_parse!(b"-.1" real -0.1);
+    }
 
-        #[test]
-        fn real() {
-            check_parse!(b"123. " real 123.0);
-            check_parse!(b"+123. " real 123.0);
-            check_parse!(b"-123.0 " real -123.0);
-            check_parse!(b"-.1 " real -0.1);
-        }
-
-        #[test]
-        fn parse_positive() {
-            let (input, integer) = Object::parse_integer(b"123 ").unwrap();
-            assert_eq!(integer, Object::Integer(123));
-            assert!(input.is_empty());
-        }
-
-        #[test]
-        fn parse_signed_positive() {
-            let (input, integer) = Object::parse_integer(b"+123 ").unwrap();
-            assert_eq!(integer, Object::Integer(123));
-            assert!(input.is_empty());
-        }
-
-        #[test]
-        fn parse_negative() {
-            let (input, integer) = Object::parse_integer(b"-123 ").unwrap();
-            assert_eq!(integer, Object::Integer(-123));
-            assert!(input.is_empty());
-        }
+    #[test]
+    fn any() {
+        check_parse!(b"123.   " any Object::Real(123.0));
+        check_parse!(b"false" any Object::Boolean(false));
+        check_parse!(b"true " any Object::Boolean(true));
+        check_parse!(b"-123\n" any Object::Integer(-123));
     }
 
     mod object {
