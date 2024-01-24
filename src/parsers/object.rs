@@ -1,4 +1,7 @@
-use nom::{branch::alt, bytes::complete::tag, sequence::Tuple, IResult};
+use nom::{
+    branch::alt, bytes::complete::tag, character::complete::digit1, combinator::opt,
+    sequence::Tuple, IResult,
+};
 
 use super::utilities::take_whitespace1;
 
@@ -24,8 +27,21 @@ impl Object {
         Ok((input, obj))
     }
 
-    fn parse_integer(_input: &[u8]) -> IResult<&[u8], Self> {
-        todo!()
+    fn parse_integer(input: &[u8]) -> IResult<&[u8], Self> {
+        let (input, sign) = opt(alt((tag(b"+"), tag(b"-"))))(input)?;
+        let (input, num) = digit1(input)?;
+        let (input, _) = take_whitespace1(input)?;
+
+        // SAFETY: we know for a fact that `num` only includes digits
+        let num = unsafe { String::from_utf8_unchecked(num.to_vec()) };
+
+        let mut num: i32 = num.parse().unwrap();
+
+        if let Some(b"-") = sign {
+            num = -num;
+        }
+
+        Ok((input, Self::Integer(num)))
     }
 
     fn parse_real(_input: &[u8]) -> IResult<&[u8], Self> {
@@ -77,6 +93,31 @@ mod tests {
         fn parse_false_and_whitespaces() {
             let (input, boolean) = Object::parse_boolean(b"false\n    \n\n").unwrap();
             assert_eq!(boolean, Object::Boolean(false));
+            assert!(input.is_empty());
+        }
+    }
+
+    mod integer {
+        use super::super::*;
+
+        #[test]
+        fn parse_positive() {
+            let (input, integer) = Object::parse_integer(b"123 ").unwrap();
+            assert_eq!(integer, Object::Integer(123));
+            assert!(input.is_empty());
+        }
+
+        #[test]
+        fn parse_signed_positive() {
+            let (input, integer) = Object::parse_integer(b"+123 ").unwrap();
+            assert_eq!(integer, Object::Integer(123));
+            assert!(input.is_empty());
+        }
+
+        #[test]
+        fn parse_negative() {
+            let (input, integer) = Object::parse_integer(b"-123 ").unwrap();
+            assert_eq!(integer, Object::Integer(-123));
             assert!(input.is_empty());
         }
     }
