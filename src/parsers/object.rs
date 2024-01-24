@@ -1,6 +1,10 @@
 use nom::{
-    branch::alt, bytes::complete::tag, character::complete::digit1, combinator::opt,
-    sequence::Tuple, IResult,
+    branch::alt,
+    bytes::complete::tag,
+    character::complete::{digit0, digit1},
+    combinator::{opt, recognize},
+    sequence::{pair, separated_pair, Tuple},
+    IResult,
 };
 
 use super::utilities::take_whitespace1;
@@ -27,25 +31,36 @@ impl Object {
         Ok((input, obj))
     }
 
+    fn parse_sign(input: &[u8]) -> IResult<&[u8], &[u8]> {
+        alt((tag(b"+"), tag(b"-")))(input)
+    }
+
     fn parse_integer(input: &[u8]) -> IResult<&[u8], Self> {
-        let (input, sign) = opt(alt((tag(b"+"), tag(b"-"))))(input)?;
-        let (input, num) = digit1(input)?;
+        let (input, num) = recognize(pair(opt(Self::parse_sign), digit1))(input)?;
         let (input, _) = take_whitespace1(input)?;
 
         // SAFETY: we know for a fact that `num` only includes digits
-        let num = unsafe { String::from_utf8_unchecked(num.to_vec()) };
+        let num = unsafe { std::str::from_utf8_unchecked(num) };
 
-        let mut num: i32 = num.parse().unwrap();
-
-        if let Some(b"-") = sign {
-            num = -num;
-        }
-
-        Ok((input, Self::Integer(num)))
+        Ok((input, Self::Integer(num.parse().unwrap())))
     }
 
-    fn parse_real(_input: &[u8]) -> IResult<&[u8], Self> {
-        todo!()
+    fn parse_unsigned_real(input: &[u8]) -> IResult<&[u8], &[u8]> {
+        alt((
+            recognize(separated_pair(digit1, tag(b"."), digit0)),
+            recognize(separated_pair(digit0, tag(b"."), digit1)),
+        ))(input)
+    }
+
+    fn parse_real(input: &[u8]) -> IResult<&[u8], Self> {
+        let (input, num) =
+            recognize(pair(opt(Self::parse_sign), Self::parse_unsigned_real))(input)?;
+        let (input, _) = take_whitespace1(input)?;
+
+        // SAFETY: we know for a fact that `num` only includes digits
+        let num = unsafe { std::str::from_utf8_unchecked(num) };
+
+        Ok((input, Self::Real(num.parse().unwrap())))
     }
 
     fn parse_literal_string(_input: &[u8]) -> IResult<&[u8], Self> {
@@ -97,8 +112,36 @@ mod tests {
         }
     }
 
-    mod integer {
+    mod numeric {
         use super::super::*;
+
+        macro_rules! check_parse {
+            ($prev:literal integer $next:literal) => {
+                let (input, integer) = Object::parse_integer($prev).unwrap();
+                assert_eq!(integer, Object::Integer($next));
+                assert!(input.is_empty());
+            };
+            ($prev:literal real $next:literal) => {
+                let (input, integer) = Object::parse_real($prev).unwrap();
+                assert_eq!(integer, Object::Real($next));
+                assert!(input.is_empty());
+            };
+        }
+
+        #[test]
+        fn integer() {
+            check_parse!(b"123 " integer 123);
+            check_parse!(b"+123 " integer 123);
+            check_parse!(b"-123 " integer -123);
+        }
+
+        #[test]
+        fn real() {
+            check_parse!(b"123. " real 123.0);
+            check_parse!(b"+123. " real 123.0);
+            check_parse!(b"-123.0 " real -123.0);
+            check_parse!(b"-.1 " real -0.1);
+        }
 
         #[test]
         fn parse_positive() {
