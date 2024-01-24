@@ -1,13 +1,13 @@
 use nom::{
     branch::alt,
-    bytes::complete::{tag, take_while},
+    bytes::complete::{tag, take_till, take_while},
     character::complete::{digit0, digit1},
     combinator::{opt, recognize},
-    sequence::{pair, separated_pair, Tuple},
+    sequence::{pair, separated_pair, tuple, Tuple},
     IResult,
 };
 
-use super::utilities::{take_whitespace, take_whitespace1};
+use super::utilities::{take_whitespace, take_whitespace1, take_within_balanced};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Object {
@@ -76,8 +76,12 @@ impl Object {
         }
     }
 
-    fn parse_literal_string(_input: &[u8]) -> IResult<&[u8], Self> {
-        todo!()
+    fn parse_literal_string(input: &[u8]) -> IResult<&[u8], Self> {
+        let (input, value) = take_within_balanced(b'(', b')')(input)?;
+
+        let s = String::from_utf8(value.to_vec()).unwrap();
+
+        Ok((input, Self::LiteralString(s)))
     }
 
     fn parse_any(input: &[u8]) -> IResult<&[u8], Self> {
@@ -121,6 +125,11 @@ mod tests {
             assert_eq!(obj, Object::Real($next));
             assert!(input.is_empty());
         };
+        ($prev:literal literal_string $next:literal) => {
+            let (input, obj) = Object::parse_literal_string($prev).unwrap();
+            assert_eq!(obj, Object::LiteralString($next.to_string()));
+            assert!(input.is_empty());
+        };
         ($prev:literal any $next:expr) => {
             let (input, obj) = Object::parse_any($prev).unwrap();
             assert_eq!(obj, $next);
@@ -147,6 +156,12 @@ mod tests {
         check_parse!(b"+123." real 123.0);
         check_parse!(b"-123.0" real -123.0);
         check_parse!(b"-.1" real -0.1);
+    }
+
+    #[test]
+    fn literal_string() {
+        check_parse!(b"(test)" literal_string "test");
+        check_parse!(b"(test (with inner parenthesis))" literal_string "test (with inner parenthesis)");
     }
 
     #[test]
