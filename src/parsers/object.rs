@@ -218,10 +218,6 @@ impl Object {
         fn parse_key_value(input: &[u8]) -> IResult<&[u8], (String, Object)> {
             let (input, key) = Object::parse_name_string(input)?;
             let (input, _) = take_whitespace(input)?;
-            println!(
-                "key: {key} - input: {:?}",
-                String::from_utf8_lossy(&input[..input.len().min(50)])
-            );
             let (input, obj) = Object::parse_any_object(input)?;
 
             Ok((input, (key, obj)))

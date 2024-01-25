@@ -1,7 +1,12 @@
+use std::{fmt::Debug, str::FromStr};
+
 use nom::{
     branch::alt,
     bytes::complete::{tag, take, take_till, take_while, take_while1},
-    character::{complete::oct_digit1, is_newline, is_space},
+    character::{
+        complete::{digit1, oct_digit1},
+        is_newline, is_space,
+    },
     combinator::{map, opt},
     error::{Error, ErrorKind, ParseError},
     Err, IResult,
@@ -147,4 +152,18 @@ pub fn parse_hexadecimal_bigram(input: &[u8]) -> IResult<&[u8], u8> {
     }
 
     alt((map(take(2usize), inner), map(take(1usize), inner)))(input)
+}
+
+pub fn parse_digits<O, E>(input: &[u8]) -> IResult<&[u8], O>
+where
+    O: FromStr<Err = E>,
+    E: Debug,
+{
+    let (input, digits) = digit1(input)?;
+
+    // SAFETY: we know for a fact that `digits` contains digits only,
+    // and are therefore both utf-8-encoded and parsable.
+    let n = unsafe { std::str::from_utf8_unchecked(digits).parse().unwrap() };
+
+    Ok((input, n))
 }
