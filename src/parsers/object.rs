@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use nom::{
     branch::alt,
     bytes::complete::{tag, take, take_till, take_while},
@@ -9,9 +11,8 @@ use nom::{
     Err, IResult,
 };
 
-use crate::parsers::utilities::{parse_hexadecimal_bigram, parse_string_with_escapes};
-
 use super::utilities::{parse_octal, take_whitespace, take_whitespace1, take_within_balanced};
+use crate::parsers::utilities::{parse_hexadecimal_bigram, parse_string_with_escapes};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Object {
@@ -22,6 +23,7 @@ pub enum Object {
     HexString(Vec<u8>),
     Name(String),
     Array(Vec<Object>),
+    Dictionary(HashMap<String, Object>),
 }
 
 impl Object {
@@ -159,6 +161,41 @@ impl Object {
         Ok((input, Self::Array(array)))
     }
 
+    fn parse_dictionary(input: &[u8]) -> IResult<&[u8], Self> {
+        // dictionaries are enclosed by double angle brackets.
+        let (input, value) = take_within_balanced(b'<', b'>')(input)?;
+        let (d, value) = take_within_balanced(b'<', b'>')(value)?;
+
+        if !d.is_empty() {
+            return Err(Err::Error(Error::from_error_kind(
+                input,
+                ErrorKind::TakeTill1,
+            )));
+        }
+
+        fn parse_key_value(input: &[u8]) -> IResult<&[u8], (String, Object)> {
+            let (input, key_obj) = Object::parse_name(input)?;
+            let key = if let Object::Name(key) = key_obj {
+                key
+            } else {
+                return Err(Err::Error(Error::from_error_kind(input, ErrorKind::IsNot)));
+            };
+
+            let (input, _) = take_whitespace1(input)?;
+
+            let (input, obj) = Object::parse_any(input)?;
+
+            Ok((input, (key, obj)))
+        }
+
+        let (d, array) = many0(parse_key_value)(value)?;
+        assert!(d.is_empty());
+
+        let res = Object::Dictionary(array.into_iter().collect());
+
+        Ok((input, res))
+    }
+
     fn parse_any(input: &[u8]) -> IResult<&[u8], Self> {
         // Necessary in case we apply many0.
         if input.is_empty() {
@@ -172,9 +209,10 @@ impl Object {
             Self::parse_boolean,
             Self::parse_numeric,
             Self::parse_literal_string,
-            Self::parse_hexadecimal_string,
             Self::parse_name,
             Self::parse_array,
+            Self::parse_dictionary,
+            Self::parse_hexadecimal_string,
         ))(input)?;
 
         let (input, _) = take_whitespace(input)?;
@@ -214,6 +252,9 @@ mod tests {
         ($($o:expr),+ $(,)?) => {
             Object::Array(vec![$($o),+])
         };
+        ($($k:literal $v:expr),+ $(,)?) => {
+            Object::Dictionary(vec![$(($k.to_string(), $v)),+].into_iter().collect())
+        };
     }
 
     macro_rules! check_parse {
@@ -249,6 +290,11 @@ mod tests {
         };
         ($prev:literal array $next:expr) => {
             let (input, obj) = Object::parse_array($prev).unwrap();
+            assert_eq!(obj, $next);
+            assert!(input.is_empty());
+        };
+        ($prev:literal dict $next:expr) => {
+            let (input, obj) = Object::parse_dictionary($prev).unwrap();
             assert_eq!(obj, $next);
             assert!(input.is_empty());
         };
@@ -318,6 +364,19 @@ mod tests {
     fn array() {
         check_parse!(b"[1 true /Test]" array obj![obj!(i:1), obj!(b:true), obj!(n:"Test")]);
         check_parse!(b"[1 (true) /Test]" array obj![obj!(i:1), obj!(s:"true"), obj!(n:"Test")]);
+    }
+
+    #[test]
+    fn dictionary() {
+        let d = obj![
+            "Type" obj!(n:"Example"),
+            "Version" obj!(r:0.01),
+            "Int" obj!(i:12),
+            "String" obj!(s:"a string"),
+            "Subdict" obj!["Key" obj!(s:"value")]
+        ];
+
+        check_parse!(b"<</Type /Example /Version 0.01 /Int 12 /String (a string) /Subdict <</Key (value)>>>>" dict d);
     }
 
     #[test]
