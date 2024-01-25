@@ -17,6 +17,7 @@ pub enum Object {
     Integer(i32),
     Real(f32),
     LiteralString(String),
+    HexString(Vec<u8>),
 }
 
 impl Object {
@@ -115,6 +116,27 @@ impl Object {
         Ok((input, res))
     }
 
+    fn parse_hexadecimal_bigram(input: &[u8]) -> IResult<&[u8], u8> {
+        fn inner(input: &[u8]) -> u8 {
+            let len = input.len();
+
+            let mut res = {
+                // SAFETY: we know for a fact that the supplied input
+                // will hold that invariant.
+                let num = unsafe { std::str::from_utf8_unchecked(input) };
+                u8::from_str_radix(num, 16).unwrap()
+            };
+
+            if len == 1 {
+                res *= 16;
+            }
+
+            res
+        }
+
+        alt((map(take(2usize), inner), map(take(1usize), inner)))(input)
+    }
+
     fn parse_literal_string(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, value) = take_within_balanced(b'(', b')')(input)?;
         let (d, lines) = many0(Self::parse_string)(value)?;
@@ -122,11 +144,20 @@ impl Object {
         Ok((input, Self::LiteralString(lines.join(""))))
     }
 
+    fn parse_hexadecimal_string(input: &[u8]) -> IResult<&[u8], Self> {
+        let (input, value) = take_within_balanced(b'<', b'>')(input)?;
+        dbg!(std::str::from_utf8(value).unwrap());
+        let (d, uvec) = many0(Self::parse_hexadecimal_bigram)(value)?;
+        assert!(d.is_empty());
+        Ok((input, Self::HexString(uvec)))
+    }
+
     fn parse_any(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, obj) = alt((
             Self::parse_boolean,
             Self::parse_numeric,
             Self::parse_literal_string,
+            Self::parse_hexadecimal_string,
         ))(input)?;
 
         let (input, _) = take_whitespace(input)?;
@@ -168,6 +199,11 @@ mod tests {
             assert_eq!(obj, Object::LiteralString($next.to_string()));
             assert!(input.is_empty());
         };
+        ($prev:literal hex_string $next:tt) => {
+            let (input, obj) = Object::parse_hexadecimal_string($prev).unwrap();
+            assert_eq!(obj, Object::HexString($next.to_vec()));
+            assert!(input.is_empty());
+        };
         ($prev:literal any $next:expr) => {
             let (input, obj) = Object::parse_any($prev).unwrap();
             assert_eq!(obj, $next);
@@ -206,6 +242,12 @@ mod tests {
 
         check_parse!(b"(te\\\\st)" literal_string "te\\st");
         check_parse!(b"(te\\\nst)" literal_string "test");
+    }
+
+    #[test]
+    fn hex_string() {
+        check_parse!(b"<901FA3>" hex_string [144, 31, 163]);
+        check_parse!(b"<901FA>" hex_string [144, 31, 160]);
     }
 
     #[test]
