@@ -2,8 +2,11 @@ use std::collections::HashMap;
 
 use nom::{
     branch::alt,
-    bytes::complete::{tag, take, take_till, take_until, take_while},
-    character::complete::{digit0, digit1},
+    bytes::complete::{tag, take, take_till, take_until},
+    character::{
+        complete::{digit0, digit1},
+        is_newline, is_space,
+    },
     combinator::{map, opt, recognize},
     error::{Error, ErrorKind, ParseError},
     multi::many0,
@@ -111,13 +114,15 @@ impl Object {
     /// This is needed otherwise all numbers are interpreted as integers,
     /// discarding digits after the decimal point.
     fn parse_numeric(input: &[u8]) -> IResult<&[u8], Self> {
-        let (input, value) = take_while(|c| c != b' ')(input)?;
+        let (input, value) = take_till(|c| is_space(c) || is_newline(c))(input)?;
 
         if value.contains(&b'.') {
-            let (_, obj) = Object::parse_real(value)?;
+            let (r, obj) = Object::parse_real(value)?;
+            assert!(r.is_empty());
             Ok((input, obj))
         } else {
-            let (_, obj) = Object::parse_integer(value)?;
+            let (r, obj) = Object::parse_integer(value)?;
+            assert!(r.is_empty());
             Ok((input, obj))
         }
     }
@@ -174,7 +179,7 @@ impl Object {
         Ok((input, Self::HexString(uvec)))
     }
 
-    fn parse_name(input: &[u8]) -> IResult<&[u8], Self> {
+    fn parse_name_string(input: &[u8]) -> IResult<&[u8], String> {
         fn escaped_char(input: &[u8]) -> IResult<&[u8], Option<char>> {
             let (input, _) = take(1usize)(input)?;
 
@@ -188,7 +193,12 @@ impl Object {
         let (input, value) = take_till(|b| b == b' ' || b == b'/')(input)?;
         let (d, lines) = many0(parse_string_with_escapes(b'#', escaped_char))(value)?;
         assert!(d.is_empty());
-        Ok((input, Self::Name(lines.join(""))))
+        Ok((input, lines.join("")))
+    }
+
+    fn parse_name(input: &[u8]) -> IResult<&[u8], Self> {
+        let (input, name) = Self::parse_name_string(input)?;
+        Ok((input, Self::Name(name)))
     }
 
     fn parse_array(input: &[u8]) -> IResult<&[u8], Self> {
@@ -211,15 +221,8 @@ impl Object {
         }
 
         fn parse_key_value(input: &[u8]) -> IResult<&[u8], (String, Object)> {
-            let (input, key_obj) = Object::parse_name(input)?;
-            let key = if let Object::Name(key) = key_obj {
-                key
-            } else {
-                return Err(Err::Error(Error::from_error_kind(input, ErrorKind::IsNot)));
-            };
-
-            let (input, _) = take_whitespace1(input)?;
-
+            let (input, key) = Object::parse_name_string(input)?;
+            let (input, _) = tag(b" ")(input)?;
             let (input, obj) = Object::parse_any_object(input)?;
 
             Ok((input, (key, obj)))
@@ -273,14 +276,14 @@ impl Object {
         }
 
         let (input, obj) = alt((
+            Self::parse_stream_or_dict,
+            Self::parse_name,
+            Self::parse_array,
             Self::parse_null,
             Self::parse_boolean,
             Self::parse_reference,
-            Self::parse_numeric,
             Self::parse_literal_string,
-            Self::parse_name,
-            Self::parse_array,
-            Self::parse_stream_or_dict,
+            Self::parse_numeric,
             Self::parse_hexadecimal_string,
         ))(input)?;
 
