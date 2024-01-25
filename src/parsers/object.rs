@@ -7,7 +7,7 @@ use nom::{
     combinator::{map, opt, recognize},
     error::{Error, ErrorKind, ParseError},
     multi::many0,
-    sequence::{pair, separated_pair, terminated, Tuple},
+    sequence::{pair, separated_pair, terminated, tuple, Tuple},
     Err, IResult,
 };
 
@@ -28,6 +28,26 @@ pub enum Object {
     Array(Vec<Object>),
     Dictionary(HashMap<String, Object>),
     Stream(Vec<u8>),
+    Reference(Reference),
+}
+
+#[derive(Debug, Clone, PartialEq, Hash)]
+pub struct Reference {
+    obj: usize,
+    gen: usize,
+}
+
+impl Reference {
+    pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
+        let (input, (obj, _, gen)) = (digit1, tag(b" "), digit1).parse(input)?;
+
+        // SAFETY: obj is guaranteed to contain digits
+        let obj: usize = unsafe { std::str::from_utf8_unchecked(obj).parse().unwrap() };
+        // SAFETY: gen is guaranteed to contain digits
+        let gen: usize = unsafe { std::str::from_utf8_unchecked(gen).parse().unwrap() };
+
+        Ok((input, Self { obj, gen }))
+    }
 }
 
 // #[derive(Debug, Clone, PartialEq, Default)]
@@ -218,6 +238,12 @@ impl Object {
         Ok((input, Self::Null))
     }
 
+    fn parse_reference(input: &[u8]) -> IResult<&[u8], Self> {
+        let (input, reference) = Reference::parse(input)?;
+        let (input, _) = tag(b" R")(input)?;
+        Ok((input, Self::Reference(reference)))
+    }
+
     fn parse_any_object(input: &[u8]) -> IResult<&[u8], Self> {
         // Necessary in case we apply many0.
         if input.is_empty() {
@@ -230,6 +256,7 @@ impl Object {
         let (input, obj) = alt((
             Self::parse_null,
             Self::parse_boolean,
+            Self::parse_reference,
             Self::parse_numeric,
             Self::parse_literal_string,
             Self::parse_name,
@@ -258,16 +285,17 @@ impl Object {
         Ok((input, Self::Stream(stream.to_owned())))
     }
 
-    pub fn parse_object(input: &[u8]) -> IResult<&[u8], Self> {
+    pub fn parse_object(input: &[u8]) -> IResult<&[u8], (Option<Reference>, Self)> {
+        let (input, reference) = opt(tuple((Reference::parse, take_whitespace1)))(input)?;
         let (input, _) = (tag(b"obj"), take_whitespace1).parse(input)?;
         let (input, obj) = Self::parse_any_object(input)?;
         let (input, _) = (tag(b"endobj"), take_whitespace1).parse(input)?;
 
-        Ok((input, obj))
+        Ok((input, (reference.map(|(r, _)| r), obj)))
     }
 
     pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
-        alt((Self::parse_object, Self::parse_stream))(input)
+        alt((map(Self::parse_object, |(_, o)| o), Self::parse_stream))(input)
     }
 }
 
@@ -446,6 +474,8 @@ mod tests {
         check_parse!(b"(-123)\n" any Object::LiteralString("-123".to_string()));
         check_parse!(b"<901FA>" any Object::HexString(vec![144, 31, 160]));
         check_parse!(b"/The_Key_of_F#23_Minor" any Object::Name("The_Key_of_F#_Minor".to_string()));
+        check_parse!(b"1 0 R" any Object::Reference(Reference { obj: 1, gen: 0 }));
+        check_parse!(b"null" any Object::Null);
     }
 
     mod object {
