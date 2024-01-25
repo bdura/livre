@@ -3,9 +3,10 @@ use nom::{
     bytes::complete::{tag, take, take_till, take_while},
     character::complete::{digit0, digit1},
     combinator::{map, opt, recognize},
+    error::{Error, ErrorKind, ParseError},
     multi::many0,
     sequence::{pair, separated_pair, Tuple},
-    IResult,
+    Err, IResult,
 };
 
 use crate::parsers::utilities::{parse_hexadecimal_bigram, parse_string_with_escapes};
@@ -20,6 +21,7 @@ pub enum Object {
     LiteralString(String),
     HexString(Vec<u8>),
     Name(String),
+    Array(Vec<Object>),
 }
 
 impl Object {
@@ -128,7 +130,6 @@ impl Object {
 
     fn parse_hexadecimal_string(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, value) = take_within_balanced(b'<', b'>')(input)?;
-        dbg!(std::str::from_utf8(value).unwrap());
         let (d, uvec) = many0(Self::parse_hexadecimal_bigram)(value)?;
         assert!(d.is_empty());
         Ok((input, Self::HexString(uvec)))
@@ -151,13 +152,29 @@ impl Object {
         Ok((input, Self::Name(lines.join(""))))
     }
 
+    fn parse_array(input: &[u8]) -> IResult<&[u8], Self> {
+        let (input, value) = take_within_balanced(b'[', b']')(input)?;
+        let (d, array) = many0(Self::parse_any)(value)?;
+        assert!(d.is_empty());
+        Ok((input, Self::Array(array)))
+    }
+
     fn parse_any(input: &[u8]) -> IResult<&[u8], Self> {
+        // Necessary in case we apply many0.
+        if input.is_empty() {
+            return Err(Err::Error(Error::from_error_kind(
+                input,
+                ErrorKind::NonEmpty,
+            )));
+        }
+
         let (input, obj) = alt((
             Self::parse_boolean,
             Self::parse_numeric,
             Self::parse_literal_string,
             Self::parse_hexadecimal_string,
             Self::parse_name,
+            Self::parse_array,
         ))(input)?;
 
         let (input, _) = take_whitespace(input)?;
@@ -177,6 +194,27 @@ impl Object {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    macro_rules! obj {
+        (b:$val:literal) => {
+            Object::Boolean($val)
+        };
+        (i:$val:literal) => {
+            Object::Integer($val)
+        };
+        (r:$val:literal) => {
+            Object::Real($val)
+        };
+        (s:$val:literal) => {
+            Object::LiteralString($val.to_string())
+        };
+        (n:$val:literal) => {
+            Object::Name($val.to_string())
+        };
+        ($($o:expr),+ $(,)?) => {
+            Object::Array(vec![$($o),+])
+        };
+    }
 
     macro_rules! check_parse {
         ($prev:literal boolean $next:literal) => {
@@ -207,6 +245,11 @@ mod tests {
         ($prev:literal name $next:tt) => {
             let (input, obj) = Object::parse_name($prev).unwrap();
             assert_eq!(obj, Object::Name($next.to_string()));
+            assert!(input.is_empty());
+        };
+        ($prev:literal array $next:expr) => {
+            let (input, obj) = Object::parse_array($prev).unwrap();
+            assert_eq!(obj, $next);
             assert!(input.is_empty());
         };
         ($prev:literal any $next:expr) => {
@@ -269,6 +312,12 @@ mod tests {
         check_parse!(b"/paired#28#29parentheses" name "paired()parentheses");
         check_parse!(b"/The_Key_of_F#23_Minor" name "The_Key_of_F#_Minor");
         check_parse!(b"/A#42" name "AB");
+    }
+
+    #[test]
+    fn array() {
+        check_parse!(b"[1 true /Test]" array obj![obj!(i:1), obj!(b:true), obj!(n:"Test")]);
+        check_parse!(b"[1 (true) /Test]" array obj![obj!(i:1), obj!(s:"true"), obj!(n:"Test")]);
     }
 
     #[test]
