@@ -16,6 +16,7 @@ use crate::parsers::utilities::{parse_hexadecimal_bigram, parse_string_with_esca
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Object {
+    Null,
     Boolean(bool),
     Integer(i32),
     Real(f32),
@@ -156,7 +157,7 @@ impl Object {
 
     fn parse_array(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, value) = take_within_balanced(b'[', b']')(input)?;
-        let (d, array) = many0(Self::parse_any)(value)?;
+        let (d, array) = many0(Self::parse_any_object)(value)?;
         assert!(d.is_empty());
         Ok((input, Self::Array(array)))
     }
@@ -183,7 +184,7 @@ impl Object {
 
             let (input, _) = take_whitespace1(input)?;
 
-            let (input, obj) = Object::parse_any(input)?;
+            let (input, obj) = Object::parse_any_object(input)?;
 
             Ok((input, (key, obj)))
         }
@@ -196,7 +197,12 @@ impl Object {
         Ok((input, res))
     }
 
-    fn parse_any(input: &[u8]) -> IResult<&[u8], Self> {
+    fn parse_null(input: &[u8]) -> IResult<&[u8], Self> {
+        let (input, _) = tag(b"null")(input)?;
+        Ok((input, Self::Null))
+    }
+
+    fn parse_any_object(input: &[u8]) -> IResult<&[u8], Self> {
         // Necessary in case we apply many0.
         if input.is_empty() {
             return Err(Err::Error(Error::from_error_kind(
@@ -206,6 +212,7 @@ impl Object {
         }
 
         let (input, obj) = alt((
+            Self::parse_null,
             Self::parse_boolean,
             Self::parse_numeric,
             Self::parse_literal_string,
@@ -220,9 +227,9 @@ impl Object {
         Ok((input, obj))
     }
 
-    pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
+    pub fn parse_object(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, _) = (tag(b"obj"), take_whitespace1).parse(input)?;
-        let (input, obj) = Self::parse_any(input)?;
+        let (input, obj) = Self::parse_any_object(input)?;
         let (input, _) = (tag(b"endobj"), take_whitespace1).parse(input)?;
 
         Ok((input, obj))
@@ -299,7 +306,7 @@ mod tests {
             assert!(input.is_empty());
         };
         ($prev:literal any $next:expr) => {
-            let (input, obj) = Object::parse_any($prev).unwrap();
+            let (input, obj) = Object::parse_any_object($prev).unwrap();
             assert_eq!(obj, $next);
             assert!(input.is_empty());
         };
@@ -395,7 +402,7 @@ mod tests {
 
         #[test]
         fn parse_full_bool() {
-            let (input, obj) = Object::parse(b"obj\ntrue  \nendobj\n").unwrap();
+            let (input, obj) = Object::parse_object(b"obj\ntrue  \nendobj\n").unwrap();
             assert_eq!(obj, Object::Boolean(true));
             assert!(input.is_empty());
         }

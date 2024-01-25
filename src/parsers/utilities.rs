@@ -1,11 +1,15 @@
 use nom::{
     branch::alt,
-    bytes::complete::{take, take_till, take_while, take_while1},
+    bytes::complete::{tag, take, take_till, take_while, take_while1},
     character::{complete::oct_digit1, is_newline, is_space},
     combinator::{map, opt},
     error::{Error, ErrorKind, ParseError},
     Err, IResult,
 };
+
+pub fn take_eol(input: &[u8]) -> IResult<&[u8], &[u8]> {
+    alt((tag("\n"), tag("\r\n")))(input)
+}
 
 /// Consumes all whitespace (including newlines).
 ///
