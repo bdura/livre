@@ -3,11 +3,12 @@ use nom::{
     bytes::complete::{tag, take, take_till, take_while},
     character::complete::{digit0, digit1},
     combinator::{map, opt, recognize},
-    error::{Error, ErrorKind, ParseError},
     multi::many0,
     sequence::{pair, separated_pair, Tuple},
-    Err, IResult,
+    IResult,
 };
+
+use crate::parsers::utilities::{parse_hexadecimal_bigram, parse_string_with_escapes};
 
 use super::utilities::{parse_octal, take_whitespace, take_whitespace1, take_within_balanced};
 
@@ -18,6 +19,7 @@ pub enum Object {
     Real(f32),
     LiteralString(String),
     HexString(Vec<u8>),
+    Name(String),
 }
 
 impl Object {
@@ -79,41 +81,28 @@ impl Object {
         }
     }
 
-    fn parse_escaped_string(input: &[u8]) -> IResult<&[u8], Option<char>> {
-        let (input, _) = take(1usize)(input)?;
+    fn parse_literal_string(input: &[u8]) -> IResult<&[u8], Self> {
+        fn escaped_char(input: &[u8]) -> IResult<&[u8], Option<char>> {
+            let (input, _) = take(1usize)(input)?;
 
-        alt((
-            map(tag(b"\n"), |_| None),
-            map(tag(b"n"), |_| Some('\n')),
-            map(tag(b"r"), |_| Some('\r')),
-            map(tag(b"t"), |_| Some('\t')),
-            map(tag(b"b"), |_| Some('\u{21A1}')),
-            map(tag(b"f"), |_| Some('\u{232B}')),
-            map(tag(b"("), |_| Some('(')),
-            map(tag(b")"), |_| Some(')')),
-            map(tag(b"\\"), |_| Some('\\')),
-            map(parse_octal, |n| Some(n as char)),
-        ))(input)
-    }
-
-    fn parse_string(input: &[u8]) -> IResult<&[u8], String> {
-        if input.is_empty() {
-            return Err(Err::Error(Error::from_error_kind(
-                input,
-                ErrorKind::TakeTill1,
-            )));
+            alt((
+                map(tag(b"\n"), |_| None),
+                map(tag(b"n"), |_| Some('\n')),
+                map(tag(b"r"), |_| Some('\r')),
+                map(tag(b"t"), |_| Some('\t')),
+                map(tag(b"b"), |_| Some('\u{21A1}')),
+                map(tag(b"f"), |_| Some('\u{232B}')),
+                map(tag(b"("), |_| Some('(')),
+                map(tag(b")"), |_| Some(')')),
+                map(tag(b"\\"), |_| Some('\\')),
+                map(parse_octal, |n| Some(n as char)),
+            ))(input)
         }
 
-        let (input, s) = take_till(|b| b == b'\\')(input)?;
-        let mut res = std::str::from_utf8(s).unwrap().to_string();
-
-        let (input, modifier) = opt(Self::parse_escaped_string)(input)?;
-
-        if let Some(m) = Option::flatten(modifier) {
-            res.push(m);
-        }
-
-        Ok((input, res))
+        let (input, value) = take_within_balanced(b'(', b')')(input)?;
+        let (d, lines) = many0(parse_string_with_escapes(b'\\', escaped_char))(value)?;
+        assert!(d.is_empty());
+        Ok((input, Self::LiteralString(lines.join(""))))
     }
 
     fn parse_hexadecimal_bigram(input: &[u8]) -> IResult<&[u8], u8> {
@@ -137,13 +126,6 @@ impl Object {
         alt((map(take(2usize), inner), map(take(1usize), inner)))(input)
     }
 
-    fn parse_literal_string(input: &[u8]) -> IResult<&[u8], Self> {
-        let (input, value) = take_within_balanced(b'(', b')')(input)?;
-        let (d, lines) = many0(Self::parse_string)(value)?;
-        assert!(d.is_empty());
-        Ok((input, Self::LiteralString(lines.join(""))))
-    }
-
     fn parse_hexadecimal_string(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, value) = take_within_balanced(b'<', b'>')(input)?;
         dbg!(std::str::from_utf8(value).unwrap());
@@ -152,12 +134,30 @@ impl Object {
         Ok((input, Self::HexString(uvec)))
     }
 
+    fn parse_name(input: &[u8]) -> IResult<&[u8], Self> {
+        fn escaped_char(input: &[u8]) -> IResult<&[u8], Option<char>> {
+            let (input, _) = take(1usize)(input)?;
+
+            let (input, num) = take(2usize)(input)?;
+            let (_, n) = opt(parse_hexadecimal_bigram)(num)?;
+
+            Ok((input, n.map(|n| n as char)))
+        }
+
+        let (input, _) = tag(b"/")(input)?;
+        let (input, value) = take_till(|b| b == b' ' || b == b'/')(input)?;
+        let (d, lines) = many0(parse_string_with_escapes(b'#', escaped_char))(value)?;
+        assert!(d.is_empty());
+        Ok((input, Self::Name(lines.join(""))))
+    }
+
     fn parse_any(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, obj) = alt((
             Self::parse_boolean,
             Self::parse_numeric,
             Self::parse_literal_string,
             Self::parse_hexadecimal_string,
+            Self::parse_name,
         ))(input)?;
 
         let (input, _) = take_whitespace(input)?;
@@ -202,6 +202,11 @@ mod tests {
         ($prev:literal hex_string $next:tt) => {
             let (input, obj) = Object::parse_hexadecimal_string($prev).unwrap();
             assert_eq!(obj, Object::HexString($next.to_vec()));
+            assert!(input.is_empty());
+        };
+        ($prev:literal name $next:tt) => {
+            let (input, obj) = Object::parse_name($prev).unwrap();
+            assert_eq!(obj, Object::Name($next.to_string()));
             assert!(input.is_empty());
         };
         ($prev:literal any $next:expr) => {
@@ -251,12 +256,30 @@ mod tests {
     }
 
     #[test]
+    fn name() {
+        // Examples from the ISO specs
+        check_parse!(b"/Name1" name "Name1");
+        check_parse!(b"/ASomewhatLongerName" name "ASomewhatLongerName");
+        check_parse!(b"/A;Name_With-Various***Characters?" name "A;Name_With-Various***Characters?");
+        check_parse!(b"/1.2" name "1.2");
+        check_parse!(b"/$$" name "$$");
+        check_parse!(b"/@pattern" name "@pattern");
+        check_parse!(b"/.notdef" name ".notdef");
+        check_parse!(b"/Lime#20Green" name "Lime Green");
+        check_parse!(b"/paired#28#29parentheses" name "paired()parentheses");
+        check_parse!(b"/The_Key_of_F#23_Minor" name "The_Key_of_F#_Minor");
+        check_parse!(b"/A#42" name "AB");
+    }
+
+    #[test]
     fn any() {
         check_parse!(b"123.   " any Object::Real(123.0));
         check_parse!(b"false" any Object::Boolean(false));
         check_parse!(b"true " any Object::Boolean(true));
         check_parse!(b"-123\n" any Object::Integer(-123));
         check_parse!(b"(-123)\n" any Object::LiteralString("-123".to_string()));
+        check_parse!(b"<901FA>" any Object::HexString(vec![144, 31, 160]));
+        check_parse!(b"/The_Key_of_F#23_Minor" any Object::Name("The_Key_of_F#_Minor".to_string()));
     }
 
     mod object {

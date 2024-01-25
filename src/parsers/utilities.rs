@@ -1,6 +1,8 @@
 use nom::{
-    bytes::complete::{take_while, take_while1},
+    branch::alt,
+    bytes::complete::{take, take_till, take_while, take_while1},
     character::{complete::oct_digit1, is_newline, is_space},
+    combinator::{map, opt},
     error::{Error, ErrorKind, ParseError},
     Err, IResult,
 };
@@ -91,4 +93,50 @@ pub fn parse_octal(input: &[u8]) -> IResult<&[u8], u8> {
     let n = u8::from_str_radix(s, 8).expect("We know it's a valid number.");
 
     Ok((input, n))
+}
+
+pub fn parse_string_with_escapes(
+    delimiter: u8,
+    closure: impl Fn(&[u8]) -> IResult<&[u8], Option<char>>,
+) -> impl Fn(&[u8]) -> IResult<&[u8], String> {
+    move |input: &[u8]| {
+        if input.is_empty() {
+            return Err(Err::Error(Error::from_error_kind(
+                input,
+                ErrorKind::TakeTill1,
+            )));
+        }
+
+        let (input, s) = take_till(|b| b == delimiter)(input)?;
+        let mut res = std::str::from_utf8(s).unwrap().to_string();
+
+        let (input, modifier) = opt(&closure)(input)?;
+
+        if let Some(m) = Option::flatten(modifier) {
+            res.push(m);
+        }
+
+        Ok((input, res))
+    }
+}
+
+pub fn parse_hexadecimal_bigram(input: &[u8]) -> IResult<&[u8], u8> {
+    fn inner(input: &[u8]) -> u8 {
+        let len = input.len();
+
+        let mut res = {
+            // SAFETY: we know for a fact that the supplied input
+            // will hold that invariant.
+            let num = unsafe { std::str::from_utf8_unchecked(input) };
+            u8::from_str_radix(num, 16).unwrap()
+        };
+
+        if len == 1 {
+            res *= 16;
+        }
+
+        res
+    }
+
+    alt((map(take(2usize), inner), map(take(1usize), inner)))(input)
 }
