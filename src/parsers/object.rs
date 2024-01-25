@@ -198,7 +198,7 @@ impl Object {
         Ok((input, Self::Array(array)))
     }
 
-    fn parse_dictionary(input: &[u8]) -> IResult<&[u8], Self> {
+    fn parse_dictionary_raw(input: &[u8]) -> IResult<&[u8], HashMap<String, Self>> {
         // dictionaries are enclosed by double angle brackets.
         let (input, value) = take_within_balanced(b'<', b'>')(input)?;
         let (d, value) = take_within_balanced(b'<', b'>')(value)?;
@@ -228,9 +228,7 @@ impl Object {
         let (d, array) = many0(parse_key_value)(value)?;
         assert!(d.is_empty());
 
-        let res = Object::Dictionary(array.into_iter().collect());
-
-        Ok((input, res))
+        Ok((input, array.into_iter().collect()))
     }
 
     fn parse_null(input: &[u8]) -> IResult<&[u8], Self> {
@@ -242,6 +240,27 @@ impl Object {
         let (input, reference) = Reference::parse(input)?;
         let (input, _) = tag(b" R")(input)?;
         Ok((input, Self::Reference(reference)))
+    }
+
+    fn parse_stream_body(input: &[u8]) -> IResult<&[u8], &[u8]> {
+        let (input, _) = (tag(b"stream"), take_eol).parse(input)?;
+        terminated(take_until(b"\nendstream".as_slice()), tag(b"\nendstream"))(input)
+    }
+
+    fn parse_stream_or_dict(input: &[u8]) -> IResult<&[u8], Self> {
+        let (input, dict) = Self::parse_dictionary_raw(input)?;
+        let (input, stream_body) = opt(map(
+            tuple((take_whitespace1, Self::parse_stream_body)),
+            |(_, s)| s,
+        ))(input)?;
+
+        let res = if let Some(stream) = stream_body {
+            Self::Stream(stream.to_owned())
+        } else {
+            Self::Dictionary(dict)
+        };
+
+        Ok((input, res))
     }
 
     fn parse_any_object(input: &[u8]) -> IResult<&[u8], Self> {
@@ -261,7 +280,7 @@ impl Object {
             Self::parse_literal_string,
             Self::parse_name,
             Self::parse_array,
-            Self::parse_dictionary,
+            Self::parse_stream_or_dict,
             Self::parse_hexadecimal_string,
         ))(input)?;
 
@@ -270,32 +289,13 @@ impl Object {
         Ok((input, obj))
     }
 
-    pub fn parse_stream(input: &[u8]) -> IResult<&[u8], Self> {
-        let (input, _dict) = Self::parse_dictionary(input)?;
-        let (input, _) = take_whitespace(input)?;
-        let (input, _) = (tag(b"stream"), take_eol).parse(input)?;
-        let (input, stream) =
-            terminated(take_until(b"\nendstream".as_slice()), tag(b"\nendstream"))(input)?;
-
-        // let stream = Stream {
-        //     config: Default::default(),
-        //     stream: stream.to_owned(),
-        // };
-
-        Ok((input, Self::Stream(stream.to_owned())))
-    }
-
-    pub fn parse_object(input: &[u8]) -> IResult<&[u8], (Option<Reference>, Self)> {
+    pub fn parse_referenced(input: &[u8]) -> IResult<&[u8], (Option<Reference>, Self)> {
         let (input, reference) = opt(tuple((Reference::parse, take_whitespace1)))(input)?;
         let (input, _) = (tag(b"obj"), take_whitespace1).parse(input)?;
         let (input, obj) = Self::parse_any_object(input)?;
         let (input, _) = (tag(b"endobj"), take_whitespace1).parse(input)?;
 
         Ok((input, (reference.map(|(r, _)| r), obj)))
-    }
-
-    pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
-        alt((map(Self::parse_object, |(_, o)| o), Self::parse_stream))(input)
     }
 }
 
@@ -370,7 +370,7 @@ mod tests {
             assert!(input.is_empty());
         };
         ($prev:literal dict $next:expr) => {
-            let (input, obj) = Object::parse_dictionary($prev).unwrap();
+            let (input, obj) = Object::parse_stream_or_dict($prev).unwrap();
             assert_eq!(obj, $next);
             assert!(input.is_empty());
         };
@@ -380,7 +380,7 @@ mod tests {
             assert!(input.is_empty());
         };
         ($val:literal stream $next:expr) => {
-            let (input, obj) = Object::parse_stream($val).unwrap();
+            let (input, obj) = Object::parse_stream_or_dict($val).unwrap();
             assert_eq!(obj, $next);
             assert!(input.is_empty());
         };
@@ -483,7 +483,7 @@ mod tests {
 
         #[test]
         fn parse_full_bool() {
-            let (input, obj) = Object::parse(b"obj\ntrue  \nendobj\n").unwrap();
+            let (input, (_, obj)) = Object::parse_referenced(b"obj\ntrue  \nendobj\n").unwrap();
             assert_eq!(obj, Object::Boolean(true));
             assert!(input.is_empty());
         }
