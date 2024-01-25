@@ -2,16 +2,18 @@ use std::collections::HashMap;
 
 use nom::{
     branch::alt,
-    bytes::complete::{tag, take, take_till, take_while},
+    bytes::complete::{tag, take, take_till, take_until, take_while},
     character::complete::{digit0, digit1},
     combinator::{map, opt, recognize},
     error::{Error, ErrorKind, ParseError},
     multi::many0,
-    sequence::{pair, separated_pair, Tuple},
+    sequence::{pair, separated_pair, terminated, Tuple},
     Err, IResult,
 };
 
-use super::utilities::{parse_octal, take_whitespace, take_whitespace1, take_within_balanced};
+use super::utilities::{
+    parse_octal, take_eol, take_whitespace, take_whitespace1, take_within_balanced,
+};
 use crate::parsers::utilities::{parse_hexadecimal_bigram, parse_string_with_escapes};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -25,7 +27,21 @@ pub enum Object {
     Name(String),
     Array(Vec<Object>),
     Dictionary(HashMap<String, Object>),
+    Stream(Vec<u8>),
 }
+
+// #[derive(Debug, Clone, PartialEq, Default)]
+// pub struct StreamConfig {
+//     length: usize,
+//     filter: Option<Vec<String>>,
+//     decode_params: Option<Vec<HashMap<String, String>>>,
+// }
+
+// #[derive(Debug, Clone, PartialEq)]
+// pub struct Stream {
+//     config: StreamConfig,
+//     stream: Vec<u8>,
+// }
 
 impl Object {
     fn parse_boolean(input: &[u8]) -> IResult<&[u8], Self> {
@@ -227,12 +243,31 @@ impl Object {
         Ok((input, obj))
     }
 
+    pub fn parse_stream(input: &[u8]) -> IResult<&[u8], Self> {
+        let (input, _dict) = Self::parse_dictionary(input)?;
+        let (input, _) = take_whitespace(input)?;
+        let (input, _) = (tag(b"stream"), take_eol).parse(input)?;
+        let (input, stream) =
+            terminated(take_until(b"\nendstream".as_slice()), tag(b"\nendstream"))(input)?;
+
+        // let stream = Stream {
+        //     config: Default::default(),
+        //     stream: stream.to_owned(),
+        // };
+
+        Ok((input, Self::Stream(stream.to_owned())))
+    }
+
     pub fn parse_object(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, _) = (tag(b"obj"), take_whitespace1).parse(input)?;
         let (input, obj) = Self::parse_any_object(input)?;
         let (input, _) = (tag(b"endobj"), take_whitespace1).parse(input)?;
 
         Ok((input, obj))
+    }
+
+    pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
+        alt((Self::parse_object, Self::parse_stream))(input)
     }
 }
 
@@ -250,8 +285,14 @@ mod tests {
         (r:$val:literal) => {
             Object::Real($val)
         };
-        (s:$val:literal) => {
+        (t:$val:literal) => {
             Object::LiteralString($val.to_string())
+        };
+        (h:$val:literal) => {
+            Object::HexString($val.to_vec())
+        };
+        (s:$val:literal) => {
+            Object::Stream($val.to_vec())
         };
         (n:$val:literal) => {
             Object::Name($val.to_string())
@@ -307,6 +348,11 @@ mod tests {
         };
         ($prev:literal any $next:expr) => {
             let (input, obj) = Object::parse_any_object($prev).unwrap();
+            assert_eq!(obj, $next);
+            assert!(input.is_empty());
+        };
+        ($val:literal stream $next:expr) => {
+            let (input, obj) = Object::parse_stream($val).unwrap();
             assert_eq!(obj, $next);
             assert!(input.is_empty());
         };
@@ -370,7 +416,7 @@ mod tests {
     #[test]
     fn array() {
         check_parse!(b"[1 true /Test]" array obj![obj!(i:1), obj!(b:true), obj!(n:"Test")]);
-        check_parse!(b"[1 (true) /Test]" array obj![obj!(i:1), obj!(s:"true"), obj!(n:"Test")]);
+        check_parse!(b"[1 (true) /Test]" array obj![obj!(i:1), obj!(t:"true"), obj!(n:"Test")]);
     }
 
     #[test]
@@ -379,11 +425,16 @@ mod tests {
             "Type" obj!(n:"Example"),
             "Version" obj!(r:0.01),
             "Int" obj!(i:12),
-            "String" obj!(s:"a string"),
-            "Subdict" obj!["Key" obj!(s:"value")]
+            "String" obj!(t:"a string"),
+            "Subdict" obj!["Key" obj!(t:"value")]
         ];
 
         check_parse!(b"<</Type /Example /Version 0.01 /Int 12 /String (a string) /Subdict <</Key (value)>>>>" dict d);
+    }
+
+    #[test]
+    fn stream() {
+        check_parse!(b"<</Length 9>>\nstream\n123456789\nendstream" stream obj!(s:b"123456789"));
     }
 
     #[test]
@@ -402,7 +453,7 @@ mod tests {
 
         #[test]
         fn parse_full_bool() {
-            let (input, obj) = Object::parse_object(b"obj\ntrue  \nendobj\n").unwrap();
+            let (input, obj) = Object::parse(b"obj\ntrue  \nendobj\n").unwrap();
             assert_eq!(obj, Object::Boolean(true));
             assert!(input.is_empty());
         }
