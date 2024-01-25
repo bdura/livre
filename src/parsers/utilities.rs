@@ -29,7 +29,7 @@ pub fn take_eol(input: &[u8]) -> IResult<&[u8], &[u8]> {
 /// assert_eq!(input, b"test");
 /// ```
 pub fn take_whitespace(input: &[u8]) -> IResult<&[u8], &[u8]> {
-    take_while(|v| is_space(v) || is_newline(v))(input)
+    take_while(|v| is_space(v) || is_newline(v) || v == b'\r')(input)
 }
 
 /// Consumes all whitespace (including newlines, at least one).
@@ -47,7 +47,7 @@ pub fn take_whitespace(input: &[u8]) -> IResult<&[u8], &[u8]> {
 /// assert!(take_whitespace1(b"test").is_err())
 /// ```
 pub fn take_whitespace1(input: &[u8]) -> IResult<&[u8], &[u8]> {
-    take_while1(|v| is_space(v) || is_newline(v))(input)
+    take_while1(|v| is_space(v) || is_newline(v) || v == b'\r')(input)
 }
 
 /// Consume the inside of brackets until it is unbalanced.
