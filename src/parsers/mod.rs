@@ -1,11 +1,15 @@
 mod header;
+
 pub use header::Header;
 
 pub mod object;
+use nom::{error::Error, multi::many0, IResult};
 pub use object::Object;
 
 mod comment;
 pub use comment::Comment;
+
+use crate::parsers::utilities::take_whitespace;
 
 pub mod utilities;
 
@@ -16,12 +20,21 @@ pub struct Pdf {
 }
 
 impl Pdf {
+    fn parse_body(input: &[u8]) -> IResult<&[u8], Vec<Object>> {
+        let (input, body) = many0(Object::parse_referenced)(input)?;
+        let objects = body.into_iter().map(|(_, o)| o).collect();
+        Ok((input, objects))
+    }
+
+    fn parse_pdf(input: &[u8]) -> Result<Self, nom::Err<Error<&[u8]>>> {
+        let (input, header) = Header::parse(input)?;
+        let (input, _) = take_whitespace(input)?;
+        let (_, body) = Self::parse_body(input)?;
+        Ok(Self { header, body })
+    }
     pub fn parse(input: &[u8]) -> Result<Self, String> {
-        let (_, header) = Header::parse(input).map_err(|e| format!("Error while parsing: {e}"))?;
-        Ok(Self {
-            header,
-            body: Vec::new(),
-        })
+        let pdf = Self::parse_pdf(input).map_err(|e| format!("Error while parsing: {e}"))?;
+        Ok(pdf)
     }
 }
 
@@ -36,14 +49,12 @@ mod tests {
     fn text_pdf() {
         let pdf_bytes = include_bytes!("../../examples/text.pdf");
         let pdf = Pdf::parse(pdf_bytes).unwrap();
+
         assert_eq!(
-            pdf,
-            Pdf {
-                header: Header {
-                    version: Version::Pdf14,
-                    binary: true
-                },
-                body: Vec::new()
+            pdf.header,
+            Header {
+                version: Version::Pdf14,
+                binary: true
             }
         );
     }
