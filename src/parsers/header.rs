@@ -31,7 +31,7 @@ impl Version {
             b"1.6" => Self::Pdf16,
             b"1.7" => Self::Pdf17,
             b"2.0" => Self::Pdf20,
-            _ => panic!("Unrecognized version: {comment:?}"),
+            _ => panic!("Unrecognized version: {}", String::from_utf8_lossy(comment)),
         };
 
         Ok((input, version))
