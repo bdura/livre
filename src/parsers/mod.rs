@@ -6,6 +6,9 @@ pub use header::Header;
 mod crossref;
 pub use crossref::CrossRef;
 
+mod trailer;
+pub use trailer::Trailer;
+
 pub mod object;
 use nom::{error::Error, multi::many0, IResult};
 pub use object::Object;
@@ -22,6 +25,7 @@ pub struct Pdf {
     pub header: Header,
     pub body: Vec<Object>,
     pub cross_refs: HashMap<usize, CrossRef>,
+    pub trailer: Trailer,
 }
 
 impl Pdf {
@@ -36,12 +40,15 @@ impl Pdf {
         let (input, _) = take_whitespace(input)?;
         let (input, body) = Self::parse_body(input)?;
         let (input, _) = take_whitespace(input)?;
-        let (_, cross_refs) = CrossRef::parse(input)?;
+        let (input, cross_refs) = CrossRef::parse(input)?;
+        let (input, _) = take_whitespace(input)?;
+        let (_, trailer) = Trailer::parse(input)?;
 
         Ok(Self {
             header,
             body,
             cross_refs,
+            trailer,
         })
     }
     pub fn parse(input: &[u8]) -> Result<Self, String> {

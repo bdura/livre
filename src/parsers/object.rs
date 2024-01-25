@@ -193,7 +193,7 @@ impl Object {
 
         // We need to remove preceding whitespace.
         let (value, _) = take_whitespace(value)?;
-        let (r, array) = many0(Self::parse_any_object)(value)?;
+        let (r, array) = many0(Self::parse)(value)?;
 
         assert!(
             r.is_empty(),
@@ -218,7 +218,7 @@ impl Object {
         fn parse_key_value(input: &[u8]) -> IResult<&[u8], (String, Object)> {
             let (input, key) = Object::parse_name_string(input)?;
             let (input, _) = take_whitespace(input)?;
-            let (input, obj) = Object::parse_any_object(input)?;
+            let (input, obj) = Object::parse(input)?;
 
             Ok((input, (key, obj)))
         }
@@ -267,7 +267,7 @@ impl Object {
         Ok((input, res))
     }
 
-    fn parse_any_object(input: &[u8]) -> IResult<&[u8], Self> {
+    pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
         // Necessary in case we apply many0.
         if input.is_empty() {
             return Err(Err::Error(Error::from_error_kind(
@@ -296,7 +296,7 @@ impl Object {
     pub fn parse_referenced(input: &[u8]) -> IResult<&[u8], (Option<Reference>, Self)> {
         let (input, reference) = opt(tuple((Reference::parse, take_whitespace1)))(input)?;
         let (input, _) = (tag(b"obj"), take_whitespace1).parse(input)?;
-        let (input, obj) = Self::parse_any_object(input)?;
+        let (input, obj) = Self::parse(input)?;
         let (input, _) = (tag(b"endobj"), take_whitespace1).parse(input)?;
 
         Ok((input, (reference.map(|(r, _)| r), obj)))
@@ -379,7 +379,7 @@ mod tests {
             assert!(input.is_empty());
         };
         ($prev:literal any $next:expr) => {
-            let (input, obj) = Object::parse_any_object($prev).unwrap();
+            let (input, obj) = Object::parse($prev).unwrap();
             assert_eq!(obj, $next);
             assert!(input.is_empty());
         };
