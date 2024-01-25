@@ -4,9 +4,15 @@ use nom::{
     IResult,
 };
 
+use super::utilities::take_whitespace;
+
 pub fn parse_comment(input: &[u8]) -> IResult<&[u8], &[u8]> {
-    let (input, (_, content, _)) =
-        (tag(b"%"), take_till(|c| c == b'\n'), tag(b"\n")).parse(input)?;
+    let (input, (_, content, _)) = (
+        tag(b"%"),
+        take_till(|c| c == b'\n' || c == b'\r'),
+        take_whitespace,
+    )
+        .parse(input)?;
 
     Ok((input, content))
 }

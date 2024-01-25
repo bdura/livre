@@ -11,6 +11,10 @@ pub fn take_eol(input: &[u8]) -> IResult<&[u8], &[u8]> {
     alt((tag("\n"), tag("\r\n")))(input)
 }
 
+pub fn is_space_or_newline(b: u8) -> bool {
+    is_space(b) || is_newline(b) || b == b'\r'
+}
+
 /// Consumes all whitespace (including newlines).
 ///
 /// # Example
@@ -29,7 +33,7 @@ pub fn take_eol(input: &[u8]) -> IResult<&[u8], &[u8]> {
 /// assert_eq!(input, b"test");
 /// ```
 pub fn take_whitespace(input: &[u8]) -> IResult<&[u8], &[u8]> {
-    take_while(|v| is_space(v) || is_newline(v) || v == b'\r')(input)
+    take_while(is_space_or_newline)(input)
 }
 
 /// Consumes all whitespace (including newlines, at least one).
@@ -47,7 +51,7 @@ pub fn take_whitespace(input: &[u8]) -> IResult<&[u8], &[u8]> {
 /// assert!(take_whitespace1(b"test").is_err())
 /// ```
 pub fn take_whitespace1(input: &[u8]) -> IResult<&[u8], &[u8]> {
-    take_while1(|v| is_space(v) || is_newline(v) || v == b'\r')(input)
+    take_while1(is_space_or_newline)(input)
 }
 
 /// Consume the inside of brackets until it is unbalanced.
@@ -101,7 +105,7 @@ pub fn parse_octal(input: &[u8]) -> IResult<&[u8], u8> {
 
 pub fn parse_string_with_escapes(
     delimiter: u8,
-    closure: impl Fn(&[u8]) -> IResult<&[u8], Option<char>>,
+    parser: impl Fn(&[u8]) -> IResult<&[u8], Option<char>>,
 ) -> impl Fn(&[u8]) -> IResult<&[u8], String> {
     move |input: &[u8]| {
         if input.is_empty() {
@@ -114,7 +118,7 @@ pub fn parse_string_with_escapes(
         let (input, s) = take_till(|b| b == delimiter)(input)?;
         let mut res = std::str::from_utf8(s).unwrap().to_string();
 
-        let (input, modifier) = opt(&closure)(input)?;
+        let (input, modifier) = opt(&parser)(input)?;
 
         if let Some(m) = Option::flatten(modifier) {
             res.push(m);
