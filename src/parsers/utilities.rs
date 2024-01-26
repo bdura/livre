@@ -12,12 +12,14 @@ use nom::{
     Err, IResult,
 };
 
+pub const WHITE_SPACE_CHARS: [u8; 6] = [0x00, 0x09, 0x0A, 0x0C, 0x0D, 0x20];
+
 pub fn take_eol(input: &[u8]) -> IResult<&[u8], &[u8]> {
     alt((tag("\n"), tag("\r\n")))(input)
 }
 
 pub fn is_space_or_newline(b: u8) -> bool {
-    is_space(b) || is_newline(b) || b == b'\r'
+    is_space(b) || is_newline(b) || b == b'\r' || WHITE_SPACE_CHARS.contains(&b)
 }
 
 /// Consumes all whitespace (including newlines).
@@ -121,7 +123,7 @@ pub fn parse_string_with_escapes(
         }
 
         let (input, s) = take_till(|b| b == delimiter)(input)?;
-        let mut res = std::str::from_utf8(s).unwrap().to_string();
+        let mut res = String::from_utf8_lossy(s).to_string();
 
         let (input, modifier) = opt(&parser)(input)?;
 

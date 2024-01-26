@@ -7,7 +7,7 @@ use nom::{
     combinator::{map, opt, recognize},
     error::{Error, ErrorKind, ParseError},
     multi::many0,
-    sequence::{pair, separated_pair, terminated, tuple, Tuple},
+    sequence::{pair, preceded, separated_pair, terminated, tuple, Tuple},
     Err, IResult,
 };
 
@@ -177,7 +177,7 @@ impl Object {
 
         let (input, _) = tag(b"/")(input)?;
         let (input, value) =
-            take_till(|b| b == b' ' || b == b'/' || b == b'<' || b == b'[')(input)?;
+            take_till(|b| b == b' ' || b == b'/' || b == b'<' || b == b'[' || b == b'(')(input)?;
         let (d, lines) = many0(parse_string_with_escapes(b'#', escaped_char))(value)?;
         assert!(d.is_empty());
         Ok((input, lines.join("")))
@@ -246,17 +246,14 @@ impl Object {
     }
 
     fn parse_stream_body(input: &[u8]) -> IResult<&[u8], &[u8]> {
-        let (input, _) = (tag(b"stream"), take_eol).parse(input)?;
+        let (input, _) = tuple((tag(b"stream"), take_eol))(input)?;
         terminated(take_until(b"\nendstream".as_slice()), tag(b"\nendstream"))(input)
     }
 
     fn parse_stream_or_dict(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, dict) = Self::parse_dictionary_raw(input)?;
 
-        let (input, stream_body) = opt(map(
-            tuple((take_whitespace1, Self::parse_stream_body)),
-            |(_, s)| s,
-        ))(input)?;
+        let (input, stream_body) = opt(preceded(take_whitespace, Self::parse_stream_body))(input)?;
 
         let res = if let Some(stream) = stream_body {
             Self::Stream(stream.to_owned())
@@ -485,12 +482,31 @@ mod tests {
 
     mod object {
         use super::super::*;
+        use indoc::indoc;
 
         #[test]
         fn parse_full_bool() {
             let (input, (_, obj)) = Object::parse_referenced(b"obj\ntrue  \nendobj\n").unwrap();
             assert_eq!(obj, Object::Boolean(true));
             assert!(input.is_empty());
+        }
+
+        #[test]
+        fn random_test() {
+            let input = indoc! {br#"
+                90824 0 obj
+                <</DecodeParms<</Columns 5/Predictor 12>>/Filter/FlateDecode/ID[<2B551D2AFE52654494F9720283CFF1C4><3CDA8BB6D5834E41A5E2AA16C35E4C47>]/Index[90793 1014]/Info 90792 0 R/Length 9/Prev 14709647/Root 90794 0 R/Size 91807/Type/XRef/W[1 3 1]>>stream
+                123456789
+                endstream
+                endobj
+            "#};
+            let (_, (r, stream)) = Object::parse_referenced(input).unwrap();
+            assert_eq!(r.unwrap(), Reference { obj: 90824, gen: 0 });
+            if let Object::Stream(uvec) = stream {
+                assert_eq!(String::from_utf8(uvec).unwrap(), "123456789");
+            } else {
+                panic!();
+            }
         }
     }
 }

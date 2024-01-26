@@ -1,6 +1,6 @@
 use nom::{bytes::complete::tag, IResult};
 
-use super::comment::parse_comment;
+use super::{comment::parse_comment, utilities::take_whitespace};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Version {
@@ -47,6 +47,7 @@ pub struct Header {
 impl Header {
     pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, version) = Version::parse(input)?;
+        let (input, _) = take_whitespace(input)?;
 
         if let Ok((input, comment)) = parse_comment(input) {
             let binary = comment.iter().all(|&v| v >= 128);

@@ -1,17 +1,15 @@
 use std::collections::HashMap;
 
-use nom::{bytes::complete::tag, IResult};
-
-use super::{
-    utilities::{parse_digits, take_whitespace},
-    Object,
+use nom::{
+    bytes::complete::tag,
+    error::{Error, ErrorKind, ParseError},
+    Err, IResult,
 };
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct Trailer {
-    dict: HashMap<String, Object>,
-    start_xref: usize,
-}
+use super::{utilities::take_whitespace, Object};
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Trailer(HashMap<String, Object>);
 
 impl Trailer {
     pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
@@ -19,18 +17,11 @@ impl Trailer {
         let (input, _) = take_whitespace(input)?;
         let (input, obj) = Object::parse(input)?;
 
-        let dict = if let Object::Dictionary(dict) = obj {
-            dict
+        if let Object::Dictionary(dict) = obj {
+            Ok((input, Trailer(dict)))
         } else {
-            panic!("The parsed object should be a dict, per the PDF specs.");
-        };
-
-        let (input, _) = take_whitespace(input)?;
-        let (input, _) = tag(b"startxref")(input)?;
-        let (input, _) = take_whitespace(input)?;
-        let (input, start_xref) = parse_digits(input)?;
-
-        Ok((input, Trailer { dict, start_xref }))
+            Err(Err::Error(Error::from_error_kind(input, ErrorKind::Fail)))
+        }
     }
 }
 
@@ -53,7 +44,6 @@ mod tests {
         18799
         "};
 
-        let (_, trailer) = Trailer::parse(input).unwrap();
-        assert_eq!(trailer.start_xref, 18799);
+        let (_, _trailer) = Trailer::parse(input).unwrap();
     }
 }
