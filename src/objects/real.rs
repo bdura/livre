@@ -63,7 +63,7 @@ mod tests {
     #[case(b".0", 0.)]
     #[case(b"-0.0", 0.)]
     #[case(b"-10.0", -10.)]
-    fn integer(#[case] input: &[u8], #[case] result: f32) {
+    fn test_parse(#[case] input: &[u8], #[case] result: f32) {
         assert_eq!(parse(input), result.into());
         assert_eq!(result, parse(input).into());
     }

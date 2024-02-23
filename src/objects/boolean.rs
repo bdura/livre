@@ -41,7 +41,7 @@ mod tests {
 
     #[allow(clippy::bool_assert_comparison)]
     #[test]
-    fn boolean() {
+    fn test_parse() {
         assert_eq!(parse(b"true"), Boolean::from(true));
         assert_eq!(false, parse(b"false").into());
     }

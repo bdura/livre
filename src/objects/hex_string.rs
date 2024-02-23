@@ -66,7 +66,7 @@ mod tests {
     #[rstest]
     #[case(b"<901FA3>", &[144, 31, 163])]
     #[case(b"<901FA>", &[144, 31, 160])]
-    fn integer(#[case] input: &[u8], #[case] result: &[u8]) {
+    fn test_parse(#[case] input: &[u8], #[case] result: &[u8]) {
         assert_eq!(parse(input), result.into());
         let result = result.to_owned();
         let parsed: Vec<u8> = parse(input).into();

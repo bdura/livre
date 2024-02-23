@@ -77,7 +77,7 @@ mod tests {
     #[case(b"(\\0533)", "+3")]
     #[case(b"(te\\\\st)", "te\\st")]
     #[case(b"(te\\\nst)", "test")]
-    fn integer(#[case] input: &[u8], #[case] result: &str) {
+    fn test_parse(#[case] input: &[u8], #[case] result: &str) {
         assert_eq!(parse(input), result.into());
 
         let result = result.to_string();
