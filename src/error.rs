@@ -7,6 +7,8 @@ pub enum ParsingError {
         expected: &'static str,
         got: &'static str,
     },
+    #[error("Filter decode error")]
+    FilterDecode(#[from] std::io::Error),
 }
 
 pub type Result<T, E = ParsingError> = std::result::Result<T, E>;

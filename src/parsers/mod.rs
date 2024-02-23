@@ -1,6 +1,6 @@
-mod header;
 use std::collections::HashMap;
 
+mod header;
 pub use header::Header;
 
 mod crossref;
@@ -8,6 +8,9 @@ pub use crossref::CrossRef;
 
 mod trailer;
 pub use trailer::Trailer;
+
+mod filters;
+pub use filters::Filter;
 
 pub mod object;
 use nom::{

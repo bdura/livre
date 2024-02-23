@@ -12,17 +12,23 @@ use nom::{
 };
 use strum::IntoStaticStr;
 
-use super::utilities::{
-    parse_octal, take_eol, take_eol_no_r, take_whitespace, take_whitespace1, take_within_balanced,
+use super::{
+    utilities::{
+        parse_octal, take_eol, take_eol_no_r, take_whitespace, take_whitespace1,
+        take_within_balanced,
+    },
+    Filter,
 };
 use crate::{
     error::{ParsingError, Result},
-    parsers::utilities::{parse_hexadecimal_bigram, parse_string_with_escapes},
+    parsers::utilities::{
+        is_space_or_newline, parse_hexadecimal_bigram, parse_string_with_escapes,
+    },
 };
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Stream {
-    pub dict: HashMap<String, Object>,
+    pub filters: Vec<Filter>,
     pub stream: Vec<u8>,
 }
 
@@ -246,8 +252,9 @@ impl Object {
         }
 
         let (input, _) = tag(b"/")(input)?;
-        let (input, value) =
-            take_till(|b| b == b' ' || b == b'/' || b == b'<' || b == b'[' || b == b'(')(input)?;
+        let (input, value) = take_till(|b| {
+            is_space_or_newline(b) || b == b'/' || b == b'<' || b == b'[' || b == b'('
+        })(input)?;
         let (d, lines) = many0(parse_string_with_escapes(b'#', escaped_char))(value)?;
         assert!(d.is_empty());
         Ok((input, lines.join("")))
@@ -341,8 +348,26 @@ impl Object {
         // Cut to commit to this branch
         let (input, body) = cut(move |i| Self::parse_stream_body(i, length))(input)?;
 
+        let mut filters = Vec::new();
+
+        match dict.get("Filter") {
+            None => {}
+            Some(Self::Name(n)) => filters.push(Filter::from_name(n)),
+            Some(Self::Array(a)) => {
+                for f in a {
+                    let Self::Name(n) = f else {
+                        unreachable!("Per the specs, it MUST be an array of names.")
+                    };
+                    filters.push(Filter::from_name(n))
+                }
+            }
+            _ => unreachable!(
+                "Per the specs, the `Filter` key must be empty, a name of an array of names."
+            ),
+        }
+
         let stream = Stream {
-            dict,
+            filters,
             stream: body.to_owned(),
         };
 
@@ -405,11 +430,11 @@ mod tests {
         (h:$val:tt) => {
             Object::HexString($val.to_vec())
         };
-        (s:$val:literal) => {
-            Object::Stream(Stream{stream: $val.to_vec(), dict: HashMap::new()})
+        (s:$val:literal | $f:tt) => {
+            Object::Stream(Stream{stream: $val.to_vec(), filters: $f})
         };
-        (s:$val:literal | $d:tt) => {
-            Object::Stream(Stream{stream: $val.to_vec(), dict: $d})
+        (s:$val:literal) => {
+            Object::Stream(Stream{stream: $val.to_vec(), filters: Vec::new()})
         };
         (n:$val:literal) => {
             Object::Name($val.to_string())
@@ -452,6 +477,11 @@ mod tests {
             let (input, obj) = Object::parse_name($prev).unwrap();
             assert_eq!(obj, Object::Name($next.to_string()));
             assert!(input.is_empty());
+        };
+        ($prev:literal name $next:tt + $rem:literal) => {
+            let (input, obj) = Object::parse_name($prev).unwrap();
+            assert_eq!(obj, Object::Name($next.to_string()));
+            assert_eq!(input, $rem);
         };
         ($prev:literal array $next:expr) => {
             let (input, obj) = Object::parse_array($prev).unwrap();
@@ -524,7 +554,7 @@ mod tests {
         check_parse!(b"/$$" name "$$");
         check_parse!(b"/@pattern" name "@pattern");
         check_parse!(b"/.notdef" name ".notdef");
-        check_parse!(b"/Lime#20Green" name "Lime Green");
+        check_parse!(b"/Lime#20Green\n" name "Lime Green" + b"\n");
         check_parse!(b"/paired#28#29parentheses" name "paired()parentheses");
         check_parse!(b"/The_Key_of_F#23_Minor" name "The_Key_of_F#_Minor");
         check_parse!(b"/A#42" name "AB");
@@ -551,8 +581,7 @@ mod tests {
 
     #[test]
     fn stream() {
-        let d: HashMap<String, Object> = [("Length".to_string(), obj!(i: 9))].into();
-        check_parse!(b"<</Length 9>>\nstream\n123456789\nendstream" stream obj!(s:b"123456789" | d));
+        check_parse!(b"<</Length 9>>\nstream\n123456789\nendstream" stream obj!(s:b"123456789"));
     }
 
     #[test]
