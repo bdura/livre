@@ -4,7 +4,7 @@ use crate::utilities::take_within_balanced;
 
 /// Represents a boolean within a PDF.
 #[derive(Debug, PartialEq, Clone)]
-pub struct HexString(pub(crate) Vec<u8>);
+pub struct HexString(pub Vec<u8>);
 
 impl HexString {
     fn parse_hexadecimal_bigram(input: &[u8]) -> IResult<&[u8], u8> {
@@ -28,7 +28,7 @@ impl HexString {
         alt((map(take(2usize), inner), map(take(1usize), inner)))(input)
     }
 
-    pub(crate) fn parse(input: &[u8]) -> IResult<&[u8], Self> {
+    pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, value) = take_within_balanced(b'<', b'>')(input)?;
         let (d, uvec) = many0(Self::parse_hexadecimal_bigram)(value)?;
         assert!(d.is_empty());

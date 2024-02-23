@@ -15,7 +15,7 @@ use super::object::Object;
 
 /// Represents a boolean within a PDF.
 #[derive(Debug, PartialEq, Clone)]
-pub struct Dictionary(pub(crate) HashMap<String, Object>);
+pub struct Dictionary(pub HashMap<String, Object>);
 
 impl Dictionary {
     fn parse_key_value(input: &[u8]) -> IResult<&[u8], (String, Object)> {
@@ -25,7 +25,7 @@ impl Dictionary {
         Ok((input, (key, obj)))
     }
 
-    pub(crate) fn parse(input: &[u8]) -> IResult<&[u8], Self> {
+    pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
         // dictionaries are enclosed by double angle brackets.
         let (input, value) = take_within_balanced(b'<', b'>')(input)?;
         let (d, value) = take_within_balanced(b'<', b'>')(value)?;

@@ -15,8 +15,8 @@ use super::{array::Array, name::Name, Dictionary, Object};
 /// Represents a boolean within a PDF.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Stream {
-    pub(crate) stream: Vec<u8>,
-    pub(crate) filters: Vec<Filter>,
+    pub stream: Vec<u8>,
+    pub filters: Vec<Filter>,
 }
 
 impl Stream {
@@ -29,7 +29,7 @@ impl Stream {
         Ok((input, body))
     }
 
-    pub(crate) fn parse_with_dict(input: &[u8], dict: Dictionary) -> IResult<&[u8], Self> {
+    pub fn parse_with_dict(input: &[u8], dict: Dictionary) -> IResult<&[u8], Self> {
         let Dictionary(dict) = dict;
         let length: usize = dict
             .get("Length")

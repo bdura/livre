@@ -10,7 +10,7 @@ use crate::utilities::{parse_octal, parse_string_with_escapes, take_within_balan
 
 /// Represents a boolean within a PDF.
 #[derive(Debug, PartialEq, Clone)]
-pub struct LiteralString(pub(crate) String);
+pub struct LiteralString(pub String);
 
 impl LiteralString {
     fn escaped_char(input: &[u8]) -> IResult<&[u8], Option<char>> {
@@ -30,7 +30,7 @@ impl LiteralString {
         ))(input)
     }
 
-    pub(crate) fn parse(input: &[u8]) -> IResult<&[u8], Self> {
+    pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, value) = take_within_balanced(b'(', b')')(input)?;
         let (d, lines) = many0(parse_string_with_escapes(b'\\', Self::escaped_char))(value)?;
         assert!(d.is_empty());

@@ -11,10 +11,10 @@ use crate::utilities::parse_sign;
 
 /// Represents a boolean within a PDF.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct Integer(pub(crate) i32);
+pub struct Integer(pub i32);
 
 impl Integer {
-    pub(crate) fn parse(input: &[u8]) -> IResult<&[u8], Self> {
+    pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, num) = recognize(pair(opt(parse_sign), digit1))(input)?;
 
         // SAFETY: we know for a fact that `num` only includes ascii characters

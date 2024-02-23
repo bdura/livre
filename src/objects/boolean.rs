@@ -2,10 +2,10 @@ use nom::{branch::alt, bytes::complete::tag, IResult};
 
 /// Represents a boolean within a PDF.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct Boolean(pub(crate) bool);
+pub struct Boolean(pub bool);
 
 impl Boolean {
-    pub(crate) fn parse(input: &[u8]) -> IResult<&[u8], Self> {
+    pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, b) = alt((tag(b"true"), tag(b"false")))(input)?;
 
         let obj = match b {

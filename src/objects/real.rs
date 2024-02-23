@@ -11,7 +11,7 @@ use crate::utilities::parse_sign;
 
 /// Represents a boolean within a PDF.
 #[derive(Debug, PartialEq, Clone, Copy)]
-pub struct Real(pub(crate) f32);
+pub struct Real(pub f32);
 
 impl Real {
     fn parse_unsigned(input: &[u8]) -> IResult<&[u8], &[u8]> {
@@ -21,7 +21,7 @@ impl Real {
         ))(input)
     }
 
-    pub(crate) fn parse(input: &[u8]) -> IResult<&[u8], Self> {
+    pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, num) = recognize(pair(opt(parse_sign), Self::parse_unsigned))(input)?;
 
         // SAFETY: we know for a fact that `num` only includes ascii characters
