@@ -8,13 +8,14 @@ use nom::{
 };
 use strum::IntoStaticStr;
 
-use super::{Boolean, Integer};
+use super::{real::Real, Boolean, Integer};
 
 #[derive(Debug, Clone, PartialEq, IntoStaticStr)]
 pub enum Object {
     Null,
     Boolean(Boolean),
     Integer(Integer),
+    Real(Real),
 }
 
 impl Object {
@@ -35,6 +36,7 @@ impl Object {
             map(tag(b"null"), |_| Self::Null),
             map(Boolean::parse, Self::Boolean),
             map(Integer::parse, Self::Integer),
+            map(Real::parse, Self::Real),
         ))(input)?;
 
         let (input, _) = take_whitespace(input)?;
@@ -58,6 +60,11 @@ macro_rules! try_into {
                 }
             }
         }
+        impl From<$into> for Object {
+            fn from(value: $into) -> Self {
+                Self::$into(value)
+            }
+        }
     };
     ($into:ident via $via:ident) => {
         impl TryFrom<Object> for $into {
@@ -78,6 +85,9 @@ try_into!(bool via Boolean);
 try_into!(Integer);
 try_into!(i32 via Integer);
 
+try_into!(Real);
+try_into!(f32 via Real);
+
 #[macro_export]
 macro_rules! obj {
     () => {
@@ -88,6 +98,9 @@ macro_rules! obj {
     };
     (i:$val:literal) => {
         Object::Integer(Integer($val))
+    };
+    (r:$val:literal) => {
+        Object::Real(Real($val))
     };
 }
 
@@ -103,19 +116,22 @@ mod tests {
     }
 
     #[rstest]
-    #[case(obj!(b:true), Object::Boolean(Boolean(true)))]
-    #[case(obj!(i:-28), Object::Integer(Integer(-28)))]
-    fn obj_macro(#[case] input: Object, #[case] res: Object) {
+    #[case(obj!(b:true), Boolean(true))]
+    #[case(obj!(i:-28), Integer(-28))]
+    #[case(obj!(r:25.6), Real(25.6))]
+    fn obj_macro(#[case] input: Object, #[case] res: impl Into<Object>) {
+        let res = res.into();
         assert_eq!(input, res)
     }
 
     #[allow(clippy::bool_assert_comparison)]
     #[rstest]
+    #[case(b"null", obj!())]
     #[case(b"true", obj!(b:true))]
     #[case(b"false", obj!(b:false))]
     #[case(b"10", obj!(i:10))]
     #[case(b"-1023", obj!(i:-1023))]
-    #[case(b"null", obj!())]
+    #[case(b"-.023", obj!(r:-0.023))]
     fn boolean(#[case] input: &[u8], #[case] res: Object) {
         assert_eq!(parse(input), res);
     }
