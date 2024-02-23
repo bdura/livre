@@ -8,7 +8,7 @@ use nom::{
 };
 use strum::IntoStaticStr;
 
-use super::{Array, Boolean, HexString, Integer, LiteralString, Name, Real};
+use super::{Array, Boolean, Dictionary, HexString, Integer, LiteralString, Name, Real};
 
 #[derive(Debug, Clone, PartialEq, IntoStaticStr)]
 pub enum Object {
@@ -20,12 +20,17 @@ pub enum Object {
     HexString(HexString),
     Name(Name),
     Array(Array),
-    // Dictionary(HashMap<String, Object>),
+    Dictionary(Dictionary),
     // Stream(Stream),
     // Reference(Reference),
 }
 
 impl Object {
+    fn parse_stream_or_dict(input: &[u8]) -> IResult<&[u8], Self> {
+        let (input, dict) = Dictionary::parse(input)?;
+        todo!()
+    }
+
     /// Parse a single PDF object.
     ///
     /// Note that PDF objects are *not* delimited by `obj` and `endobj`.

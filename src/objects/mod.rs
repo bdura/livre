@@ -19,4 +19,7 @@ use name::Name;
 mod array;
 use array::Array;
 
+mod dictionary;
+use dictionary::Dictionary;
+
 mod object;
