@@ -7,7 +7,6 @@ use nom::{
 
 use crate::utilities::{is_space_or_newline, parse_hexadecimal_bigram, parse_string_with_escapes};
 
-/// Represents a boolean within a PDF.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Name(pub String);
 

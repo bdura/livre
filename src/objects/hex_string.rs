@@ -2,7 +2,6 @@ use nom::{multi::many0, IResult};
 
 use crate::utilities::{parse_hexadecimal_bigram, take_within_balanced};
 
-/// Represents a boolean within a PDF.
 #[derive(Debug, PartialEq, Clone)]
 pub struct HexString(pub Vec<u8>);
 

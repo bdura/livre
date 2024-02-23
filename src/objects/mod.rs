@@ -1,32 +1,32 @@
 mod boolean;
-use boolean::Boolean;
+pub use boolean::Boolean;
 
 mod integer;
-use integer::Integer;
+pub use integer::Integer;
 
 mod real;
-use real::Real;
+pub use real::Real;
 
 mod literal_string;
-use literal_string::LiteralString;
+pub use literal_string::LiteralString;
 
 mod hex_string;
-use hex_string::HexString;
+pub use hex_string::HexString;
 
 mod name;
-use name::Name;
+pub use name::Name;
 
 mod array;
-use array::Array;
+pub use array::Array;
 
 mod dictionary;
-use dictionary::Dictionary;
+pub use dictionary::Dictionary;
 
 mod stream;
-use stream::Stream;
+pub use stream::Stream;
 
 mod reference;
 pub use reference::Reference;
 
 mod object;
-use object::Object;
+pub use object::Object;

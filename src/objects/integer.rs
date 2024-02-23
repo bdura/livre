@@ -4,7 +4,6 @@ use nom::{combinator::opt, sequence::pair, IResult};
 
 use crate::utilities::{parse_digits, parse_sign};
 
-/// Represents a boolean within a PDF.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Integer(pub i32);
 

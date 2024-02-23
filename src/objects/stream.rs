@@ -12,7 +12,6 @@ use crate::{
 
 use super::{array::Array, name::Name, Dictionary, Object};
 
-/// Represents a boolean within a PDF.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Stream {
     pub stream: Vec<u8>,

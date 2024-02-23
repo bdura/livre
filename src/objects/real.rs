@@ -9,7 +9,6 @@ use nom::{
 
 use crate::utilities::parse_sign;
 
-/// Represents a boolean within a PDF.
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Real(pub f32);
 

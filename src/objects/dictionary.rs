@@ -13,8 +13,7 @@ use crate::{
 
 use super::object::Object;
 
-/// Represents a boolean within a PDF.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct Dictionary(pub HashMap<String, Object>);
 
 impl Dictionary {

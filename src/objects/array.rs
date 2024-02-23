@@ -4,7 +4,6 @@ use crate::utilities::{take_whitespace, take_within_balanced};
 
 use super::object::Object;
 
-/// Represents a boolean within a PDF.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Array(pub Vec<Object>);
 
