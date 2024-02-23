@@ -1,4 +1,4 @@
-use std::convert::Infallible;
+use std::{convert::Infallible, num::TryFromIntError};
 
 use thiserror::Error;
 
@@ -11,6 +11,8 @@ pub enum ParsingError {
     },
     #[error("Filter decode error")]
     FilterDecode(#[from] std::io::Error),
+    #[error("Conversion error")]
+    ConversionError,
 }
 
 pub type Result<T, E = ParsingError> = std::result::Result<T, E>;
@@ -18,5 +20,11 @@ pub type Result<T, E = ParsingError> = std::result::Result<T, E>;
 impl From<Infallible> for ParsingError {
     fn from(_: Infallible) -> Self {
         unreachable!()
+    }
+}
+
+impl From<TryFromIntError> for ParsingError {
+    fn from(value: TryFromIntError) -> Self {
+        Self::ConversionError
     }
 }
