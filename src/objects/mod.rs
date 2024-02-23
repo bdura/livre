@@ -26,7 +26,7 @@ mod stream;
 use stream::Stream;
 
 mod reference;
-use reference::Reference;
+pub use reference::Reference;
 
 mod object;
 use object::Object;

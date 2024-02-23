@@ -1,9 +1,15 @@
 use nom::{bytes::complete::tag, character::complete::digit1, sequence::tuple, IResult};
 
-#[derive(Debug, PartialEq, Clone, Copy, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct Reference {
     pub(crate) object: usize,
-    pub(crate) generation: usize,
+    pub(crate) generation: u16,
+}
+
+impl Reference {
+    pub fn new(object: usize, generation: u16) -> Self {
+        Self { object, generation }
+    }
 }
 
 impl Reference {
@@ -13,7 +19,7 @@ impl Reference {
         // SAFETY: obj is guaranteed to contain digits
         let object: usize = unsafe { std::str::from_utf8_unchecked(obj).parse().unwrap() };
         // SAFETY: gen is guaranteed to contain digits
-        let generation: usize = unsafe { std::str::from_utf8_unchecked(gen).parse().unwrap() };
+        let generation: u16 = unsafe { std::str::from_utf8_unchecked(gen).parse().unwrap() };
 
         Ok((input, Self { object, generation }))
     }
@@ -24,10 +30,6 @@ mod tests {
     use super::*;
     use rstest::rstest;
 
-    fn new_ref(object: usize, generation: usize) -> Reference {
-        Reference { object, generation }
-    }
-
     fn parse(input: &[u8]) -> Reference {
         let (_, obj) = Reference::parse(input).unwrap();
         obj
@@ -35,8 +37,8 @@ mod tests {
 
     #[allow(clippy::bool_assert_comparison)]
     #[rstest]
-    #[case(b"1 0 R", new_ref(1, 0))]
-    #[case(b"10 33 R", new_ref(10, 33))]
+    #[case(b"1 0 R", Reference::new(1, 0))]
+    #[case(b"10 33 R", Reference::new(10, 33))]
     fn test_parse(#[case] input: &[u8], #[case] result: Reference) {
         assert_eq!(parse(input), result);
     }
