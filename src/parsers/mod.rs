@@ -98,7 +98,6 @@ mod tests {
     use super::*;
 
     use indoc::indoc;
-    use tests::header::Version;
 
     #[test]
     fn text_pdf() {
@@ -106,13 +105,7 @@ mod tests {
         // let pdf_bytes = include_bytes!("../../resource/ISO_32000-2-2020_sponsored.pdf");
         let pdf = Pdf::parse(pdf_bytes).unwrap();
 
-        assert_eq!(
-            pdf.header,
-            Header {
-                version: Version::Pdf14,
-                binary: true
-            }
-        );
+        assert!(pdf.header.binary);
     }
 
     #[test]

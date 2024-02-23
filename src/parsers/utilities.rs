@@ -14,8 +14,27 @@ use nom::{
 
 pub const WHITE_SPACE_CHARS: [u8; 6] = [0x00, 0x09, 0x0A, 0x0C, 0x0D, 0x20];
 
+/// Take a single end-of-line maker.
+///
+/// Since we're dealing with standards such as PdfEncoding and UTF16BE,
+/// of course the end-of-line character is not just `\n`...
 pub fn take_eol(input: &[u8]) -> IResult<&[u8], &[u8]> {
     alt((tag(b"\n"), tag(b"\r\n"), tag(b"\r")))(input)
+}
+
+/// Take a single end-of-line maker, excluding a single `\r`.
+///
+/// According to the specs:
+///
+/// > an end-of-line marker consisting of either a CARRIAGE RETURN
+/// > and a LINE FEED or just a LINE FEED, and not by a CARRIAGE RETURN alone.
+///
+/// Without this restriction, there would be no way of differentiating between
+/// a CRLF and a CR + LF as first byte...
+///
+/// The moral of the story is that UTF8 with `\n` new line marker is just better.
+pub fn take_eol_no_r(input: &[u8]) -> IResult<&[u8], &[u8]> {
+    alt((tag(b"\n"), tag(b"\r\n")))(input)
 }
 
 pub fn is_space_or_newline(b: u8) -> bool {

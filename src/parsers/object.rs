@@ -13,7 +13,7 @@ use nom::{
 use strum::IntoStaticStr;
 
 use super::utilities::{
-    parse_octal, take_eol, take_whitespace, take_whitespace1, take_within_balanced,
+    parse_octal, take_eol, take_eol_no_r, take_whitespace, take_whitespace1, take_within_balanced,
 };
 use crate::{
     error::{ParsingError, Result},
@@ -316,10 +316,10 @@ impl Object {
     }
 
     fn parse_stream_body(input: &[u8], length: usize) -> IResult<&[u8], &[u8]> {
-        let (input, body) = cut(take(length))(input)?;
+        let (input, body) = take(length)(input)?;
 
-        let (input, _) = cut(take_whitespace)(input)?;
-        let (input, _) = cut(tag(b"endstream"))(input)?;
+        let (input, _) = take_eol(input)?;
+        let (input, _) = tag(b"endstream")(input)?;
 
         Ok((input, body))
     }
@@ -327,7 +327,8 @@ impl Object {
     fn parse_stream_or_dict(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, dict) = Self::parse_dictionary_raw(input)?;
 
-        let Ok((input, _)) = delimited(take_whitespace, tag(b"stream"), take_eol)(input) else {
+        let Ok((input, _)) = delimited(take_whitespace, tag(b"stream"), take_eol_no_r)(input)
+        else {
             return Ok((input, Self::Dictionary(dict)));
         };
 
