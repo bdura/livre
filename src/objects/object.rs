@@ -160,7 +160,7 @@ mod tests {
     #[case(b"-.023", obj!(r:-0.023))]
     #[case(b"(a literal string)", obj!(t:"a literal string"))]
     #[case(b"<901FA>", obj!(h:[144, 31, 160]))]
-    fn boolean(#[case] input: &[u8], #[case] res: Object) {
+    fn test_parse(#[case] input: &[u8], #[case] res: Object) {
         assert_eq!(parse(input), res);
     }
 }
