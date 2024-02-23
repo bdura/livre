@@ -8,7 +8,7 @@ use nom::{
 };
 use strum::IntoStaticStr;
 
-use super::{Boolean, HexString, Integer, LiteralString, Real};
+use super::{Boolean, HexString, Integer, LiteralString, Name, Real};
 
 #[derive(Debug, Clone, PartialEq, IntoStaticStr)]
 pub enum Object {
@@ -18,7 +18,7 @@ pub enum Object {
     Real(Real),
     LiteralString(LiteralString),
     HexString(HexString),
-    // Name(String),
+    Name(Name),
     // Array(Vec<Object>),
     // Dictionary(HashMap<String, Object>),
     // Stream(Stream),
@@ -49,6 +49,7 @@ impl Object {
             map(Integer::parse, Self::Integer),
             map(LiteralString::parse, Self::LiteralString),
             map(HexString::parse, Self::HexString),
+            map(Name::parse, Self::Name),
         ))(input)?;
 
         let (input, _) = take_whitespace(input)?;
@@ -103,6 +104,8 @@ try_into!(f32 => Real);
 try_into!(LiteralString);
 try_into!(String => LiteralString);
 
+try_into!(Name);
+
 try_into!(HexString);
 try_into!(Vec<u8> => HexString);
 
@@ -126,6 +129,9 @@ macro_rules! obj {
     (h:$val:tt) => {
         Object::HexString(HexString($val.to_vec()))
     };
+    (n:$val:literal) => {
+        Object::Name(Name($val.to_string()))
+    };
 }
 
 #[cfg(test)]
@@ -144,6 +150,7 @@ mod tests {
     #[case(obj!(i:-28), Integer(-28))]
     #[case(obj!(r:25.6), Real(25.6))]
     #[case(obj!(t:"test"), LiteralString("test".into()))]
+    #[case(obj!(n:"test"), Name("test".into()))]
     #[case(obj!(h:[144, 31, 163]), HexString([144, 31, 163].into()))]
     fn obj_macro(#[case] input: Object, #[case] res: impl Into<Object>) {
         let res = res.into();
@@ -160,6 +167,7 @@ mod tests {
     #[case(b"-.023", obj!(r:-0.023))]
     #[case(b"(a literal string)", obj!(t:"a literal string"))]
     #[case(b"<901FA>", obj!(h:[144, 31, 160]))]
+    #[case(b"/TestName", obj!( n:"TestName"))]
     fn test_parse(#[case] input: &[u8], #[case] res: Object) {
         assert_eq!(parse(input), res);
     }
