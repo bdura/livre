@@ -8,7 +8,7 @@ use nom::{
 };
 use strum::IntoStaticStr;
 
-use super::{Boolean, Integer, LiteralString, Real};
+use super::{Boolean, HexString, Integer, LiteralString, Real};
 
 #[derive(Debug, Clone, PartialEq, IntoStaticStr)]
 pub enum Object {
@@ -17,7 +17,7 @@ pub enum Object {
     Integer(Integer),
     Real(Real),
     LiteralString(LiteralString),
-    // HexString(Vec<u8>),
+    HexString(HexString),
     // Name(String),
     // Array(Vec<Object>),
     // Dictionary(HashMap<String, Object>),
@@ -48,6 +48,7 @@ impl Object {
             map(Real::parse, Self::Real),
             map(Integer::parse, Self::Integer),
             map(LiteralString::parse, Self::LiteralString),
+            map(HexString::parse, Self::HexString),
         ))(input)?;
 
         let (input, _) = take_whitespace(input)?;
@@ -77,7 +78,7 @@ macro_rules! try_into {
             }
         }
     };
-    ($into:ident via $via:ident) => {
+    ($into:ty => $via:ty) => {
         impl TryFrom<Object> for $into {
             type Error = ParsingError;
 
@@ -91,16 +92,19 @@ macro_rules! try_into {
 }
 
 try_into!(Boolean);
-try_into!(bool via Boolean);
+try_into!(bool => Boolean);
 
 try_into!(Integer);
-try_into!(i32 via Integer);
+try_into!(i32 => Integer);
 
 try_into!(Real);
-try_into!(f32 via Real);
+try_into!(f32 => Real);
 
 try_into!(LiteralString);
-try_into!(String via LiteralString);
+try_into!(String => LiteralString);
+
+try_into!(HexString);
+try_into!(Vec<u8> => HexString);
 
 #[macro_export]
 macro_rules! obj {
@@ -118,6 +122,9 @@ macro_rules! obj {
     };
     (t:$val:literal) => {
         Object::LiteralString(LiteralString($val.to_string()))
+    };
+    (h:$val:tt) => {
+        Object::HexString(HexString($val.to_vec()))
     };
 }
 
@@ -137,6 +144,7 @@ mod tests {
     #[case(obj!(i:-28), Integer(-28))]
     #[case(obj!(r:25.6), Real(25.6))]
     #[case(obj!(t:"test"), LiteralString("test".into()))]
+    #[case(obj!(h:[144, 31, 163]), HexString([144, 31, 163].into()))]
     fn obj_macro(#[case] input: Object, #[case] res: impl Into<Object>) {
         let res = res.into();
         assert_eq!(input, res)
@@ -151,6 +159,7 @@ mod tests {
     #[case(b"-1023", obj!(i:-1023))]
     #[case(b"-.023", obj!(r:-0.023))]
     #[case(b"(a literal string)", obj!(t:"a literal string"))]
+    #[case(b"<901FA>", obj!(h:[144, 31, 160]))]
     fn boolean(#[case] input: &[u8], #[case] res: Object) {
         assert_eq!(parse(input), res);
     }
