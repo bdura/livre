@@ -2,10 +2,10 @@ use nom::{branch::alt, bytes::complete::tag, IResult};
 
 /// Represents a boolean within a PDF.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct Boolean(bool);
+pub struct Boolean(pub(crate) bool);
 
 impl Boolean {
-    fn parse(input: &[u8]) -> IResult<&[u8], Self> {
+    pub(crate) fn parse(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, b) = alt((tag(b"true"), tag(b"false")))(input)?;
 
         let obj = match b {
@@ -41,7 +41,7 @@ mod tests {
 
     #[allow(clippy::bool_assert_comparison)]
     #[test]
-    fn bool() {
+    fn boolean() {
         assert_eq!(parse(b"true"), Boolean::from(true));
         assert_eq!(false, parse(b"false").into());
     }
