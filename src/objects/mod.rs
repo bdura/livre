@@ -25,5 +25,8 @@ use dictionary::Dictionary;
 mod stream;
 use stream::Stream;
 
+mod reference;
+use reference::Reference;
+
 mod object;
 use object::Object;
