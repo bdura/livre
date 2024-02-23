@@ -1,4 +1,6 @@
-use nom::{bytes::complete::tag, character::complete::digit1, sequence::tuple, IResult};
+use nom::{bytes::complete::tag, sequence::tuple, IResult};
+
+use crate::utilities::parse_digits;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct Reference {
@@ -14,12 +16,8 @@ impl Reference {
 
 impl Reference {
     pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
-        let (input, (obj, _, gen, _)) = tuple((digit1, tag(b" "), digit1, tag(b" R")))(input)?;
-
-        // SAFETY: obj is guaranteed to contain digits
-        let object: usize = unsafe { std::str::from_utf8_unchecked(obj).parse().unwrap() };
-        // SAFETY: gen is guaranteed to contain digits
-        let generation: u16 = unsafe { std::str::from_utf8_unchecked(gen).parse().unwrap() };
+        let (input, (object, _, generation, _)) =
+            tuple((parse_digits, tag(b" "), parse_digits, tag(b" R")))(input)?;
 
         Ok((input, Self { object, generation }))
     }

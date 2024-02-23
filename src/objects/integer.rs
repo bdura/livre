@@ -1,13 +1,8 @@
 use std::num::TryFromIntError;
 
-use nom::{
-    character::complete::digit1,
-    combinator::{opt, recognize},
-    sequence::pair,
-    IResult,
-};
+use nom::{combinator::opt, sequence::pair, IResult};
 
-use crate::utilities::parse_sign;
+use crate::utilities::{parse_digits, parse_sign};
 
 /// Represents a boolean within a PDF.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -15,14 +10,11 @@ pub struct Integer(pub i32);
 
 impl Integer {
     pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
-        let (input, num) = recognize(pair(opt(parse_sign), digit1))(input)?;
+        let (input, (sign, mut num)) = pair(opt(parse_sign), parse_digits::<i32, _>)(input)?;
 
-        // SAFETY: we know for a fact that `num` only includes ascii characters
-        let num_str = unsafe { std::str::from_utf8_unchecked(num) };
-
-        let num = num_str
-            .parse()
-            .expect("[+-]?\\d+ is parseable as an integer.");
+        if let Some(b"-") = sign {
+            num = -num;
+        }
 
         Ok((input, Self(num)))
     }
