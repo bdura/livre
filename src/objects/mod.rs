@@ -22,4 +22,8 @@ use array::Array;
 mod dictionary;
 use dictionary::Dictionary;
 
+mod stream;
+use stream::Stream;
+
 mod object;
+use object::Object;

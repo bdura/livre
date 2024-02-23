@@ -1,3 +1,5 @@
+use std::num::TryFromIntError;
+
 use nom::{
     character::complete::digit1,
     combinator::{opt, recognize},
@@ -5,7 +7,7 @@ use nom::{
     IResult,
 };
 
-use crate::utilities::parse_sign;
+use crate::{error::ParsingError, utilities::parse_sign};
 
 /// Represents a boolean within a PDF.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -37,6 +39,34 @@ impl From<i32> for Integer {
         Self(value)
     }
 }
+
+macro_rules! into {
+    ($into:ty) => {
+        impl From<Integer> for $into {
+            fn from(Integer(value): Integer) -> Self {
+                value.into()
+            }
+        }
+    };
+    (try $into:ty) => {
+        impl TryFrom<Integer> for $into {
+            type Error = TryFromIntError;
+
+            fn try_from(Integer(value): Integer) -> Result<Self, Self::Error> {
+                value.try_into()
+            }
+        }
+    };
+}
+
+into!(try i8);
+into!(try i16);
+into!(i64);
+into!(try u8);
+into!(try u16);
+into!(try u32);
+into!(try u64);
+into!(try usize);
 
 #[cfg(test)]
 mod tests {

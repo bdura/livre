@@ -9,9 +9,6 @@ pub use crossref::CrossRef;
 mod trailer;
 pub use trailer::Trailer;
 
-mod filters;
-pub use filters::{Filter, Filtering};
-
 pub mod object;
 use nom::{
     bytes::complete::tag,

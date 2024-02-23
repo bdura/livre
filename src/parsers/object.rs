@@ -12,15 +12,12 @@ use nom::{
 };
 use strum::IntoStaticStr;
 
-use super::{
-    utilities::{
-        parse_octal, take_eol, take_eol_no_r, take_whitespace, take_whitespace1,
-        take_within_balanced,
-    },
-    Filter, Filtering,
+use super::utilities::{
+    parse_octal, take_eol, take_eol_no_r, take_whitespace, take_whitespace1, take_within_balanced,
 };
 use crate::{
     error::{ParsingError, Result},
+    filters::{Filter, Filtering},
     parsers::utilities::{
         is_space_or_newline, parse_hexadecimal_bigram, parse_string_with_escapes,
     },

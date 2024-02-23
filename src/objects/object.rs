@@ -1,14 +1,20 @@
-use crate::{error::ParsingError, utilities::take_whitespace};
+use crate::{
+    error::ParsingError,
+    utilities::{take_eol_no_r, take_whitespace},
+};
 use nom::{
     branch::alt,
     bytes::complete::tag,
     combinator::map,
     error::{Error, ErrorKind, ParseError},
+    sequence::delimited,
     Err, IResult,
 };
 use strum::IntoStaticStr;
 
-use super::{Array, Boolean, Dictionary, HexString, Integer, LiteralString, Name, Real};
+use super::{
+    stream::Stream, Array, Boolean, Dictionary, HexString, Integer, LiteralString, Name, Real,
+};
 
 #[derive(Debug, Clone, PartialEq, IntoStaticStr)]
 pub enum Object {
@@ -21,14 +27,20 @@ pub enum Object {
     Name(Name),
     Array(Array),
     Dictionary(Dictionary),
-    // Stream(Stream),
+    Stream(Stream),
     // Reference(Reference),
 }
 
 impl Object {
     fn parse_stream_or_dict(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, dict) = Dictionary::parse(input)?;
-        todo!()
+        let Ok((input, _)) = delimited(take_whitespace, tag(b"stream"), take_eol_no_r)(input)
+        else {
+            return Ok((input, Self::Dictionary(dict)));
+        };
+        let (input, stream) = Stream::parse_with_dict(input, dict)?;
+
+        Ok((input, Self::Stream(stream)))
     }
 
     /// Parse a single PDF object.
@@ -53,6 +65,7 @@ impl Object {
             map(Real::parse, Self::Real),
             map(Integer::parse, Self::Integer),
             map(LiteralString::parse, Self::LiteralString),
+            Self::parse_stream_or_dict,
             map(HexString::parse, Self::HexString),
             map(Name::parse, Self::Name),
             map(Array::parse, Self::Array),
@@ -102,7 +115,15 @@ try_into!(Boolean);
 try_into!(bool => Boolean);
 
 try_into!(Integer);
+try_into!(i8 => Integer);
+try_into!(i16 => Integer);
 try_into!(i32 => Integer);
+try_into!(i64 => Integer);
+try_into!(u8 => Integer);
+try_into!(u16 => Integer);
+try_into!(u32 => Integer);
+try_into!(u64 => Integer);
+try_into!(usize => Integer);
 
 try_into!(Real);
 try_into!(f32 => Real);
@@ -144,6 +165,15 @@ macro_rules! obj {
     ($($o:expr),+ $(,)?) => {
         Object::Array(vec![$($o),+].into())
     };
+    ($($k:literal $v:expr),+ $(,)?) => {
+        Object::Dictionary(Dictionary(vec![$(($k.to_string(), $v)),+].into_iter().collect()))
+    };
+    (s:$val:literal) => {
+        Object::Stream(Stream{stream: $val.to_vec(), filters: Vec::new()})
+    };
+    (s:$val:literal | $filters:tt) => {
+        Object::Stream(Stream{stream: $val.to_vec(), filters: $filters})
+    };
 }
 
 #[cfg(test)]
@@ -181,6 +211,7 @@ mod tests {
     #[case(b"<901FA>", obj!(h:[144, 31, 160]))]
     #[case(b"/TestName", obj!(n:"TestName"))]
     #[case(b"[1 2 true ]", obj![obj!(i:1), obj!(i:2), obj!(b:true)])]
+    #[case(b"<</Length 9>>\nstream\n123456789\nendstream", obj!(s:b"123456789"))]
     fn test_parse(#[case] input: &[u8], #[case] res: Object) {
         assert_eq!(parse(input), res);
     }
