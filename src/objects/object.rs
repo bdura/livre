@@ -1,6 +1,7 @@
 use crate::{error::ParsingError, utilities::take_whitespace};
 use nom::{
     branch::alt,
+    bytes::complete::tag,
     combinator::map,
     error::{Error, ErrorKind, ParseError},
     Err, IResult,
@@ -11,7 +12,7 @@ use super::{Boolean, Integer};
 
 #[derive(Debug, Clone, PartialEq, IntoStaticStr)]
 pub enum Object {
-    // Null,
+    Null,
     Boolean(Boolean),
     Integer(Integer),
 }
@@ -31,6 +32,7 @@ impl Object {
         }
 
         let (input, obj) = alt((
+            map(tag(b"null"), |_| Self::Null),
             map(Boolean::parse, Self::Boolean),
             map(Integer::parse, Self::Integer),
         ))(input)?;
@@ -78,6 +80,9 @@ try_into!(i32 via Integer);
 
 #[macro_export]
 macro_rules! obj {
+    () => {
+        Object::Null
+    };
     (b:$val:literal) => {
         Object::Boolean(Boolean($val))
     };
@@ -110,6 +115,7 @@ mod tests {
     #[case(b"false", obj!(b:false))]
     #[case(b"10", obj!(i:10))]
     #[case(b"-1023", obj!(i:-1023))]
+    #[case(b"null", obj!())]
     fn boolean(#[case] input: &[u8], #[case] res: Object) {
         assert_eq!(parse(input), res);
     }
