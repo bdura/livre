@@ -10,9 +10,15 @@ use nom::{
     IResult,
 };
 
-use crate::parsers::utilities::parse_digits;
+use crate::parsers::utilities::{parse_digits, take_eol, take_whitespace};
 
 use super::utilities::take_whitespace1;
+
+/// Cross-reference entry EOL.
+/// Can be: SP CR, SP LF, or CR LF (OMG!)
+fn xref_entry_eol(input: &[u8]) -> IResult<&[u8], &[u8]> {
+    alt((tag(b" \r"), tag(b" \n"), tag(b"\r\n")))(input)
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct CrossRef {
@@ -39,9 +45,9 @@ impl CrossRef {
 
         let (input, _) = take_whitespace1(input)?;
 
-        let (input, refs) = separated_list0(tag(b" \n"), Self::parse_line)(input)?;
+        let (input, refs) = many0(Self::parse_line)(input)?;
 
-        let (input, _) = take_whitespace1(input)?;
+        let (input, _) = take_whitespace(input)?;
 
         assert_eq!(refs.len(), len);
 
@@ -55,18 +61,20 @@ impl CrossRef {
     }
 
     fn parse_line(input: &[u8]) -> IResult<&[u8], Self> {
-        let (input, (offset, _, gen, _, in_use)) = (
+        let (input, (offset, _, gen, _, in_use, _)) = (
             verify(digit1, |r: &[u8]| r.len() == 10),
             tag(b" "),
             verify(digit1, |r: &[u8]| r.len() == 5),
             tag(b" "),
             alt((tag(b"n"), tag(b"f"))),
+            xref_entry_eol,
         )
             .parse(input)?;
 
         // SAFETY: we checked that the bytes are digits, ie UTF-8.
         let offset: usize = unsafe { std::str::from_utf8_unchecked(offset).parse().unwrap() };
         let gen: u16 = unsafe { std::str::from_utf8_unchecked(gen).parse().unwrap() };
+
         let used = in_use == b"n";
 
         Ok((input, Self { offset, gen, used }))
@@ -80,7 +88,7 @@ mod tests {
 
     #[test]
     fn line() {
-        let (_, r) = CrossRef::parse_line(b"0000000000 65535 f").unwrap();
+        let (_, r) = CrossRef::parse_line(b"0000000000 65535 f \n").unwrap();
         assert_eq!(
             r,
             CrossRef {
@@ -90,7 +98,17 @@ mod tests {
             }
         );
 
-        let (_, r) = CrossRef::parse_line(b"0000025518 00002 n").unwrap();
+        let (_, r) = CrossRef::parse_line(b"0000025518 00002 n\r\n").unwrap();
+        assert_eq!(
+            r,
+            CrossRef {
+                offset: 25518,
+                gen: 2,
+                used: true
+            }
+        );
+
+        let (_, r) = CrossRef::parse_line(b"0000025518 00002 n \r").unwrap();
         assert_eq!(
             r,
             CrossRef {
@@ -106,7 +124,7 @@ mod tests {
         let input = indoc! {b"
             0 2
             0000000000 65535 f 
-            0000025325 00000 n 
+            0000025325 00000 n\r\n
         "};
 
         let (input, refs) = CrossRef::parse_sub_section(input).unwrap();
@@ -116,7 +134,7 @@ mod tests {
         let input = indoc! {b"
             23 2
             0000025518 00002 n 
-            0000025635 00000 n 
+            0000025635 00000 n \r
         "};
 
         let (input, refs) = CrossRef::parse_sub_section(input).unwrap();
@@ -160,10 +178,11 @@ mod tests {
             0000025518 00002 n 
             0000025635 00000 n 
             30 1
-            0000025777 00000 n
+            0000025777 00000 n \n
         "};
 
         let (input, refs) = CrossRef::parse(input).unwrap();
+        println!("{:?}", String::from_utf8_lossy(input));
         assert!(input.is_empty());
         assert_eq!(refs.len(), 5);
     }
