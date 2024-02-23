@@ -2,8 +2,8 @@ use nom::{bytes::complete::tag, character::complete::digit1, sequence::tuple, IR
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct Reference {
-    pub(crate) object: usize,
-    pub(crate) generation: u16,
+    pub object: usize,
+    pub generation: u16,
 }
 
 impl Reference {
@@ -13,7 +13,7 @@ impl Reference {
 }
 
 impl Reference {
-    pub(crate) fn parse(input: &[u8]) -> IResult<&[u8], Self> {
+    pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, (obj, _, gen, _)) = tuple((digit1, tag(b" "), digit1, tag(b" R")))(input)?;
 
         // SAFETY: obj is guaranteed to contain digits

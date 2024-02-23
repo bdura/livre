@@ -6,10 +6,10 @@ use super::object::Object;
 
 /// Represents a boolean within a PDF.
 #[derive(Debug, PartialEq, Clone)]
-pub struct Array(pub(crate) Vec<Object>);
+pub struct Array(pub Vec<Object>);
 
 impl Array {
-    pub(crate) fn parse(input: &[u8]) -> IResult<&[u8], Self> {
+    pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, value) = take_within_balanced(b'[', b']')(input)?;
 
         // We need to remove preceding whitespace.
