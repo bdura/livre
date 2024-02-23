@@ -15,7 +15,7 @@ use nom::{
 pub const WHITE_SPACE_CHARS: [u8; 6] = [0x00, 0x09, 0x0A, 0x0C, 0x0D, 0x20];
 
 pub fn take_eol(input: &[u8]) -> IResult<&[u8], &[u8]> {
-    alt((tag("\n"), tag("\r\n")))(input)
+    alt((tag(b"\n"), tag(b"\r\n"), tag(b"\r")))(input)
 }
 
 pub fn is_space_or_newline(b: u8) -> bool {

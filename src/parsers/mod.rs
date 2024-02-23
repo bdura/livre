@@ -98,21 +98,22 @@ mod tests {
     use super::*;
 
     use indoc::indoc;
+    use tests::header::Version;
 
-    // #[test]
-    // fn text_pdf() {
-    //     // let pdf_bytes = include_bytes!("../../examples/text.pdf");
-    //     let pdf_bytes = include_bytes!("../../resource/ISO_32000-2-2020_sponsored.pdf");
-    //     let pdf = Pdf::parse(pdf_bytes).unwrap();
+    #[test]
+    fn text_pdf() {
+        let pdf_bytes = include_bytes!("../../examples/text.pdf");
+        // let pdf_bytes = include_bytes!("../../resource/ISO_32000-2-2020_sponsored.pdf");
+        let pdf = Pdf::parse(pdf_bytes).unwrap();
 
-    //     assert_eq!(
-    //         pdf.header,
-    //         Header {
-    //             version: Version::Pdf17,
-    //             binary: true
-    //         }
-    //     );
-    // }
+        assert_eq!(
+            pdf.header,
+            Header {
+                version: Version::Pdf14,
+                binary: true
+            }
+        );
+    }
 
     #[test]
     fn minimal() {

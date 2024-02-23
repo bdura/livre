@@ -2,12 +2,12 @@ use std::collections::HashMap;
 
 use nom::{
     branch::alt,
-    bytes::complete::{tag, take, take_till, take_until},
+    bytes::complete::{tag, take, take_till},
     character::complete::{digit0, digit1},
-    combinator::{map, opt, recognize},
+    combinator::{cut, map, opt, recognize},
     error::{Error, ErrorKind, ParseError},
     multi::many0,
-    sequence::{pair, preceded, separated_pair, terminated, tuple, Tuple},
+    sequence::{delimited, pair, separated_pair, tuple, Tuple},
     Err, IResult,
 };
 use strum::IntoStaticStr;
@@ -56,12 +56,42 @@ impl TryFrom<Object> for bool {
     }
 }
 
+impl TryFrom<&Object> for bool {
+    type Error = ParsingError;
+
+    fn try_from(value: &Object) -> Result<Self> {
+        if let Object::Boolean(b) = value {
+            Ok(*b)
+        } else {
+            Err(ParsingError::UnexpectedType {
+                expected: "Boolean",
+                got: value.into(),
+            })
+        }
+    }
+}
+
 impl TryFrom<Object> for usize {
     type Error = ParsingError;
 
     fn try_from(value: Object) -> Result<Self> {
         if let Object::Integer(i) = value {
             Ok(i as usize)
+        } else {
+            Err(ParsingError::UnexpectedType {
+                expected: "Integer",
+                got: value.into(),
+            })
+        }
+    }
+}
+
+impl TryFrom<&Object> for usize {
+    type Error = ParsingError;
+
+    fn try_from(value: &Object) -> Result<Self> {
+        if let Object::Integer(i) = value {
+            Ok(*i as usize)
         } else {
             Err(ParsingError::UnexpectedType {
                 expected: "Integer",
@@ -285,33 +315,37 @@ impl Object {
         Ok((input, Self::Reference(reference)))
     }
 
-    fn parse_stream_body(input: &[u8]) -> IResult<&[u8], &[u8]> {
-        let (input, _) = tuple((tag(b"stream"), take_eol))(input)?;
-        terminated(take_until(b"\nendstream".as_slice()), tag(b"\nendstream"))(input)
+    fn parse_stream_body(input: &[u8], length: usize) -> IResult<&[u8], &[u8]> {
+        let (input, body) = cut(take(length))(input)?;
+
+        let (input, _) = cut(take_whitespace)(input)?;
+        let (input, _) = cut(tag(b"endstream"))(input)?;
+
+        Ok((input, body))
     }
 
     fn parse_stream_or_dict(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, dict) = Self::parse_dictionary_raw(input)?;
 
-        let (input, stream_body) = opt(preceded(take_whitespace, Self::parse_stream_body))(input)?;
-
-        let res = if let Some(stream) = stream_body {
-            let s = Stream {
-                dict,
-                stream: stream.to_owned(),
-            };
-            assert_eq!(
-                s.dict
-                    .get("Length")
-                    .map(|len| len.clone().try_into().unwrap()),
-                Some(stream.len())
-            );
-            Self::Stream(s)
-        } else {
-            Self::Dictionary(dict)
+        let Ok((input, _)) = delimited(take_whitespace, tag(b"stream"), take_eol)(input) else {
+            return Ok((input, Self::Dictionary(dict)));
         };
 
-        Ok((input, res))
+        let length: usize = dict
+            .get("Length")
+            .expect("`Length` is a required field in a stream dictionnary.")
+            .try_into()
+            .expect("`Length` key has to be usize-compatible.");
+
+        // Cut to commit to this branch
+        let (input, body) = cut(move |i| Self::parse_stream_body(i, length))(input)?;
+
+        let stream = Stream {
+            dict,
+            stream: body.to_owned(),
+        };
+
+        Ok((input, Self::Stream(stream)))
     }
 
     pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
