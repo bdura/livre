@@ -1,6 +1,6 @@
 use std::io::Read;
 
-use flate2::read::GzDecoder;
+use flate2::read::ZlibDecoder;
 
 use crate::error::Result;
 
@@ -11,7 +11,7 @@ pub struct FlateDecode;
 
 impl Filtering for FlateDecode {
     fn decode(&self, bytes: &[u8]) -> Result<Vec<u8>> {
-        let mut d = GzDecoder::new(bytes);
+        let mut d = ZlibDecoder::new(bytes);
         let mut buf = Vec::new();
         d.read_to_end(&mut buf)?;
         Ok(buf)

@@ -18,12 +18,11 @@ pub enum Filter {
 
 impl Filter {
     pub fn from_name(name: &str) -> Self {
-        println!("{:?}", name);
         match name {
             "ASCIIHexDecode" => todo!(),
             "ASCII85Decode" => todo!(),
             "LZWDecode" => todo!(),
-            "FlateDecode" => Self::FlateDecode(FlateDecode),
+            "FlateDecode" => FlateDecode.into(),
             "RunLengthDecode" => todo!(),
             "CCITTFaxDecode" => todo!(),
             "JBIG2Decode" => todo!(),

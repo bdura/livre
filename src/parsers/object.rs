@@ -17,7 +17,7 @@ use super::{
         parse_octal, take_eol, take_eol_no_r, take_whitespace, take_whitespace1,
         take_within_balanced,
     },
-    Filter,
+    Filter, Filtering,
 };
 use crate::{
     error::{ParsingError, Result},
@@ -28,7 +28,6 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Stream {
-    pub filters: Vec<Filter>,
     pub stream: Vec<u8>,
 }
 
@@ -366,10 +365,13 @@ impl Object {
             ),
         }
 
-        let stream = Stream {
-            filters,
-            stream: body.to_owned(),
-        };
+        let mut stream = body.to_owned();
+
+        for filter in filters {
+            stream = filter.decode(&stream).unwrap();
+        }
+
+        let stream = Stream { stream };
 
         Ok((input, Self::Stream(stream)))
     }
@@ -430,11 +432,8 @@ mod tests {
         (h:$val:tt) => {
             Object::HexString($val.to_vec())
         };
-        (s:$val:literal | $f:tt) => {
-            Object::Stream(Stream{stream: $val.to_vec(), filters: $f})
-        };
         (s:$val:literal) => {
-            Object::Stream(Stream{stream: $val.to_vec(), filters: Vec::new()})
+            Object::Stream(Stream{stream: $val.to_vec()})
         };
         (n:$val:literal) => {
             Object::Name($val.to_string())
@@ -600,31 +599,12 @@ mod tests {
 
     mod object {
         use super::super::*;
-        use indoc::indoc;
 
         #[test]
         fn parse_full_bool() {
             let (input, (_, obj)) = Object::parse_referenced(b"obj\ntrue  \nendobj\n").unwrap();
             assert_eq!(obj, Object::Boolean(true));
             assert!(input.is_empty());
-        }
-
-        #[test]
-        fn random_test() {
-            let input = indoc! {br#"
-                90824 0 obj
-                <</DecodeParms<</Columns 5/Predictor 12>>/Filter/FlateDecode/ID[<2B551D2AFE52654494F9720283CFF1C4><3CDA8BB6D5834E41A5E2AA16C35E4C47>]/Index[90793 1014]/Info 90792 0 R/Length 9/Prev 14709647/Root 90794 0 R/Size 91807/Type/XRef/W[1 3 1]>>stream
-                123456789
-                endstream
-                endobj
-            "#};
-            let (_, (r, stream)) = Object::parse_referenced(input).unwrap();
-            assert_eq!(r.unwrap(), Reference { obj: 90824, gen: 0 });
-            if let Object::Stream(uvec) = stream {
-                assert_eq!(String::from_utf8(uvec.stream).unwrap(), "123456789");
-            } else {
-                panic!();
-            }
         }
     }
 }

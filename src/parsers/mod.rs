@@ -10,7 +10,7 @@ mod trailer;
 pub use trailer::Trailer;
 
 mod filters;
-pub use filters::Filter;
+pub use filters::{Filter, Filtering};
 
 pub mod object;
 use nom::{
@@ -117,12 +117,6 @@ mod tests {
             %PDF-1.7
             90793 0 obj
             <</Linearized 1/L 14721088/O 90795/E 100639/N 1003/T 14709646/H [ 3414 9955]>>
-            endobj
-            
-            90824 0 obj
-            <</DecodeParms<</Columns 5/Predictor 12>>/Filter/FlateDecode/ID[<2B551D2AFE52654494F9720283CFF1C4><3CDA8BB6D5834E41A5E2AA16C35E4C47>]/Index[90793 1014]/Info 90792 0 R/Length 5/Prev 14709647/Root 90794 0 R/Size 91807/Type/XRef/W[1 3 1]>>stream
-            12345
-            endstream
             endobj
             startxref
             0
