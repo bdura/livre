@@ -8,7 +8,7 @@ use nom::{
 };
 use strum::IntoStaticStr;
 
-use super::{Boolean, HexString, Integer, LiteralString, Name, Real};
+use super::{Array, Boolean, HexString, Integer, LiteralString, Name, Real};
 
 #[derive(Debug, Clone, PartialEq, IntoStaticStr)]
 pub enum Object {
@@ -19,7 +19,7 @@ pub enum Object {
     LiteralString(LiteralString),
     HexString(HexString),
     Name(Name),
-    // Array(Vec<Object>),
+    Array(Array),
     // Dictionary(HashMap<String, Object>),
     // Stream(Stream),
     // Reference(Reference),
@@ -50,6 +50,7 @@ impl Object {
             map(LiteralString::parse, Self::LiteralString),
             map(HexString::parse, Self::HexString),
             map(Name::parse, Self::Name),
+            map(Array::parse, Self::Array),
         ))(input)?;
 
         let (input, _) = take_whitespace(input)?;
@@ -109,6 +110,9 @@ try_into!(Name);
 try_into!(HexString);
 try_into!(Vec<u8> => HexString);
 
+try_into!(Array);
+try_into!(Vec<Object> => Array);
+
 #[macro_export]
 macro_rules! obj {
     () => {
@@ -131,6 +135,9 @@ macro_rules! obj {
     };
     (n:$val:literal) => {
         Object::Name(Name($val.to_string()))
+    };
+    ($($o:expr),+ $(,)?) => {
+        Object::Array(vec![$($o),+].into())
     };
 }
 
@@ -167,7 +174,8 @@ mod tests {
     #[case(b"-.023", obj!(r:-0.023))]
     #[case(b"(a literal string)", obj!(t:"a literal string"))]
     #[case(b"<901FA>", obj!(h:[144, 31, 160]))]
-    #[case(b"/TestName", obj!( n:"TestName"))]
+    #[case(b"/TestName", obj!(n:"TestName"))]
+    #[case(b"[1 2 true ]", obj![obj!(i:1), obj!(i:2), obj!(b:true)])]
     fn test_parse(#[case] input: &[u8], #[case] res: Object) {
         assert_eq!(parse(input), res);
     }

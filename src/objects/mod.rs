@@ -16,4 +16,7 @@ use hex_string::HexString;
 mod name;
 use name::Name;
 
+mod array;
+use array::Array;
+
 mod object;
