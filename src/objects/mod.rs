@@ -1,9 +1,13 @@
 mod boolean;
-pub use boolean::Boolean;
+use boolean::Boolean;
 
 mod integer;
-pub use integer::Integer;
+use integer::Integer;
 
 mod real;
+use real::Real;
+
+mod literal_string;
+use literal_string::LiteralString;
 
 mod object;

@@ -8,7 +8,7 @@ use nom::{
 };
 use strum::IntoStaticStr;
 
-use super::{real::Real, Boolean, Integer};
+use super::{Boolean, Integer, LiteralString, Real};
 
 #[derive(Debug, Clone, PartialEq, IntoStaticStr)]
 pub enum Object {
@@ -16,6 +16,13 @@ pub enum Object {
     Boolean(Boolean),
     Integer(Integer),
     Real(Real),
+    LiteralString(LiteralString),
+    // HexString(Vec<u8>),
+    // Name(String),
+    // Array(Vec<Object>),
+    // Dictionary(HashMap<String, Object>),
+    // Stream(Stream),
+    // Reference(Reference),
 }
 
 impl Object {
@@ -32,11 +39,15 @@ impl Object {
             )));
         }
 
+        // The order matters!
+        // For instance, we should test `Real` before we test `Integer`,
+        // and reference objects before numerics.
         let (input, obj) = alt((
             map(tag(b"null"), |_| Self::Null),
             map(Boolean::parse, Self::Boolean),
-            map(Integer::parse, Self::Integer),
             map(Real::parse, Self::Real),
+            map(Integer::parse, Self::Integer),
+            map(LiteralString::parse, Self::LiteralString),
         ))(input)?;
 
         let (input, _) = take_whitespace(input)?;
@@ -88,6 +99,9 @@ try_into!(i32 via Integer);
 try_into!(Real);
 try_into!(f32 via Real);
 
+try_into!(LiteralString);
+try_into!(String via LiteralString);
+
 #[macro_export]
 macro_rules! obj {
     () => {
@@ -101,6 +115,9 @@ macro_rules! obj {
     };
     (r:$val:literal) => {
         Object::Real(Real($val))
+    };
+    (t:$val:literal) => {
+        Object::LiteralString(LiteralString($val.to_string()))
     };
 }
 
@@ -119,6 +136,7 @@ mod tests {
     #[case(obj!(b:true), Boolean(true))]
     #[case(obj!(i:-28), Integer(-28))]
     #[case(obj!(r:25.6), Real(25.6))]
+    #[case(obj!(t:"test"), LiteralString("test".into()))]
     fn obj_macro(#[case] input: Object, #[case] res: impl Into<Object>) {
         let res = res.into();
         assert_eq!(input, res)
@@ -132,6 +150,7 @@ mod tests {
     #[case(b"10", obj!(i:10))]
     #[case(b"-1023", obj!(i:-1023))]
     #[case(b"-.023", obj!(r:-0.023))]
+    #[case(b"(a literal string)", obj!(t:"a literal string"))]
     fn boolean(#[case] input: &[u8], #[case] res: Object) {
         assert_eq!(parse(input), res);
     }
