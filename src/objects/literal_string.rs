@@ -8,7 +8,6 @@ use nom::{
 
 use crate::utilities::{parse_octal, parse_string_with_escapes, take_within_balanced};
 
-/// Represents a boolean within a PDF.
 #[derive(Debug, PartialEq, Clone)]
 pub struct LiteralString(pub String);
 
