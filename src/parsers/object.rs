@@ -17,6 +17,12 @@ use super::utilities::{
 use crate::parsers::utilities::{parse_hexadecimal_bigram, parse_string_with_escapes};
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Stream {
+    pub dict: HashMap<String, Object>,
+    pub stream: Vec<u8>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Object {
     Null,
     Boolean(bool),
@@ -27,7 +33,7 @@ pub enum Object {
     Name(String),
     Array(Vec<Object>),
     Dictionary(HashMap<String, Object>),
-    Stream(Vec<u8>),
+    Stream(Stream),
     Reference(Reference),
 }
 
@@ -256,7 +262,11 @@ impl Object {
         let (input, stream_body) = opt(preceded(take_whitespace, Self::parse_stream_body))(input)?;
 
         let res = if let Some(stream) = stream_body {
-            Self::Stream(stream.to_owned())
+            let s = Stream {
+                dict,
+                stream: stream.to_owned(),
+            };
+            Self::Stream(s)
         } else {
             Self::Dictionary(dict)
         };
@@ -321,7 +331,10 @@ mod tests {
             Object::HexString($val.to_vec())
         };
         (s:$val:literal) => {
-            Object::Stream($val.to_vec())
+            Object::Stream(Stream{stream: $val.to_vec(), dict: HashMap::new()})
+        };
+        (s:$val:literal | $d:tt) => {
+            Object::Stream(Stream{stream: $val.to_vec(), dict: $d})
         };
         (n:$val:literal) => {
             Object::Name($val.to_string())
@@ -463,7 +476,8 @@ mod tests {
 
     #[test]
     fn stream() {
-        check_parse!(b"<</Length 9>>\nstream\n123456789\nendstream" stream obj!(s:b"123456789"));
+        let d: HashMap<String, Object> = [("Length".to_string(), obj!(i: 9))].into();
+        check_parse!(b"<</Length 9>>\nstream\n123456789\nendstream" stream obj!(s:b"123456789" | d));
     }
 
     #[test]
@@ -503,7 +517,7 @@ mod tests {
             let (_, (r, stream)) = Object::parse_referenced(input).unwrap();
             assert_eq!(r.unwrap(), Reference { obj: 90824, gen: 0 });
             if let Object::Stream(uvec) = stream {
-                assert_eq!(String::from_utf8(uvec).unwrap(), "123456789");
+                assert_eq!(String::from_utf8(uvec.stream).unwrap(), "123456789");
             } else {
                 panic!();
             }
