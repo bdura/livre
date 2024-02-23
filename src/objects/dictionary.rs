@@ -1,4 +1,7 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    ops::{Deref, DerefMut},
+};
 
 use nom::{
     error::{Error, ErrorKind, ParseError},
@@ -58,6 +61,20 @@ impl From<Dictionary> for HashMap<String, Object> {
 impl From<HashMap<String, Object>> for Dictionary {
     fn from(value: HashMap<String, Object>) -> Self {
         Self(value)
+    }
+}
+
+impl Deref for Dictionary {
+    type Target = HashMap<String, Object>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Dictionary {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 
