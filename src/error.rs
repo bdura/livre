@@ -24,7 +24,7 @@ impl From<Infallible> for ParsingError {
 }
 
 impl From<TryFromIntError> for ParsingError {
-    fn from(value: TryFromIntError) -> Self {
+    fn from(_: TryFromIntError) -> Self {
         Self::ConversionError
     }
 }

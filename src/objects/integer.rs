@@ -7,7 +7,7 @@ use nom::{
     IResult,
 };
 
-use crate::{error::ParsingError, utilities::parse_sign};
+use crate::utilities::parse_sign;
 
 /// Represents a boolean within a PDF.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

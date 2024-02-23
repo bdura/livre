@@ -12,9 +12,7 @@ use nom::{
 };
 use strum::IntoStaticStr;
 
-use super::{
-    stream::Stream, Array, Boolean, Dictionary, HexString, Integer, LiteralString, Name, Real,
-};
+use super::{Array, Boolean, Dictionary, HexString, Integer, LiteralString, Name, Real, Stream};
 
 #[derive(Debug, Clone, PartialEq, IntoStaticStr)]
 pub enum Object {
@@ -28,7 +26,6 @@ pub enum Object {
     Array(Array),
     Dictionary(Dictionary),
     Stream(Stream),
-    // Reference(Reference),
 }
 
 impl Object {
