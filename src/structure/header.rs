@@ -62,19 +62,23 @@ impl Header {
 #[cfg(test)]
 mod tests {
 
+    use rstest::rstest;
+
     use super::*;
 
-    #[test]
-    fn version() {
-        let (_, version) = Version::parse(b"%PDF-1.6\n").unwrap();
-        assert_eq!(version, Version::Pdf16);
-    }
-
-    #[test]
-    fn version_from_pdf() {
-        let pdf_bytes = include_bytes!("../../examples/text.pdf");
-        let (_, version) = Version::parse(pdf_bytes).unwrap();
-        assert_eq!(version, Version::Pdf14);
+    #[rstest]
+    #[case(b"%PDF-1.0\n", Version::Pdf10)]
+    #[case(b"%PDF-1.1\n", Version::Pdf11)]
+    #[case(b"%PDF-1.2\n", Version::Pdf12)]
+    #[case(b"%PDF-1.3\n", Version::Pdf13)]
+    #[case(b"%PDF-1.4\n", Version::Pdf14)]
+    #[case(b"%PDF-1.5\n", Version::Pdf15)]
+    #[case(b"%PDF-1.6\n", Version::Pdf16)]
+    #[case(b"%PDF-1.7\n", Version::Pdf17)]
+    #[case(b"%PDF-2.0\n", Version::Pdf20)]
+    fn version(#[case] input: &[u8], #[case] expected: Version) {
+        let (_, version) = Version::parse(input).unwrap();
+        assert_eq!(version, expected);
     }
 
     #[test]
