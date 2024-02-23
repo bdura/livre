@@ -13,4 +13,7 @@ use literal_string::LiteralString;
 mod hex_string;
 use hex_string::HexString;
 
+mod name;
+use name::Name;
+
 mod object;
