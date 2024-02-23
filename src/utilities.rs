@@ -159,9 +159,8 @@ pub fn parse_hexadecimal_bigram(input: &[u8]) -> IResult<&[u8], u8> {
         let len = input.len();
 
         let mut res = {
-            // SAFETY: we know for a fact that the supplied input
-            // will hold that invariant.
-            let num = unsafe { std::str::from_utf8_unchecked(input) };
+            // TODO: check the invariant.
+            let num = std::str::from_utf8(input).unwrap();
             u8::from_str_radix(num, 16).unwrap()
         };
 
