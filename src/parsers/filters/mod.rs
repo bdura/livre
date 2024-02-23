@@ -5,6 +5,9 @@ use crate::error::Result;
 mod flate;
 pub use flate::FlateDecode;
 
+mod dct;
+pub use dct::DCTDecode;
+
 #[enum_dispatch(Filter)]
 pub trait Filtering {
     fn decode(&self, bytes: &[u8]) -> Result<Vec<u8>>;
@@ -14,6 +17,7 @@ pub trait Filtering {
 #[enum_dispatch]
 pub enum Filter {
     FlateDecode(FlateDecode),
+    DCTDecode(DCTDecode),
 }
 
 impl Filter {
@@ -26,7 +30,7 @@ impl Filter {
             "RunLengthDecode" => todo!(),
             "CCITTFaxDecode" => todo!(),
             "JBIG2Decode" => todo!(),
-            "DCTDecode" => todo!(),
+            "DCTDecode" => DCTDecode.into(),
             "JPXDecode" => todo!(),
             "Crypt" => todo!(),
             _ => unreachable!("Unknown filter."),

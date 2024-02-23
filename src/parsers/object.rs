@@ -28,7 +28,18 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Stream {
+    pub filters: Vec<Filter>,
     pub stream: Vec<u8>,
+}
+
+impl Stream {
+    pub fn decode(&self) -> Vec<u8> {
+        let mut stream = self.stream.clone();
+        for filter in &self.filters {
+            stream = filter.decode(&stream).unwrap();
+        }
+        stream
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, IntoStaticStr)]
@@ -124,19 +135,6 @@ impl Reference {
         Ok((input, Self { obj, gen }))
     }
 }
-
-// #[derive(Debug, Clone, PartialEq, Default)]
-// pub struct StreamConfig {
-//     length: usize,
-//     filter: Option<Vec<String>>,
-//     decode_params: Option<Vec<HashMap<String, String>>>,
-// }
-
-// #[derive(Debug, Clone, PartialEq)]
-// pub struct Stream {
-//     config: StreamConfig,
-//     stream: Vec<u8>,
-// }
 
 impl Object {
     fn parse_boolean(input: &[u8]) -> IResult<&[u8], Self> {
@@ -365,17 +363,17 @@ impl Object {
             ),
         }
 
-        let mut stream = body.to_owned();
+        let stream = body.to_owned();
 
-        for filter in filters {
-            stream = filter.decode(&stream).unwrap();
-        }
-
-        let stream = Stream { stream };
+        let stream = Stream { stream, filters };
 
         Ok((input, Self::Stream(stream)))
     }
 
+    /// Parse a single PDF object.
+    ///
+    /// Note that PDF objects are *not* delimited by `obj` and `endobj`.
+    /// Such a case denotes a reference, which is not the same thing.
     pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
         // Necessary in case we apply many0.
         if input.is_empty() {
@@ -402,6 +400,7 @@ impl Object {
         Ok((input, obj))
     }
 
+    /// Parse an object reference.
     pub fn parse_referenced(input: &[u8]) -> IResult<&[u8], (Option<Reference>, Self)> {
         let (input, reference) = opt(tuple((Reference::parse, take_whitespace1)))(input)?;
         let (input, _) = (tag(b"obj"), take_whitespace1).parse(input)?;
@@ -433,7 +432,10 @@ mod tests {
             Object::HexString($val.to_vec())
         };
         (s:$val:literal) => {
-            Object::Stream(Stream{stream: $val.to_vec()})
+            Object::Stream(Stream{stream: $val.to_vec(), filters: Vec::new()})
+        };
+        (s:$val:literal | $filters:tt) => {
+            Object::Stream(Stream{stream: $val.to_vec(), filters: $filters})
         };
         (n:$val:literal) => {
             Object::Name($val.to_string())
@@ -554,7 +556,7 @@ mod tests {
         check_parse!(b"/@pattern" name "@pattern");
         check_parse!(b"/.notdef" name ".notdef");
         check_parse!(b"/Lime#20Green\n" name "Lime Green" + b"\n");
-        check_parse!(b"/paired#28#29parentheses" name "paired()parentheses");
+        check_parse!(b"/paired#28#29parentheses(" name "paired()parentheses" + b"(");
         check_parse!(b"/The_Key_of_F#23_Minor" name "The_Key_of_F#_Minor");
         check_parse!(b"/A#42" name "AB");
     }

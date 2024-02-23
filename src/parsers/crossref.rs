@@ -5,12 +5,12 @@ use nom::{
     bytes::complete::tag,
     character::complete::digit1,
     combinator::verify,
-    multi::{many0, separated_list0},
+    multi::many0,
     sequence::{separated_pair, Tuple},
     IResult,
 };
 
-use crate::parsers::utilities::{parse_digits, take_eol, take_whitespace};
+use crate::parsers::utilities::{parse_digits, take_whitespace};
 
 use super::utilities::take_whitespace1;
 
@@ -178,7 +178,7 @@ mod tests {
             0000025518 00002 n 
             0000025635 00000 n 
             30 1
-            0000025777 00000 n \n
+            0000025777 00000 n \r
         "};
 
         let (input, refs) = CrossRef::parse(input).unwrap();
