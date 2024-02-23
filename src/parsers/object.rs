@@ -10,11 +10,15 @@ use nom::{
     sequence::{pair, preceded, separated_pair, terminated, tuple, Tuple},
     Err, IResult,
 };
+use strum::IntoStaticStr;
 
 use super::utilities::{
     parse_octal, take_eol, take_whitespace, take_whitespace1, take_within_balanced,
 };
-use crate::parsers::utilities::{parse_hexadecimal_bigram, parse_string_with_escapes};
+use crate::{
+    error::{ParsingError, Result},
+    parsers::utilities::{parse_hexadecimal_bigram, parse_string_with_escapes},
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Stream {
@@ -22,7 +26,7 @@ pub struct Stream {
     pub stream: Vec<u8>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, IntoStaticStr)]
 pub enum Object {
     Null,
     Boolean(bool),
@@ -35,6 +39,36 @@ pub enum Object {
     Dictionary(HashMap<String, Object>),
     Stream(Stream),
     Reference(Reference),
+}
+
+impl TryFrom<Object> for bool {
+    type Error = ParsingError;
+
+    fn try_from(value: Object) -> Result<Self> {
+        if let Object::Boolean(b) = value {
+            Ok(b)
+        } else {
+            Err(ParsingError::UnexpectedType {
+                expected: "Boolean",
+                got: value.into(),
+            })
+        }
+    }
+}
+
+impl TryFrom<Object> for usize {
+    type Error = ParsingError;
+
+    fn try_from(value: Object) -> Result<Self> {
+        if let Object::Integer(i) = value {
+            Ok(i as usize)
+        } else {
+            Err(ParsingError::UnexpectedType {
+                expected: "Integer",
+                got: value.into(),
+            })
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Hash)]
@@ -266,6 +300,12 @@ impl Object {
                 dict,
                 stream: stream.to_owned(),
             };
+            assert_eq!(
+                s.dict
+                    .get("Length")
+                    .map(|len| len.clone().try_into().unwrap()),
+                Some(stream.len())
+            );
             Self::Stream(s)
         } else {
             Self::Dictionary(dict)
