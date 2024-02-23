@@ -1,3 +1,5 @@
+use std::convert::Infallible;
+
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -12,3 +14,9 @@ pub enum ParsingError {
 }
 
 pub type Result<T, E = ParsingError> = std::result::Result<T, E>;
+
+impl From<Infallible> for ParsingError {
+    fn from(_: Infallible) -> Self {
+        unreachable!()
+    }
+}

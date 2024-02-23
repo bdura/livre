@@ -1,6 +1,4 @@
 use nom::{
-    branch::alt,
-    bytes::complete::tag,
     character::complete::digit1,
     combinator::{opt, recognize},
     sequence::pair,
@@ -11,10 +9,10 @@ use crate::utilities::parse_sign;
 
 /// Represents a boolean within a PDF.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct Integer(i32);
+pub struct Integer(pub(crate) i32);
 
 impl Integer {
-    fn parse(input: &[u8]) -> IResult<&[u8], Self> {
+    pub(crate) fn parse(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, num) = recognize(pair(opt(parse_sign), digit1))(input)?;
 
         // SAFETY: we know for a fact that `num` only includes ascii characters
@@ -58,5 +56,6 @@ mod tests {
     #[case(b"-10", -10)]
     fn integer(#[case] input: &[u8], #[case] result: i32) {
         assert_eq!(parse(input), result.into());
+        assert_eq!(result, parse(input).into());
     }
 }
