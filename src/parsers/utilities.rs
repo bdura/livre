@@ -82,7 +82,7 @@ pub fn take_whitespace1(input: &[u8]) -> IResult<&[u8], &[u8]> {
 
 /// Consume the inside of brackets until it is unbalanced.
 ///
-/// Adapted from https://stackoverflow.com/questions/70630556/parse-allowing-nested-parentheses-in-nom
+/// Adapted from <https://stackoverflow.com/questions/70630556/parse-allowing-nested-parentheses-in-nom>
 pub fn take_within_balanced(
     opening_bracket: u8,
     closing_bracket: u8,
