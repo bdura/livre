@@ -10,6 +10,7 @@ use nom::{
 };
 
 use crate::{
+    error::{ParsingError, Result},
     objects::name::Name,
     utilities::{take_whitespace, take_within_balanced},
 };
@@ -49,6 +50,28 @@ impl Dictionary {
         );
 
         Ok((input, Self(array.into_iter().collect())))
+    }
+
+    pub fn pop<T, E>(&mut self, key: &str) -> Result<T>
+    where
+        T: TryFrom<Object, Error = E>,
+        ParsingError: From<E>,
+    {
+        let result = self
+            .remove(key)
+            .ok_or_else(|| ParsingError::KeyNotFound(key.into()))?
+            .try_into()?;
+
+        Ok(result)
+    }
+
+    pub fn pop_opt<T, E>(&mut self, key: &str) -> Result<Option<T>>
+    where
+        T: TryFrom<Object, Error = E>,
+        ParsingError: From<E>,
+    {
+        let result = self.remove(key).map(|obj| T::try_from(obj)).transpose()?;
+        Ok(result)
     }
 }
 
