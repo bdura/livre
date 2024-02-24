@@ -106,8 +106,11 @@ impl CrossRefs {
 
 impl CrossRefs {
     /// Merge two [`CrossRefs`] objects together.
-    fn merge(self, other: Self) -> Self {
-        let map = self.0.into_iter().chain(other.0).collect();
+    ///
+    /// Previous updates (the argument) should be overwritten.
+    pub fn merge(self, older: Self) -> Self {
+        // By chaining `self` _after_ `older`, we make sure that values from `self` will be kept,
+        let map = older.0.into_iter().chain(self.0).collect();
         Self(map)
     }
 }
