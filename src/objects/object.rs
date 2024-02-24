@@ -155,6 +155,7 @@ try_into!(Vec<Object> => Array);
 try_into!(Reference);
 
 #[macro_export]
+/// Macro that simplifies the creation of [`Object`] elements.
 macro_rules! obj {
     () => {
         Object::Null

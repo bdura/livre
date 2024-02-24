@@ -2,6 +2,7 @@ use nom::{bytes::complete::tag, IResult};
 
 use crate::utilities::{parse_comment, take_whitespace};
 
+/// Possible PDF versions.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Version {
     Pdf10,
@@ -38,6 +39,7 @@ impl Version {
     }
 }
 
+/// PDF header. Contains the version and whether the PDF is binary (?).
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Header {
     pub version: Version,

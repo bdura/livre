@@ -1,4 +1,7 @@
-use std::{collections::HashMap, ops::Deref};
+use std::{
+    collections::HashMap,
+    ops::{Deref, DerefMut},
+};
 
 use nom::{
     branch::alt,
@@ -28,6 +31,7 @@ pub struct CrossRef {
     used: bool,
 }
 
+/// Mapping between indirect objects and the byte offset.
 #[derive(Debug, Clone, Default)]
 pub struct CrossRefs(pub HashMap<Reference, usize>);
 
@@ -85,6 +89,7 @@ impl CrossRefs {
         Ok((input, Self(map)))
     }
 
+    /// Parse a cross-reference section.
     pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, _) = tag("xref")(input)?;
         let (input, _) = take_whitespace1(input)?;
@@ -100,6 +105,7 @@ impl CrossRefs {
 }
 
 impl CrossRefs {
+    /// Merge two [`CrossRefs`] objects together.
     fn merge(self, other: Self) -> Self {
         let map = self.0.into_iter().chain(other.0).collect();
         Self(map)
@@ -111,6 +117,11 @@ impl Deref for CrossRefs {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+impl DerefMut for CrossRefs {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 

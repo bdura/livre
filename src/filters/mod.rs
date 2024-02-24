@@ -1,3 +1,5 @@
+//! Filters for PDF stream objects.
+
 use enum_dispatch::enum_dispatch;
 
 use crate::error::Result;
