@@ -1,13 +1,13 @@
 use crate::{
     error::ParsingError,
-    utilities::{take_eol_no_r, take_whitespace},
+    utilities::{parse_digits, take_eol_no_r, take_whitespace, take_whitespace1},
 };
 use nom::{
     branch::alt,
     bytes::complete::tag,
     combinator::map,
     error::{Error, ErrorKind, ParseError},
-    sequence::delimited,
+    sequence::{delimited, tuple},
     Err, IResult,
 };
 use strum::IntoStaticStr;
@@ -75,6 +75,18 @@ impl Object {
         let (input, _) = take_whitespace(input)?;
 
         Ok((input, obj))
+    }
+
+    pub fn parse_indirect(input: &[u8]) -> IResult<&[u8], (Reference, Self)> {
+        let (input, (object, _, generation, _)) =
+            tuple((parse_digits, tag(b" "), parse_digits, tag(b" obj")))(input)?;
+        let reference = Reference::new(object, generation);
+        let (input, _) = take_whitespace1(input)?;
+        let (input, obj) = Self::parse(input)?;
+        let (input, _) = tag(b"endobj")(input)?;
+        let (input, _) = take_whitespace1(input)?;
+
+        Ok((input, (reference, obj)))
     }
 }
 
