@@ -11,6 +11,8 @@ pub enum ParsingError {
         expected: &'static str,
         got: &'static str,
     },
+    #[error("Key `{0}` not found")]
+    KeyNotFound(String),
     #[error("Filter decode error")]
     FilterDecode(#[from] std::io::Error),
     #[error("Conversion error")]

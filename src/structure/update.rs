@@ -14,7 +14,6 @@ pub struct Update {
     pub body: HashMap<Reference, Object>,
     pub crossrefs: CrossRefs,
     pub trailer: Trailer,
-    // pub startxref: Option<usize>,
 }
 
 impl Update {

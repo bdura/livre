@@ -7,14 +7,15 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Trailer {
-    pub startxref: usize,
     pub size: usize,
+    pub prev: Option<usize>,
     // TODO: add other fields...
-    //pub prev
     //pub root
     //pub encrypt
     //pub info
     //pub id
+    /// Last but not least
+    pub startxref: usize,
 }
 
 impl Trailer {
@@ -30,12 +31,18 @@ impl Trailer {
         let (input, _) = tag(b"%%EOF")(input)?;
 
         let size = dict
-            .remove("Size")
-            .expect("Size is a mandatory field")
-            .try_into()
-            .expect("Size must use an integer type coerceable to usize");
+            .pop("Size")
+            .expect("Size is a mandatory field compatible with usize");
+        let prev = dict.pop_opt("Prev").expect("Prev is an integer");
 
-        Ok((input, Self { size, startxref }))
+        Ok((
+            input,
+            Self {
+                size,
+                prev,
+                startxref,
+            },
+        ))
     }
 }
 
@@ -64,7 +71,8 @@ mod tests {
             trailer,
             Trailer {
                 startxref: 18799,
-                size: 22
+                size: 22,
+                prev: None,
             }
         )
     }
