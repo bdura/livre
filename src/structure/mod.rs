@@ -1,3 +1,5 @@
+//! Structure of the PDF (section 7.5 in the specs.)
+
 mod crossrefs;
 pub use crossrefs::CrossRefs;
 

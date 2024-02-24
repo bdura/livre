@@ -1,3 +1,5 @@
+//! Utilities for parsing PDFs.
+
 mod whitespace;
 pub use whitespace::{
     is_space_or_newline, take_eol, take_eol_no_r, take_whitespace, take_whitespace1,

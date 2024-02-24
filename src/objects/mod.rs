@@ -1,3 +1,5 @@
+//! Object representation and parsing.
+
 mod boolean;
 pub use boolean::Boolean;
 

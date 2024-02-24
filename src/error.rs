@@ -1,3 +1,5 @@
+//! Every possible errors.
+
 use std::{convert::Infallible, num::TryFromIntError};
 
 use thiserror::Error;

@@ -10,7 +10,7 @@ pub const WHITE_SPACE_CHARS: [u8; 6] = [0x00, 0x09, 0x0A, 0x0C, 0x0D, 0x20];
 /// Take a single end-of-line maker.
 ///
 /// Since we're dealing with standards such as PdfEncoding and UTF16BE,
-/// of course the end-of-line character is not just `\n`...
+/// of course the end-of-line marker is not just `\n`...
 pub fn take_eol(input: &[u8]) -> IResult<&[u8], &[u8]> {
     alt((tag(b"\n"), tag(b"\r\n"), tag(b"\r")))(input)
 }
