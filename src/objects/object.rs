@@ -152,6 +152,10 @@ try_into!(Vec<u8> => HexString);
 try_into!(Array);
 try_into!(Vec<Object> => Array);
 
+try_into!(Dictionary);
+
+try_into!(Stream);
+
 try_into!(Reference);
 
 #[macro_export]

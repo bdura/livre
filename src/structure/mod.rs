@@ -11,3 +11,6 @@ pub use trailer::Trailer;
 
 mod update;
 pub use update::Update;
+
+mod document;
+pub use document::Document;
