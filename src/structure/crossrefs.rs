@@ -15,7 +15,7 @@ use nom::{
 
 use crate::{
     objects::Reference,
-    utilities::{parse_digits, take_whitespace, take_whitespace1},
+    utilities::{parse_digits, space, take_whitespace, take_whitespace1},
 };
 
 /// Cross-reference entry EOL.
@@ -39,9 +39,9 @@ impl CrossRef {
     fn parse(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, (offset, _, gen, _, in_use, _)) = (
             verify(digit1, |r: &[u8]| r.len() == 10),
-            tag(b" "),
+            space,
             verify(digit1, |r: &[u8]| r.len() == 5),
-            tag(b" "),
+            space,
             alt((tag(b"n"), tag(b"f"))),
             xref_entry_eol,
         )
@@ -68,9 +68,9 @@ impl CrossRef {
 }
 
 impl CrossRefs {
-    fn parse_subsection(input: &[u8]) -> IResult<&[u8], Self> {
+    fn parse_subsection(input: &[u8]) -> IResult<&[u8], Vec<(Reference, usize)>> {
         let (input, (start, len)) =
-            separated_pair(parse_digits::<usize, _>, tag(b" "), parse_digits)(input)?;
+            separated_pair(parse_digits::<usize, _>, space, parse_digits)(input)?;
 
         let (input, _) = take_whitespace1(input)?;
 
@@ -80,13 +80,13 @@ impl CrossRefs {
 
         assert_eq!(refs.len(), len);
 
-        let map = refs
+        let res = refs
             .into_iter()
             .enumerate()
             .map(|(i, r)| r.into_ref_offset(start + i))
             .collect();
 
-        Ok((input, Self(map)))
+        Ok((input, res))
     }
 
     /// Parse a cross-reference section.
@@ -96,11 +96,9 @@ impl CrossRefs {
 
         let (input, refs) = many0(Self::parse_subsection)(input)?;
 
-        let refs = refs
-            .into_iter()
-            .fold(CrossRefs::default(), |a, b| a.merge(b));
+        let map = refs.into_iter().flatten().collect();
 
-        Ok((input, refs))
+        Ok((input, Self(map)))
     }
 }
 

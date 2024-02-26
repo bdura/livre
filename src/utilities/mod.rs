@@ -2,7 +2,7 @@
 
 mod whitespace;
 pub use whitespace::{
-    is_space_or_newline, take_eol, take_eol_no_r, take_whitespace, take_whitespace1,
+    is_space_or_newline, space, take_eol, take_eol_no_r, take_whitespace, take_whitespace1,
 };
 
 mod delimited;

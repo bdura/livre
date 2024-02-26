@@ -55,6 +55,10 @@ pub fn take_whitespace(input: &[u8]) -> IResult<&[u8], &[u8]> {
     take_while(is_space_or_newline)(input)
 }
 
+pub fn space(input: &[u8]) -> IResult<&[u8], &[u8]> {
+    tag(b" ")(input)
+}
+
 /// Consumes all whitespace (including newlines, at least one).
 ///
 /// # Example
