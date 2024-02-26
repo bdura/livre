@@ -1,10 +1,6 @@
 use std::collections::HashMap;
 
-use nom::{
-    multi::{many0, many1},
-    sequence::preceded,
-    IResult,
-};
+use nom::{multi::many1, IResult};
 
 use crate::{
     objects::{Object, Reference},
