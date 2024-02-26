@@ -4,7 +4,7 @@ use std::{
 };
 
 use pdf_parser::{
-    error::{ParsingError, Result},
+    error::ParsingError,
     objects::{Dictionary, Reference},
     structure::Document,
 };
