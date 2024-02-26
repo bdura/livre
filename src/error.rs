@@ -17,6 +17,8 @@ pub enum ParsingError {
     FilterDecode(#[from] std::io::Error),
     #[error("Conversion error")]
     ConversionError,
+    #[error("Parsing error: `{0}`")]
+    ParsingError(String),
 }
 
 pub type Result<T, E = ParsingError> = std::result::Result<T, E>;
