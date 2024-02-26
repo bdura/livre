@@ -1,16 +1,16 @@
 use nom::{bytes::complete::tag, IResult};
 
 use crate::{
-    objects::Dictionary,
+    objects::{Dictionary, Reference},
     utilities::{parse_digits, take_whitespace1},
 };
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Trailer {
     pub size: usize,
     pub prev: Option<usize>,
     // TODO: add other fields...
-    //pub root
+    pub root: Reference,
     //pub encrypt
     //pub info
     //pub id
@@ -33,6 +33,7 @@ impl Trailer {
         let size = dict
             .pop("Size")
             .expect("Size is a mandatory field compatible with usize");
+        let root = dict.pop("Root").expect("Root must exist");
         let prev = dict.pop_opt("Prev").expect("Prev is an integer");
 
         Ok((
@@ -40,6 +41,7 @@ impl Trailer {
             Self {
                 size,
                 prev,
+                root,
                 startxref,
             },
         ))
@@ -73,6 +75,10 @@ mod tests {
                 startxref: 18799,
                 size: 22,
                 prev: None,
+                root: Reference {
+                    object: 2,
+                    generation: 0
+                }
             }
         )
     }
