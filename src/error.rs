@@ -19,6 +19,8 @@ pub enum ParsingError {
     ConversionError,
     #[error("Parsing error: `{0}`")]
     ParsingError(String),
+    #[error("nom error.")]
+    NomError,
 }
 
 pub type Result<T, E = ParsingError> = std::result::Result<T, E>;
