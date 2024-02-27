@@ -50,7 +50,8 @@ where
 
     // SAFETY: we know for a fact that `digits` contains digits only,
     // and are therefore both utf-8-encoded and parsable.
-    let n = unsafe { std::str::from_utf8_unchecked(digits).parse().unwrap() };
+    let num = unsafe { std::str::from_utf8_unchecked(digits) };
+    let n = num.parse().unwrap();
 
     Ok((input, n))
 }
