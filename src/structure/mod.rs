@@ -9,6 +9,9 @@ pub use header::{Header, Version};
 mod trailer;
 pub use trailer::Trailer;
 
+mod startxref;
+pub use startxref::StartXRef;
+
 mod update;
 pub use update::Update;
 

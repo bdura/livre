@@ -7,7 +7,7 @@ use crate::{
     utilities::take_whitespace,
 };
 
-use super::{CrossRefs, Header, Update};
+use super::{CrossRefs, Header, StartXRef, Update};
 
 #[derive(Debug, Clone)]
 pub struct Document {
@@ -15,6 +15,7 @@ pub struct Document {
     pub body: HashMap<Reference, Object>,
     pub crossrefs: CrossRefs,
     pub root: Reference,
+    pub startxref: StartXRef,
 }
 
 impl Document {
@@ -23,11 +24,12 @@ impl Document {
         let (input, _) = take_whitespace(input)?;
         let (input, updates) = many1(Update::parse)(input)?;
 
-        let root = updates
-            .first()
-            .expect("There should be at least one update.")
-            .trailer
-            .root;
+        let last_update = updates
+            .last()
+            .expect("There should be at least one update.");
+
+        let root = last_update.trailer.root;
+        let startxref = last_update.startxref;
 
         let mut body = Vec::new();
         let mut crossrefs = Vec::new();
@@ -49,6 +51,7 @@ impl Document {
                 .into_iter()
                 .fold(CrossRefs::default(), |a, b| a.merge(b)),
             root,
+            startxref,
         };
 
         Ok((input, doc))

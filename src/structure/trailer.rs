@@ -2,7 +2,7 @@ use nom::{bytes::complete::tag, IResult};
 
 use crate::{
     objects::{Dictionary, Reference},
-    utilities::{parse_digits, take_whitespace1},
+    utilities::take_whitespace1,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -14,8 +14,6 @@ pub struct Trailer {
     //pub encrypt
     //pub info
     //pub id
-    /// Last but not least
-    pub startxref: usize,
 }
 
 impl Trailer {
@@ -23,12 +21,6 @@ impl Trailer {
         let (input, _) = tag(b"trailer")(input)?;
         let (input, _) = take_whitespace1(input)?;
         let (input, mut dict) = Dictionary::parse(input)?;
-        let (input, _) = take_whitespace1(input)?;
-        let (input, _) = tag(b"startxref")(input)?;
-        let (input, _) = take_whitespace1(input)?;
-        let (input, startxref) = parse_digits(input)?;
-        let (input, _) = take_whitespace1(input)?;
-        let (input, _) = tag(b"%%EOF")(input)?;
 
         let size = dict
             .pop("Size")
@@ -36,15 +28,7 @@ impl Trailer {
         let root = dict.pop("Root").expect("Root must exist");
         let prev = dict.pop_opt("Prev").expect("Prev is an integer");
 
-        Ok((
-            input,
-            Self {
-                size,
-                prev,
-                root,
-                startxref,
-            },
-        ))
+        Ok((input, Self { size, prev, root }))
     }
 }
 
@@ -63,16 +47,12 @@ mod tests {
                 /ID [<81b14aafa313db63dbd6f981e49f94f4>
                 <81b14aafa313db63dbd6f981e49f94f4>
                 ] >>
-            startxref
-            18799
-            %%EOF
         "};
 
         let (_, trailer) = Trailer::parse(input).unwrap();
         assert_eq!(
             trailer,
             Trailer {
-                startxref: 18799,
                 size: 22,
                 prev: None,
                 root: Reference {

@@ -7,13 +7,14 @@ use crate::{
     utilities::take_whitespace,
 };
 
-use super::{CrossRefs, Trailer};
+use super::{CrossRefs, StartXRef, Trailer};
 
 #[derive(Debug, Clone)]
 pub struct Update {
     pub body: HashMap<Reference, Object>,
     pub crossrefs: CrossRefs,
     pub trailer: Trailer,
+    pub startxref: StartXRef,
 }
 
 impl Update {
@@ -23,11 +24,13 @@ impl Update {
 
         let (input, crossrefs) = preceded(take_whitespace, CrossRefs::parse)(input)?;
         let (input, trailer) = preceded(take_whitespace, Trailer::parse)(input)?;
+        let (input, startxref) = preceded(take_whitespace, StartXRef::parse)(input)?;
 
         let update = Self {
             body,
             crossrefs,
             trailer,
+            startxref,
         };
 
         Ok((input, update))
