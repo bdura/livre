@@ -1,6 +1,6 @@
 use nom::{branch::alt, bytes::complete::tag};
 
-use super::Extract;
+use crate::extraction::Extract;
 
 impl Extract<'_> for bool {
     fn extract(input: &[u8]) -> nom::IResult<&[u8], Self> {

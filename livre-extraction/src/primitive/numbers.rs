@@ -2,7 +2,7 @@ use nom::IResult;
 
 use crate::utilities::{parse_integer, parse_real};
 
-use super::Extract;
+use crate::extraction::Extract;
 
 // TODO: handle parsing error.
 macro_rules! extract_integer {

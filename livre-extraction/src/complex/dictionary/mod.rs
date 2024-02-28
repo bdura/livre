@@ -13,7 +13,7 @@ use crate::{
     utilities::{take_whitespace, take_within_balanced},
 };
 
-use super::{Extract, Parse};
+use crate::extraction::{Extract, Parse};
 
 mod utilities;
 use utilities::parse_key_value;
