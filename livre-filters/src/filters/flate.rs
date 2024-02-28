@@ -1,10 +1,9 @@
 use std::io::Read;
 
+use crate::error::Result;
 use flate2::read::ZlibDecoder;
 
-use crate::error::Result;
-
-use super::Filtering;
+use crate::Filtering;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FlateDecode;
