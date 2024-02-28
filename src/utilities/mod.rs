@@ -9,7 +9,10 @@ mod delimited;
 pub use delimited::take_within_balanced;
 
 mod digits;
-pub use digits::{parse_digits, parse_hexadecimal_bigram, parse_octal, parse_sign};
+pub use digits::{
+    parse_digits, parse_hexadecimal_bigram, parse_integer, parse_number, parse_octal, parse_real,
+    parse_sign,
+};
 
 mod misc;
 pub use misc::{parse_comment, parse_string_with_escapes};
