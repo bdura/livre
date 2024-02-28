@@ -3,7 +3,7 @@ use std::{
     io::{prelude::*, BufReader},
 };
 
-use pdf_parser::{
+use livre_leg::{
     error::ParsingError,
     objects::{Dictionary, Reference},
     structure::Document,

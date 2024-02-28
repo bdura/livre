@@ -39,7 +39,7 @@ pub fn is_space_or_newline(b: u8) -> bool {
 /// # Example
 ///
 /// ```
-/// # use pdf_parser::utilities::take_whitespace;
+/// # use livre_leg::utilities::take_whitespace;
 ///
 /// let (input, ws) = take_whitespace(b"     test").unwrap();
 ///
@@ -64,7 +64,7 @@ pub fn space(input: &[u8]) -> IResult<&[u8], &[u8]> {
 /// # Example
 ///
 /// ```
-/// # use pdf_parser::utilities::take_whitespace1;
+/// # use livre_leg::utilities::take_whitespace1;
 ///
 /// let (input, ws) = take_whitespace1(b"     test").unwrap();
 ///
