@@ -1,5 +1,3 @@
-mod extraction;
-
-pub mod utilities;
-
 pub mod error;
+pub mod extraction;
+pub mod utilities;
