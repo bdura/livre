@@ -25,3 +25,4 @@ impl<'input> Parse<'input> for &'input [u8] {
 mod boolean;
 mod dictionary;
 mod numbers;
+mod string;
