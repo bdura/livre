@@ -5,11 +5,8 @@ use enum_dispatch::enum_dispatch;
 mod error;
 use error::Result;
 
-mod flate;
-pub use flate::FlateDecode;
-
-mod dct;
-pub use dct::DCTDecode;
+mod filters;
+pub use filters::{FlateDecode, DCTDecode};
 
 #[enum_dispatch(Filter)]
 pub trait Filtering {

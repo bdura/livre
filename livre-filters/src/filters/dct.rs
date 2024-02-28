@@ -1,6 +1,5 @@
 use crate::error::Result;
-
-use super::Filtering;
+use crate::Filtering;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DCTDecode;
