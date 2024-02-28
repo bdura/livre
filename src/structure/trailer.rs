@@ -18,7 +18,7 @@ pub struct Trailer {
 
 impl Trailer {
     pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
-        let (input, _) = tag(b"trailer")(input)?;
+        let (input, _) = tag("trailer")(input)?;
         let (input, _) = take_whitespace1(input)?;
         let (input, mut dict) = Dictionary::parse(input)?;
 

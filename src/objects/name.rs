@@ -21,7 +21,7 @@ impl Name {
     }
 
     pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
-        let (input, _) = tag(b"/")(input)?;
+        let (input, _) = tag("/")(input)?;
         let (input, value) = take_till(|b| {
             is_space_or_newline(b) || b == b'/' || b == b'<' || b == b'[' || b == b'('
         })(input)?;

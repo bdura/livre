@@ -20,7 +20,7 @@ impl Version {
     pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, comment) = parse_comment(input)?;
 
-        let (comment, _) = tag(b"PDF-")(comment)?;
+        let (comment, _) = tag("PDF-")(comment)?;
 
         let version = match comment {
             b"1.0" => Self::Pdf10,

@@ -6,7 +6,7 @@ pub struct Boolean(pub bool);
 
 impl Boolean {
     pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
-        let (input, b) = alt((tag(b"true"), tag(b"false")))(input)?;
+        let (input, b) = alt((tag("true"), tag("false")))(input)?;
 
         let obj = match b {
             b"true" => Self(true),

@@ -12,7 +12,7 @@ pub const WHITE_SPACE_CHARS: [u8; 6] = [0x00, 0x09, 0x0A, 0x0C, 0x0D, 0x20];
 /// Since we're dealing with standards such as PdfEncoding and UTF16BE,
 /// of course the end-of-line marker is not just `\n`...
 pub fn take_eol(input: &[u8]) -> IResult<&[u8], &[u8]> {
-    alt((tag(b"\n"), tag(b"\r\n"), tag(b"\r")))(input)
+    alt((tag("\n"), tag("\r\n"), tag("\r")))(input)
 }
 
 /// Take a single end-of-line maker, excluding a single `\r`.
@@ -27,7 +27,7 @@ pub fn take_eol(input: &[u8]) -> IResult<&[u8], &[u8]> {
 ///
 /// The moral of the story is that UTF8 with `\n` new line marker is just better.
 pub fn take_eol_no_r(input: &[u8]) -> IResult<&[u8], &[u8]> {
-    alt((tag(b"\n"), tag(b"\r\n")))(input)
+    alt((tag("\n"), tag("\r\n")))(input)
 }
 
 pub fn is_space_or_newline(b: u8) -> bool {
@@ -56,7 +56,7 @@ pub fn take_whitespace(input: &[u8]) -> IResult<&[u8], &[u8]> {
 }
 
 pub fn space(input: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag(b" ")(input)
+    tag(" ")(input)
 }
 
 /// Consumes all whitespace (including newlines, at least one).

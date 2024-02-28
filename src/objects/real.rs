@@ -15,8 +15,8 @@ pub struct Real(pub f32);
 impl Real {
     fn parse_unsigned(input: &[u8]) -> IResult<&[u8], &[u8]> {
         alt((
-            recognize(separated_pair(digit1, tag(b"."), digit0)),
-            recognize(separated_pair(digit0, tag(b"."), digit1)),
+            recognize(separated_pair(digit1, tag("."), digit0)),
+            recognize(separated_pair(digit0, tag("."), digit1)),
         ))(input)
     }
 
