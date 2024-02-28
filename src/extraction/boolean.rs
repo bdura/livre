@@ -2,7 +2,7 @@ use nom::{branch::alt, bytes::complete::tag};
 
 use super::Extract;
 
-impl Extract for bool {
+impl Extract<'_> for bool {
     fn extract(input: &[u8]) -> nom::IResult<&[u8], Self> {
         let (input, boolean) = alt((tag("true"), tag("false")))(input)?;
         let boolean = boolean == b"true";

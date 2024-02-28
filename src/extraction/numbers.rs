@@ -7,7 +7,7 @@ use super::Extract;
 // TODO: handle parsing error.
 macro_rules! extract_integer {
     ($type:ty) => {
-        impl Extract for $type {
+        impl Extract<'_> for $type {
             fn extract(input: &[u8]) -> IResult<&[u8], Self> {
                 parse_integer(input)
             }
@@ -18,8 +18,8 @@ macro_rules! extract_integer {
 // TODO: handle parsing error.
 macro_rules! extract_real {
     ($type:ty) => {
-        impl Extract for $type {
-            fn extract(input: &[u8]) -> IResult<&[u8], Self> {
+        impl Extract<'_> for $type {
+            fn extract(input: &'_ [u8]) -> IResult<&'_ [u8], Self> {
                 parse_real(input)
             }
         }
