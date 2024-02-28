@@ -1,0 +1,13 @@
+[package]
+name = "livre-filters"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+enum_dispatch = "0.3.12"
+flate2 = "1.0.28"
+thiserror = "1.0.57"
+
+[dev-dependencies]
+indoc = "2.0.4"
+rstest = "0.18.2"
