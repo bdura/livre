@@ -6,7 +6,7 @@ use nom::{
     character::complete::{digit0, digit1, hex_digit1, oct_digit1},
     combinator::{opt, recognize},
     error::{Error, ErrorKind, ParseError},
-    sequence::separated_pair,
+    sequence::{separated_pair, tuple},
     Err, IResult,
 };
 
@@ -89,6 +89,63 @@ pub fn parse_sign(input: &[u8]) -> IResult<&[u8], &[u8]> {
     alt((tag("+"), tag("-")))(input)
 }
 
+fn recognize_real(input: &[u8]) -> IResult<&[u8], &[u8]> {
+    alt((
+        recognize(separated_pair(digit1, tag("."), digit0)),
+        recognize(separated_pair(digit0, tag("."), digit1)),
+    ))(input)
+}
+
+fn recognize_number(input: &[u8]) -> IResult<&[u8], ()> {
+    let (input, _) = alt((recognize_real, digit1))(input)?;
+    Ok((input, ()))
+}
+
+pub fn parse_integer<O, E>(input: &[u8]) -> IResult<&[u8], O>
+where
+    O: FromStr<Err = E>,
+    E: Debug,
+{
+    let (input, number) = recognize(tuple((opt(parse_sign), digit1)))(input)?;
+
+    // SAFETY: we know for a fact that `digits` contains digits only,
+    // and are therefore both utf-8-encoded and parsable.
+    let num = unsafe { std::str::from_utf8_unchecked(number) };
+    let n = num.parse().unwrap();
+
+    Ok((input, n))
+}
+
+pub fn parse_real<O, E>(input: &[u8]) -> IResult<&[u8], O>
+where
+    O: FromStr<Err = E>,
+    E: Debug,
+{
+    let (input, number) = recognize(tuple((opt(parse_sign), recognize_real)))(input)?;
+
+    // SAFETY: we know for a fact that `digits` contains digits only,
+    // and are therefore both utf-8-encoded and parsable.
+    let num = unsafe { std::str::from_utf8_unchecked(number) };
+    let n = num.parse().unwrap();
+
+    Ok((input, n))
+}
+
+pub fn parse_number<O, E>(input: &[u8]) -> IResult<&[u8], O>
+where
+    O: FromStr<Err = E>,
+    E: Debug,
+{
+    let (input, number) = recognize(tuple((opt(parse_sign), recognize_number)))(input)?;
+
+    // SAFETY: we know for a fact that `digits` contains digits only,
+    // and are therefore both utf-8-encoded and parsable.
+    let num = unsafe { std::str::from_utf8_unchecked(number) };
+    let n = num.parse().unwrap();
+
+    Ok((input, n))
+}
+
 #[cfg(test)]
 mod tests {
     use rstest::rstest;
@@ -127,5 +184,102 @@ mod tests {
     #[should_panic]
     fn hex_failure(#[case] input: &[u8]) {
         parse_hexadecimal_bigram(input).unwrap();
+    }
+
+    #[rstest]
+    #[case(b"10", 10)]
+    #[case(b"+10", 10)]
+    #[case(b"-10", -10)]
+    fn integer(#[case] input: &[u8], #[case] result: i128) {
+        let (_, n) = parse_integer(input).unwrap();
+        assert_eq!(result, n);
+        let (_, n) = parse_number(input).unwrap();
+        assert_eq!(result, n);
+
+        let r = result as isize;
+        let (_, n) = parse_integer(input).unwrap();
+        assert_eq!(r, n);
+        let (_, n) = parse_number(input).unwrap();
+        assert_eq!(r, n);
+
+        let r = result as i64;
+        let (_, n) = parse_integer(input).unwrap();
+        assert_eq!(r, n);
+        let (_, n) = parse_number(input).unwrap();
+        assert_eq!(r, n);
+
+        let r = result as i32;
+        let (_, n) = parse_integer(input).unwrap();
+        assert_eq!(r, n);
+        let (_, n) = parse_number(input).unwrap();
+        assert_eq!(r, n);
+
+        let r = result as i16;
+        let (_, n) = parse_integer(input).unwrap();
+        assert_eq!(r, n);
+        let (_, n) = parse_number(input).unwrap();
+        assert_eq!(r, n);
+
+        let r = result as i8;
+        let (_, n) = parse_integer(input).unwrap();
+        assert_eq!(r, n);
+        let (_, n) = parse_number(input).unwrap();
+        assert_eq!(r, n);
+
+        if result > 0 {
+            let r = result as u128;
+            let (_, n) = parse_integer(input).unwrap();
+            assert_eq!(r, n);
+            let (_, n) = parse_number(input).unwrap();
+            assert_eq!(r, n);
+
+            let r = result as usize;
+            let (_, n) = parse_integer(input).unwrap();
+            assert_eq!(r, n);
+            let (_, n) = parse_number(input).unwrap();
+            assert_eq!(r, n);
+
+            let r = result as u64;
+            let (_, n) = parse_integer(input).unwrap();
+            assert_eq!(r, n);
+            let (_, n) = parse_number(input).unwrap();
+            assert_eq!(r, n);
+
+            let r = result as u32;
+            let (_, n) = parse_integer(input).unwrap();
+            assert_eq!(r, n);
+            let (_, n) = parse_number(input).unwrap();
+            assert_eq!(r, n);
+
+            let r = result as u16;
+            let (_, n) = parse_integer(input).unwrap();
+            assert_eq!(r, n);
+            let (_, n) = parse_number(input).unwrap();
+            assert_eq!(r, n);
+
+            let r = result as u8;
+            let (_, n) = parse_integer(input).unwrap();
+            assert_eq!(r, n);
+            let (_, n) = parse_number(input).unwrap();
+            assert_eq!(r, n);
+        }
+    }
+
+    #[rstest]
+    #[case(b"10.", 10.0)]
+    #[case(b"+10.0", 10.0)]
+    #[case(b"-10.", -10.0)]
+    #[case(b"-.02", -0.02)]
+    fn feal(#[case] input: &[u8], #[case] result: f64) {
+        let (_, n) = parse_real(input).unwrap();
+        assert_eq!(result, n);
+        let (_, n) = parse_number(input).unwrap();
+        assert_eq!(result, n);
+
+        let r = result as f32;
+        let (_, n) = parse_real(input).unwrap();
+        assert_eq!(r, n);
+        let (_, n) = parse_number(input).unwrap();
+        assert_eq!(r, n);
     }
 }
