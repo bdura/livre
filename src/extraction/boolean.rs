@@ -17,9 +17,8 @@ mod tests {
 
     use super::*;
 
-    #[allow(clippy::bool_assert_comparison)]
     #[test]
-    fn test_parse() {
+    fn boolean() {
         assert!(bool::extract(b"true").unwrap().1);
         assert!(!bool::extract(b"false").unwrap().1);
 
