@@ -26,3 +26,4 @@ mod boolean;
 mod dictionary;
 mod numbers;
 mod string;
+mod vec;
