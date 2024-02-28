@@ -13,8 +13,8 @@ use super::Extract;
 
 fn recognize_real(input: &[u8]) -> IResult<&[u8], (&[u8], &[u8])> {
     alt((
-        separated_pair(digit1, tag(b"."), digit0),
-        separated_pair(digit0, tag(b"."), digit1),
+        separated_pair(digit1, tag("."), digit0),
+        separated_pair(digit0, tag("."), digit1),
     ))(input)
 }
 

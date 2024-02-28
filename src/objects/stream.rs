@@ -23,7 +23,7 @@ impl Stream {
         let (input, body) = take(length)(input)?;
 
         let (input, _) = take_eol(input)?;
-        let (input, _) = tag(b"endstream")(input)?;
+        let (input, _) = tag("endstream")(input)?;
 
         Ok((input, body))
     }

@@ -21,7 +21,7 @@ use crate::{
 /// Cross-reference entry EOL.
 /// Can be: SP CR, SP LF, or CR LF (OMG!)
 fn xref_entry_eol(input: &[u8]) -> IResult<&[u8], &[u8]> {
-    alt((tag(b" \r"), tag(b" \n"), tag(b"\r\n")))(input)
+    alt((tag(" \r"), tag(" \n"), tag("\r\n")))(input)
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -42,7 +42,7 @@ impl CrossRef {
             space,
             verify(digit1, |r: &[u8]| r.len() == 5),
             space,
-            alt((tag(b"n"), tag(b"f"))),
+            alt((tag("n"), tag("f"))),
             xref_entry_eol,
         )
             .parse(input)?;

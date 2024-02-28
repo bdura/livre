@@ -12,11 +12,11 @@ const STARTXREF_TAG: &[u8] = b"startxref";
 
 impl StartXRef {
     pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
-        let (input, _) = tag(b"startxref")(input)?;
+        let (input, _) = tag("startxref")(input)?;
         let (input, _) = take_whitespace1(input)?;
         let (input, startxref) = parse_digits(input)?;
         let (input, _) = take_whitespace1(input)?;
-        let (input, _) = tag(b"%%EOF")(input)?;
+        let (input, _) = tag("%%EOF")(input)?;
 
         Ok((input, Self(startxref)))
     }

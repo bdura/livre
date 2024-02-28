@@ -16,15 +16,15 @@ impl LiteralString {
         let (input, _) = take(1usize)(input)?;
 
         alt((
-            map(tag(b"\n"), |_| None),
-            map(tag(b"n"), |_| Some('\n')),
-            map(tag(b"r"), |_| Some('\r')),
-            map(tag(b"t"), |_| Some('\t')),
-            map(tag(b"b"), |_| Some('\u{21A1}')),
-            map(tag(b"f"), |_| Some('\u{232B}')),
-            map(tag(b"("), |_| Some('(')),
-            map(tag(b")"), |_| Some(')')),
-            map(tag(b"\\"), |_| Some('\\')),
+            map(tag("\n"), |_| None),
+            map(tag("n"), |_| Some('\n')),
+            map(tag("r"), |_| Some('\r')),
+            map(tag("t"), |_| Some('\t')),
+            map(tag("b"), |_| Some('\u{21A1}')),
+            map(tag("f"), |_| Some('\u{232B}')),
+            map(tag("("), |_| Some('(')),
+            map(tag(")"), |_| Some(')')),
+            map(tag("\\"), |_| Some('\\')),
             map(parse_octal, |n| Some(n as char)),
         ))(input)
     }

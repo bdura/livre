@@ -4,7 +4,7 @@ use super::Extract;
 
 impl Extract for bool {
     fn extract(input: &[u8]) -> nom::IResult<&[u8], Self> {
-        let (input, boolean) = alt((tag(b"true"), tag(b"false")))(input)?;
+        let (input, boolean) = alt((tag("true"), tag("false")))(input)?;
         let boolean = boolean == b"true";
         Ok((input, boolean))
     }

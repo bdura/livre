@@ -57,5 +57,5 @@ where
 }
 
 pub fn parse_sign(input: &[u8]) -> IResult<&[u8], &[u8]> {
-    alt((tag(b"+"), tag(b"-")))(input)
+    alt((tag("+"), tag("-")))(input)
 }

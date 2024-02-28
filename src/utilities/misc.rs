@@ -32,6 +32,6 @@ pub fn parse_string_with_escapes(
 }
 
 pub fn parse_comment(input: &[u8]) -> IResult<&[u8], &[u8]> {
-    let (input, (_, content)) = tuple((tag(b"%"), take_till(|c| c == b'\n' || c == b'\r')))(input)?;
+    let (input, (_, content)) = tuple((tag("%"), take_till(|c| c == b'\n' || c == b'\r')))(input)?;
     Ok((input, content))
 }

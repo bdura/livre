@@ -34,8 +34,7 @@ pub enum Object {
 impl Object {
     fn parse_stream_or_dict(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, dict) = Dictionary::parse(input)?;
-        let Ok((input, _)) = delimited(take_whitespace, tag(b"stream"), take_eol_no_r)(input)
-        else {
+        let Ok((input, _)) = delimited(take_whitespace, tag("stream"), take_eol_no_r)(input) else {
             return Ok((input, Self::Dictionary(dict)));
         };
         let (input, stream) = Stream::parse_with_dict(input, dict)?;
@@ -60,7 +59,7 @@ impl Object {
         // For instance, we should test `Real` before we test `Integer`,
         // and reference objects before numerics.
         let (input, obj) = alt((
-            map(tag(b"null"), |_| Self::Null),
+            map(tag("null"), |_| Self::Null),
             map(Boolean::parse, Self::Boolean),
             map(Reference::parse, Self::Reference),
             map(Real::parse, Self::Real),
@@ -79,11 +78,11 @@ impl Object {
 
     pub fn parse_indirect(input: &[u8]) -> IResult<&[u8], (Reference, Self)> {
         let (input, (object, _, generation, _)) =
-            tuple((parse_digits, tag(b" "), parse_digits, tag(b" obj")))(input)?;
+            tuple((parse_digits, tag(" "), parse_digits, tag(" obj")))(input)?;
         let reference = Reference::new(object, generation);
         let (input, _) = take_whitespace1(input)?;
         let (input, obj) = Self::parse(input)?;
-        let (input, _) = tag(b"endobj")(input)?;
+        let (input, _) = tag("endobj")(input)?;
         let (input, _) = take_whitespace1(input)?;
 
         Ok((input, (reference, obj)))

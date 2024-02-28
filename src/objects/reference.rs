@@ -17,7 +17,7 @@ impl Reference {
 impl Reference {
     pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, (object, _, generation, _)) =
-            tuple((parse_digits, tag(b" "), parse_digits, tag(b" R")))(input)?;
+            tuple((parse_digits, tag(" "), parse_digits, tag(" R")))(input)?;
 
         Ok((input, Self { object, generation }))
     }
