@@ -38,3 +38,19 @@ pub fn take_within_balanced(
         )))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+
+    use super::*;
+
+    #[rstest]
+    #[case(b"<test>", b"test")]
+    #[case(b"<te<s>t>", b"te<s>t")]
+    #[case(b"<te<s>eafwt>", b"te<s>eafwt")]
+    fn chevron_delimited(#[case] input: &[u8], #[case] expected: &[u8]) {
+        let (_, inside) = take_within_balanced(b'<', b'>')(input).unwrap();
+        assert_eq!(inside, expected);
+    }
+}
