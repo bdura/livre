@@ -7,31 +7,20 @@ pub trait Extract: Sized {
 }
 
 pub trait Parse: Sized {
-    fn extract<T>(self) -> IResult<Self, T>
-    where
-        T: Extract;
-    fn parse<T>(self) -> Result<T, ParsingError>
-    where
-        T: Extract;
+    fn extract<T: Extract>(self) -> IResult<Self, T>;
+    fn parse<T: Extract>(self) -> Result<T, ParsingError>;
 }
 
 impl Parse for &[u8] {
-    fn parse<T>(self) -> Result<T, ParsingError>
-    where
-        T: Extract,
-    {
+    fn parse<T: Extract>(self) -> Result<T, ParsingError> {
         let (_, obj) = T::extract(self).map_err(|_| ParsingError::NomError)?;
         Ok(obj)
     }
 
-    fn extract<T>(self) -> IResult<Self, T>
-    where
-        T: Extract,
-    {
+    fn extract<T: Extract>(self) -> IResult<Self, T> {
         T::extract(self)
     }
 }
 
 mod boolean;
-mod integers;
-mod reals;
+mod numbers;
