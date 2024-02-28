@@ -179,8 +179,6 @@ version = "0.1.0"
 dependencies = [
  "enum_dispatch",
  "flate2",
- "indoc",
- "rstest",
  "thiserror",
 ]
 
@@ -201,12 +199,9 @@ dependencies = [
 name = "livre-parser"
 version = "0.1.0"
 dependencies = [
- "enum_dispatch",
- "flate2",
  "indoc",
  "nom",
  "rstest",
- "strum",
  "thiserror",
 ]
 
