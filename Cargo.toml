@@ -1,3 +1,3 @@
 [workspace]
 resolver = "2"
-members = ["livre-extraction", "livre-filters"]
+members = ["livre-extraction", "livre-filters", "livre-derive"]
