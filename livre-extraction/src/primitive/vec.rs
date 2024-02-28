@@ -2,7 +2,7 @@ use nom::multi::separated_list0;
 
 use crate::utilities::{take_whitespace, take_whitespace1, take_within_balanced};
 
-use super::Extract;
+use crate::extraction::Extract;
 
 impl<'input, T> Extract<'input> for Vec<T>
 where
@@ -30,8 +30,8 @@ mod tests {
 
     use rstest::rstest;
 
-    use super::super::Parse;
     use super::*;
+    use crate::extraction::Parse;
 
     #[rstest]
     #[case(b"[1 2 4]", vec![1, 2, 4])]

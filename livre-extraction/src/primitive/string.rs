@@ -8,7 +8,7 @@ use nom::{
 
 use crate::utilities::{parse_octal, parse_string_with_escapes, take_within_balanced};
 
-use super::Extract;
+use crate::extraction::Extract;
 
 impl Extract<'_> for String {
     fn extract(input: &[u8]) -> nom::IResult<&[u8], Self> {
@@ -41,8 +41,8 @@ mod tests {
 
     use rstest::rstest;
 
-    use super::super::Parse;
     use super::*;
+    use crate::extraction::Parse;
 
     #[rstest]
     #[case(b"(abcd)", "abcd")]
