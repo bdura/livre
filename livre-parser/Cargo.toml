@@ -6,7 +6,7 @@ edition = "2021"
 
 [dependencies]
 nom = "7"
-thiserror = "1.0.57"
+thiserror = "1.0"
 
 [dev-dependencies]
 indoc = "2.0.4"

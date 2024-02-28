@@ -3,11 +3,17 @@ use nom::{
     multi::many0,
     Err, IResult,
 };
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    ops::{Deref, DerefMut},
+};
 
-use crate::utilities::{take_whitespace, take_within_balanced};
+use crate::{
+    error::{self, Result},
+    utilities::{take_whitespace, take_within_balanced},
+};
 
-use super::Extract;
+use super::{Extract, Parse};
 
 mod utilities;
 use utilities::parse_key_value;
@@ -43,6 +49,42 @@ impl<'input> Extract<'input> for Dictionary<'input> {
     }
 }
 
+impl<'input> Deref for Dictionary<'input> {
+    type Target = HashMap<String, &'input [u8]>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'input> DerefMut for Dictionary<'input> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<'input> Dictionary<'input> {
+    pub fn pop<T>(&mut self, key: &str) -> Result<T>
+    where
+        T: Extract<'input>,
+    {
+        let result = self
+            .remove(key)
+            .ok_or_else(|| error::ExtractionError::KeyNotFound(key.into()))?
+            .parse()?;
+
+        Ok(result)
+    }
+
+    pub fn pop_opt<T>(&mut self, key: &str) -> Result<Option<T>>
+    where
+        T: Extract<'input>,
+    {
+        let result = self.remove(key).map(|obj| obj.parse()).transpose()?;
+        Ok(result)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use rstest::rstest;
@@ -61,5 +103,26 @@ mod tests {
         let (_, Dictionary(r)) = Dictionary::extract(input).unwrap();
 
         assert_eq!(r, dict);
+    }
+
+    #[rstest]
+    #[case(b"<</Key (value)>>", "Key", "value")]
+    #[case(b"<</Key (test)/Ok (false)>>", "Key", "test")]
+    #[case(b"<</Key (test)/Ok (false)>>", "Ok", "false")]
+    fn dictionary_pop(#[case] input: &[u8], #[case] key: &str, #[case] expected: &str) {
+        let (_, mut dict) = Dictionary::extract(input).unwrap();
+        let result: String = dict.pop(key).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[rstest]
+    #[case(b"<</Key (value)>>", "Key", Some("value"))]
+    #[case(b"<</Key (test)/Ok (false)>>", "Key", Some("test"))]
+    #[case(b"<</Key (test)/Ok (false)>>", "NotHere", None)]
+    fn dictionary_pop_opt(#[case] input: &[u8], #[case] key: &str, #[case] expected: Option<&str>) {
+        let (_, mut dict) = Dictionary::extract(input).unwrap();
+        let result: Option<String> = dict.pop_opt(key).unwrap();
+        let expected = expected.map(|s| s.to_string());
+        assert_eq!(result, expected);
     }
 }
