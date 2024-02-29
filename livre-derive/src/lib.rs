@@ -5,6 +5,7 @@ use syn::{
 };
 
 mod attr;
+mod option;
 
 #[proc_macro_derive(Extract, attributes(livre))]
 pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -55,6 +56,14 @@ fn generate_extraction(data: &Data) -> TokenStream {
         }) => {
             let fieldname = fields.named.iter().map(|f| &f.ident).collect::<Vec<_>>();
             let fieldty = fields.named.iter().map(|f| &f.ty);
+            let dictfunc = fields.named.iter().map(|f| {
+                let is_opt = option::is_option(&f.ty);
+                if is_opt {
+                    quote!(pop_opt)
+                } else {
+                    quote!(pop)
+                }
+            });
             let fieldstr = fields
                 .named
                 .iter()
@@ -67,7 +76,7 @@ fn generate_extraction(data: &Data) -> TokenStream {
 
                 #(
                     let #fieldname: #fieldty = dict
-                        .pop(#fieldstr)
+                        .#dictfunc(#fieldstr)
                         .map_err(|_| nom::Err::Error(nom::error::Error::from_error_kind(input, nom::error::ErrorKind::IsNot)))?;
                 )*
 
