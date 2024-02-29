@@ -16,7 +16,7 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     // Add a bound `T: Extract` to every type parameter T.
     let generics = add_trait_bounds(input.generics);
-    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+    let (_impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     // Generate an expression to sum up the heap size of each field.
     let extraction = generate_extraction(&input.data);

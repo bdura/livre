@@ -1,4 +1,4 @@
-use syn::{Attribute, Field, LitStr, Result, Variant};
+use syn::{Attribute, Field, LitStr, Result};
 
 /// Find the value of a #[serde(rename = "...")] attribute.
 fn attr_rename(attrs: &[Attribute]) -> Result<Option<String>> {
@@ -27,7 +27,30 @@ fn attr_rename(attrs: &[Attribute]) -> Result<Option<String>> {
 }
 
 /// Determine the name of a field, respecting a rename attribute.
+///
+/// The field is capitalized by default.
 pub fn name_of_field(field: &Field) -> Result<String> {
     let rename = attr_rename(&field.attrs)?;
-    Ok(rename.unwrap_or_else(|| field.ident.as_ref().unwrap().to_string()))
+    Ok(rename.unwrap_or_else(|| {
+        let name = field.ident.as_ref().unwrap().to_string();
+        capitalize(&name)
+    }))
+}
+
+fn capitalize(s: &str) -> String {
+    let (c, rest) = s.split_at(1);
+    let c = c.to_uppercase();
+
+    [&c, rest].join("")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn capitalization() {
+        assert_eq!(capitalize("n"), "N");
+        assert_eq!(capitalize("next"), "Next");
+    }
 }
