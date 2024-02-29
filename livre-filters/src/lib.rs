@@ -6,7 +6,7 @@ mod error;
 use error::Result;
 
 mod filters;
-pub use filters::{FlateDecode, DCTDecode};
+pub use filters::{DCTDecode, FlateDecode};
 
 #[enum_dispatch(Filter)]
 pub trait Filtering {
