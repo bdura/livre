@@ -112,6 +112,16 @@ impl<'input> RawDict<'input> {
         let result = self.remove(key).map(|obj| obj.parse()).transpose()?;
         Ok(result)
     }
+
+    pub fn convert<T>(self) -> Result<HashMap<String, T>>
+    where
+        T: Extract<'input>,
+    {
+        self.0
+            .into_iter()
+            .map(|(key, value)| value.parse::<T>().map(|r| (key, r)))
+            .collect()
+    }
 }
 
 #[cfg(test)]

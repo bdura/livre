@@ -3,12 +3,11 @@ use nom::{
     sequence::tuple,
 };
 
-use crate::{
+use livre_extraction::{
+    dictionary::RawDict,
     utilities::{take_eol_no_r, take_whitespace},
     Extract,
 };
-
-use super::RawDict;
 
 pub struct Stream<'input> {
     pub dict: RawDict<'input>,

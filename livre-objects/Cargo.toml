@@ -1,0 +1,15 @@
+[package]
+name = "livre-objects"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+nom = "7"
+thiserror = "1.0"
+
+livre-extraction = { path = "../livre-extraction" }
+
+
+[dev-dependencies]
+indoc = "2.0.4"
+rstest = "0.18.2"

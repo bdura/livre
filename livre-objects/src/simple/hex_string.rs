@@ -1,6 +1,6 @@
 use nom::{multi::many0, IResult};
 
-use crate::{
+use livre_extraction::{
     utilities::{parse_hexadecimal_bigram, take_within_balanced},
     Extract,
 };

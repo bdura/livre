@@ -3,11 +3,12 @@ use nom::{
     sequence::separated_pair,
 };
 
-use crate::{
-    pdf_types::Reference,
+use livre_extraction::{
     utilities::{take_whitespace, take_whitespace1},
     Extract,
 };
+
+use crate::simple::Reference;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Raw<'input>(pub &'input [u8]);
