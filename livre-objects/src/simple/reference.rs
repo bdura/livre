@@ -1,6 +1,6 @@
 use nom::{bytes::complete::tag, sequence::tuple, IResult};
 
-use crate::Extract;
+use livre_extraction::Extract;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct Reference {
