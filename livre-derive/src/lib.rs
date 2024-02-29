@@ -72,7 +72,7 @@ fn generate_extraction(data: &Data) -> TokenStream {
                 .unwrap();
 
             quote! {
-                let (new_input, mut dict) = ::livre_extraction::complex::Dictionary::extract(input)?;
+                let (new_input, mut dict) = ::livre_extraction::complex::RawDict::extract(input)?;
 
                 #(
                     let #fieldname: #fieldty = dict

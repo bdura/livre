@@ -1,5 +1,5 @@
 mod dictionary;
-pub use dictionary::Dictionary;
+pub use dictionary::{Dictionary, RawDict};
 
 mod stream;
 pub use stream::Stream;

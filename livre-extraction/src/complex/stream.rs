@@ -8,16 +8,16 @@ use crate::{
     Extract,
 };
 
-use super::Dictionary;
+use super::RawDict;
 
 pub struct Stream<'input> {
-    pub dict: Dictionary<'input>,
+    pub dict: RawDict<'input>,
     pub inner: &'input [u8],
 }
 
 impl<'input> Extract<'input> for Stream<'input> {
     fn extract(input: &'input [u8]) -> nom::IResult<&'input [u8], Self> {
-        let (input, mut dict) = Dictionary::extract(input)?;
+        let (input, mut dict) = RawDict::extract(input)?;
         let (input, _) = tuple((take_whitespace, tag(b"stream"), take_eol_no_r))(input)?;
 
         let length: usize = dict
