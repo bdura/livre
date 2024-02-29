@@ -19,9 +19,11 @@ mod utilities;
 use utilities::parse_key_value;
 
 #[derive(Debug, PartialEq, Clone, Default)]
-pub struct Dictionary<'input>(pub HashMap<String, &'input [u8]>);
+pub struct Dictionary<T>(pub HashMap<String, T>);
 
-impl<'input> Extract<'input> for Dictionary<'input> {
+pub type RawDict<'input> = Dictionary<&'input [u8]>;
+
+impl<'input> Extract<'input> for HashMap<String, &'input [u8]> {
     fn extract(input: &'input [u8]) -> IResult<&'input [u8], Self> {
         // dictionaries are enclosed by double angle brackets.
         let (input, value) = take_within_balanced(b'<', b'>')(input)?;
@@ -45,25 +47,52 @@ impl<'input> Extract<'input> for Dictionary<'input> {
 
         let map: HashMap<String, &[u8]> = array.into_iter().collect();
 
+        Ok((input, map))
+    }
+}
+
+impl<'input> Extract<'input> for RawDict<'input> {
+    fn extract(input: &'input [u8]) -> IResult<&'input [u8], Self> {
+        let (input, map) = HashMap::<String, &'input [u8]>::extract(input)?;
         Ok((input, Self(map)))
     }
 }
 
-impl<'input> Deref for Dictionary<'input> {
-    type Target = HashMap<String, &'input [u8]>;
+impl<'input, T> Extract<'input> for Dictionary<T>
+where
+    T: Extract<'input>,
+{
+    fn extract(input: &'input [u8]) -> IResult<&'input [u8], Self> {
+        let (input, map) = HashMap::<String, &'input [u8]>::extract(input)?;
+        let map: Result<HashMap<String, T>> = map
+            .into_iter()
+            .map(|(key, val)| val.parse::<T>().map(|v| (key, v)))
+            .collect();
+        let map = map.map_err(|_| {
+            nom::Err::Error(nom::error::Error::from_error_kind(
+                input,
+                nom::error::ErrorKind::IsNot,
+            ))
+        })?;
+        Ok((input, Self(map)))
+    }
+}
+
+impl<T> Deref for Dictionary<T> {
+    type Target = HashMap<String, T>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<'input> DerefMut for Dictionary<'input> {
+impl<T> DerefMut for Dictionary<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl<'input> Dictionary<'input> {
+impl<'input> RawDict<'input> {
     pub fn pop<T>(&mut self, key: &str) -> Result<T>
     where
         T: Extract<'input>,
@@ -100,7 +129,7 @@ mod tests {
             .map(|(k, v)| (k.to_string(), v))
             .collect();
 
-        let (_, Dictionary(r)) = Dictionary::extract(input).unwrap();
+        let (_, Dictionary(r)) = RawDict::extract(input).unwrap();
 
         assert_eq!(r, dict);
     }
@@ -110,7 +139,7 @@ mod tests {
     #[case(b"<</Key (test)/Ok (false)>>", "Key", "test")]
     #[case(b"<</Key (test)/Ok (false)>>", "Ok", "false")]
     fn dictionary_pop(#[case] input: &[u8], #[case] key: &str, #[case] expected: &str) {
-        let (_, mut dict) = Dictionary::extract(input).unwrap();
+        let (_, mut dict) = RawDict::extract(input).unwrap();
         let result: String = dict.pop(key).unwrap();
         assert_eq!(result, expected);
     }
@@ -120,7 +149,7 @@ mod tests {
     #[case(b"<</Key (test)/Ok (false)>>", "Key", Some("test"))]
     #[case(b"<</Key (test)/Ok (false)>>", "NotHere", None)]
     fn dictionary_pop_opt(#[case] input: &[u8], #[case] key: &str, #[case] expected: Option<&str>) {
-        let (_, mut dict) = Dictionary::extract(input).unwrap();
+        let (_, mut dict) = RawDict::extract(input).unwrap();
         let result: Option<String> = dict.pop_opt(key).unwrap();
         let expected = expected.map(|s| s.to_string());
         assert_eq!(result, expected);
