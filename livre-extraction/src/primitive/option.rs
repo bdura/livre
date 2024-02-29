@@ -1,4 +1,4 @@
-use nom::combinator::opt;
+use nom::{branch::alt, bytes::complete::tag, combinator::map};
 
 use crate::extraction::Extract;
 
@@ -7,7 +7,7 @@ where
     T: Extract<'input>,
 {
     fn extract(input: &'input [u8]) -> nom::IResult<&'input [u8], Self> {
-        opt(T::extract)(input)
+        alt((map(T::extract, Some), map(tag("null"), |_| None)))(input)
     }
 }
 
@@ -22,8 +22,7 @@ mod tests {
     #[rstest]
     #[case(b"true", Some(true))]
     #[case(b"false", Some(false))]
-    #[case(b"", None)]
-    #[case(b"12", None)]
+    #[case(b"null", None)]
     fn opt_bool(#[case] input: &[u8], #[case] expected: Option<bool>) {
         let (_, parsed) = Option::<bool>::extract(input).unwrap();
         assert_eq!(parsed, expected);
@@ -33,8 +32,7 @@ mod tests {
     #[rstest]
     #[case(b"-23", Some(-23))]
     #[case(b"42", Some(42))]
-    #[case(b"", None)]
-    #[case(b"true", None)]
+    #[case(b"null", None)]
     fn opt_i32(#[case] input: &[u8], #[case] expected: Option<i32>) {
         let (_, parsed) = Option::<i32>::extract(input).unwrap();
         assert_eq!(parsed, expected);
