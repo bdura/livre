@@ -2,10 +2,8 @@ use livre_extraction::{extraction::Parse, Extract};
 
 #[derive(Debug, Extract)]
 struct Test {
-    #[livre(rename = "N")]
     n: usize,
-    #[livre(rename = "Prev")]
-    prev: String,
+    prev: Option<String>,
 }
 
 fn main() {
@@ -13,5 +11,7 @@ fn main() {
 
     let test: Test = input.parse().unwrap();
 
-    println!("{test:?}")
+    println!("{:?}", test);
+    println!("{:?}", test.n);
+    println!("{:?}", test.prev);
 }
