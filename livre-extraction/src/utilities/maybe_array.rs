@@ -5,6 +5,12 @@ use crate::Extract;
 #[derive(Debug, PartialEq, Clone)]
 pub struct MaybeArray<T>(pub Vec<T>);
 
+impl<T> Default for MaybeArray<T> {
+    fn default() -> Self {
+        Self(Vec::new())
+    }
+}
+
 impl<'input, T> Extract<'input> for MaybeArray<T>
 where
     T: Extract<'input>,
