@@ -39,6 +39,21 @@ pub fn take_within_balanced(
     }
 }
 
+pub fn parse_dict_body(input: &[u8]) -> IResult<&[u8], &[u8]> {
+    // dictionaries are enclosed by double angle brackets.
+    let (input, value) = take_within_balanced(b'<', b'>')(input)?;
+    let (d, value) = take_within_balanced(b'<', b'>')(value)?;
+
+    if !d.is_empty() {
+        return Err(Err::Error(Error::from_error_kind(
+            input,
+            ErrorKind::TakeTill1,
+        )));
+    }
+
+    Ok((input, value))
+}
+
 #[cfg(test)]
 mod tests {
     use rstest::rstest;
