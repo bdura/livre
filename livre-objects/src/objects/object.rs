@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use crate::{HexString, Name, Reference, Stream};
 use livre_extraction::{Extract, RawDict};
 use livre_utilities::take_whitespace;
 use nom::{
@@ -10,6 +9,9 @@ use nom::{
     error::Error,
     IResult,
 };
+
+use super::Stream;
+use crate::{HexString, Name, Reference};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Object<'input> {
