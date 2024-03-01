@@ -52,18 +52,27 @@ where
 
 #[cfg(test)]
 mod tests {
+    use indoc::indoc;
     use rstest::rstest;
 
     use super::*;
 
     #[rstest]
     #[case(
-        b"<</Length 10/Test true/Filter/FlateDecode>>stream\n0123456789\nendstream",
+        indoc! {b"
+            <</Length 10/Test true/Filter/FlateDecode>> stream
+            0123456789
+            endstream
+        "},
         b"0123456789",
         vec![("Test", b"true".as_slice())]
     )]
     #[case(
-        b"<</Length 1/Test false>>stream\n0\nendstream",
+        indoc! {b"
+            <</Length 1/Test false>>stream
+            0
+            endstream
+        "},
         b"0",
         vec![("Test", b"false".as_slice())]
     )]
