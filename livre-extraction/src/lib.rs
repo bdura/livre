@@ -3,7 +3,7 @@ pub mod error;
 pub mod primitives;
 
 mod utilities;
-pub use utilities::{MaybeArray, RawDict};
+pub use utilities::{MaybeArray, OptRef, RawDict};
 
 pub mod pdf;
 pub use pdf::{HexString, Indirect, Name, Reference};
