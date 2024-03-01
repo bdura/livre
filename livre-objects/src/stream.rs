@@ -4,25 +4,28 @@ use livre_utilities::{take_eol_no_r, take_whitespace};
 use nom::{
     bytes::complete::{tag, take},
     sequence::tuple,
+    IResult,
 };
 
 use livre_extraction::{Extract, MaybeArray, RawDict};
 
 use livre_filters::Filter;
 
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Stream<'input, T> {
     pub dict: HashMap<String, T>,
     pub filters: Vec<Filter>,
     pub inner: &'input [u8],
 }
 
-impl<'input, T> Extract<'input> for Stream<'input, T>
+impl<'input, T> Stream<'input, T>
 where
     T: Extract<'input>,
 {
-    fn extract(input: &'input [u8]) -> nom::IResult<&'input [u8], Self> {
-        let (input, mut dict) = RawDict::extract(input)?;
-
+    pub(crate) fn extract_from_dict(
+        input: &'input [u8],
+        mut dict: RawDict<'input>,
+    ) -> IResult<&'input [u8], Self> {
         let (input, _) = tuple((take_whitespace, tag(b"stream"), take_eol_no_r))(input)?;
 
         let length: usize = dict
@@ -47,6 +50,16 @@ where
         };
 
         Ok((input, stream))
+    }
+}
+
+impl<'input, T> Extract<'input> for Stream<'input, T>
+where
+    T: Extract<'input>,
+{
+    fn extract(input: &'input [u8]) -> nom::IResult<&'input [u8], Self> {
+        let (input, dict) = RawDict::extract(input)?;
+        Self::extract_from_dict(input, dict)
     }
 }
 

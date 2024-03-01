@@ -5,7 +5,7 @@ use flate2::read::ZlibDecoder;
 
 use crate::Filtering;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FlateDecode;
 
 impl Filtering for FlateDecode {

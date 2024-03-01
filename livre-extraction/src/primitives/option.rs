@@ -7,7 +7,7 @@ where
     T: Extract<'input>,
 {
     fn extract(input: &'input [u8]) -> nom::IResult<&'input [u8], Self> {
-        alt((map(T::extract, Some), map(tag("null"), |_| None)))(input)
+        alt((map(tag("null"), |_| None), map(T::extract, Some)))(input)
     }
 }
 
