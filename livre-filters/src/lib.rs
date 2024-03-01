@@ -7,6 +7,7 @@ use error::Result;
 
 mod filters;
 pub use filters::{DCTDecode, FlateDecode};
+use livre_extraction::{Extract, IResult, Name};
 
 #[enum_dispatch(Filter)]
 pub trait Filtering {
@@ -35,5 +36,13 @@ impl Filter {
             "Crypt" => todo!(),
             _ => unreachable!("Unknown filter."),
         }
+    }
+}
+
+impl<'input> Extract<'input> for Filter {
+    fn extract(input: &'input [u8]) -> IResult<&'input [u8], Self> {
+        let (input, Name(name)) = Name::extract(input)?;
+        let filter = Filter::from_name(&name);
+        Ok((input, filter))
     }
 }
