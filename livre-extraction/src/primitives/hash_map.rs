@@ -56,14 +56,12 @@ where
     let (input, Name(key)) = Name::extract(input)?;
     let (input, _) = take_whitespace(input)?;
 
-    let (input, value) = take_till(|b| b == b'/')(input)?;
-
-    // // We need this to handle the case of an "exotic" value.
-    // let (input, value) = alt((
-    //     recognize(parse_dict_body),
-    //     verify(take_till(|b| b == b'/'), |v: &[u8]| !v.is_empty()),
-    //     recognize(Name::extract),
-    // ))(input)?;
+    // We need this to handle the case of an "exotic" value.
+    let (input, value) = alt((
+        recognize(parse_dict_body),
+        verify(take_till(|b| b == b'/'), |v: &[u8]| !v.is_empty()),
+        recognize(Name::extract),
+    ))(input)?;
 
     // FIXME: handle error.
     let parsed = value.parse().unwrap();
