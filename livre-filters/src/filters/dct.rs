@@ -1,7 +1,7 @@
 use crate::error::Result;
 use crate::Filtering;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DCTDecode;
 
 impl Filtering for DCTDecode {

@@ -14,7 +14,7 @@ pub trait Filtering {
     fn decode(&self, bytes: &[u8]) -> Result<Vec<u8>>;
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[enum_dispatch]
 pub enum Filter {
     FlateDecode(FlateDecode),
