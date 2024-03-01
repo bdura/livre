@@ -204,6 +204,7 @@ dependencies = [
  "indoc",
  "livre-extraction",
  "livre-filters",
+ "livre-utilities",
  "nom",
  "rstest",
  "thiserror",
