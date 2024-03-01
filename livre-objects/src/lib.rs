@@ -3,3 +3,5 @@ pub use livre_extraction::{HexString, Indirect, Name, Reference};
 
 mod objects;
 pub use objects::{Object, Stream};
+
+pub mod structure;
