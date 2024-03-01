@@ -101,6 +101,21 @@ fn recognize_number(input: &[u8]) -> IResult<&[u8], ()> {
     Ok((input, ()))
 }
 
+pub fn parse_unsigned_integer<O, E>(input: &[u8]) -> IResult<&[u8], O>
+where
+    O: FromStr<Err = E>,
+    E: Debug,
+{
+    let (input, number) = recognize(tuple((opt(tag("+")), digit1)))(input)?;
+
+    // SAFETY: we know for a fact that `digits` contains digits only,
+    // and are therefore both utf-8-encoded and parsable.
+    let num = unsafe { std::str::from_utf8_unchecked(number) };
+    let n = num.parse().unwrap();
+
+    Ok((input, n))
+}
+
 pub fn parse_integer<O, E>(input: &[u8]) -> IResult<&[u8], O>
 where
     O: FromStr<Err = E>,

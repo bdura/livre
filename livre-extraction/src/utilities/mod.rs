@@ -11,7 +11,7 @@ pub use delimited::take_within_balanced;
 mod digits;
 pub use digits::{
     parse_digits, parse_hexadecimal_bigram, parse_integer, parse_number, parse_octal, parse_real,
-    parse_sign,
+    parse_sign, parse_unsigned_integer,
 };
 
 mod misc;
