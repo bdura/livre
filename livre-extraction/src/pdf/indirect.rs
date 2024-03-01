@@ -1,12 +1,10 @@
+use livre_utilities::{take_whitespace, take_whitespace1};
 use nom::{
     bytes::complete::{tag, take_until},
     sequence::separated_pair,
 };
 
-use crate::{
-    utilities::{take_whitespace, take_whitespace1},
-    Extract,
-};
+use crate::Extract;
 
 use super::Reference;
 

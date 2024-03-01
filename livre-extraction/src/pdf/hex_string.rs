@@ -1,9 +1,8 @@
 use nom::{multi::many0, IResult};
 
-use crate::{
-    utilities::{parse_hexadecimal_bigram, take_within_balanced},
-    Extract,
-};
+use livre_utilities::{parse_hexadecimal_bigram, take_within_balanced};
+
+use crate::Extract;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct HexString(pub Vec<u8>);
