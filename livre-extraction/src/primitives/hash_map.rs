@@ -1,16 +1,9 @@
 use std::collections::HashMap;
 
-use livre_utilities::{take_whitespace, take_within_balanced};
-use nom::{
-    branch::alt,
-    bytes::complete::take_till,
-    combinator::{recognize, verify},
-    error::{Error, ErrorKind, ParseError},
-    multi::many0,
-    Err, IResult,
-};
+use livre_utilities::{parse_dict_body, take_whitespace};
+use nom::{multi::many0, IResult};
 
-use crate::{Extract, Name, Parse};
+use crate::{Extract, Name};
 
 impl<'input, T> Extract<'input> for HashMap<String, T>
 where
@@ -34,21 +27,6 @@ where
     }
 }
 
-fn parse_dict_body(input: &[u8]) -> IResult<&[u8], &[u8]> {
-    // dictionaries are enclosed by double angle brackets.
-    let (input, value) = take_within_balanced(b'<', b'>')(input)?;
-    let (d, value) = take_within_balanced(b'<', b'>')(value)?;
-
-    if !d.is_empty() {
-        return Err(Err::Error(Error::from_error_kind(
-            input,
-            ErrorKind::TakeTill1,
-        )));
-    }
-
-    Ok((input, value))
-}
-
 fn parse_key_value<'input, T>(input: &'input [u8]) -> IResult<&'input [u8], (String, T)>
 where
     T: Extract<'input>,
@@ -56,17 +34,9 @@ where
     let (input, Name(key)) = Name::extract(input)?;
     let (input, _) = take_whitespace(input)?;
 
-    // We need this to handle the case of an "exotic" value.
-    let (input, value) = alt((
-        recognize(parse_dict_body),
-        verify(take_till(|b| b == b'/'), |v: &[u8]| !v.is_empty()),
-        recognize(Name::extract),
-    ))(input)?;
+    let (input, value) = T::extract(input)?;
 
-    // FIXME: handle error.
-    let parsed = value.parse().unwrap();
-
-    Ok((input, (key, parsed)))
+    Ok((input, (key, value)))
 }
 
 #[cfg(test)]
