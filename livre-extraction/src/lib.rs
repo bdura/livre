@@ -6,7 +6,7 @@ pub mod dictionary;
 pub mod primitives;
 
 pub mod pdf;
-pub use pdf::Name;
+pub use pdf::{Name, HexString};
 
 pub mod extraction;
 pub use extraction::{Extract, FromDict, Parse};
