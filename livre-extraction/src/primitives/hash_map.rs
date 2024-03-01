@@ -41,6 +41,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::utilities::RawValue;
+
     use super::*;
 
     use rstest::rstest;
@@ -52,7 +54,7 @@ mod tests {
     #[case(b"/NamedValue /Value", "NamedValue", b"/Value")]
     #[case(b"/Dict <</Test true>>", "Dict", b"<</Test true>>")]
     fn key_value_bytes(#[case] input: &[u8], #[case] key: &str, #[case] value: &[u8]) {
-        let (_, (k, v)) = parse_key_value::<&[u8]>(input).unwrap();
+        let (_, (k, RawValue(v))) = parse_key_value::<RawValue>(input).unwrap();
         assert_eq!(k, key);
         assert_eq!(v, value);
     }
