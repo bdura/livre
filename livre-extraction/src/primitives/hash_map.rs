@@ -15,6 +15,8 @@ where
         let (value, _) = take_whitespace(value)?;
         let (r, array) = many0(parse_key_value)(value)?;
 
+        let (r, _) = take_whitespace(r)?;
+
         assert!(
             r.is_empty(),
             "Remainder is not empty: {:?}",
@@ -53,6 +55,11 @@ mod tests {
     #[case(b"/Bool true/", "Bool", b"true")]
     #[case(b"/NamedValue /Value", "NamedValue", b"/Value")]
     #[case(b"/Dict <</Test true>>", "Dict", b"<</Test true>>")]
+    #[case(
+        b"/ID [<81b14aafa313db63dbd6f981e49f94f4>] ",
+        "ID",
+        b"[<81b14aafa313db63dbd6f981e49f94f4>]"
+    )]
     fn key_value_bytes(#[case] input: &[u8], #[case] key: &str, #[case] value: &[u8]) {
         let (_, (k, RawValue(v))) = parse_key_value::<RawValue>(input).unwrap();
         assert_eq!(k, key);
