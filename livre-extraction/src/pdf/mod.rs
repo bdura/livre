@@ -8,4 +8,4 @@ mod reference;
 pub use reference::Reference;
 
 mod indirect;
-pub use indirect::{Indirect, RawIndirect};
+pub use indirect::Indirect;
