@@ -1,8 +1,9 @@
 [workspace]
 resolver = "2"
 members = [
-    "livre-extraction",
-    "livre-filters",
-    "livre-derive",
     "livre-utilities",
+    "livre-filters",
+    "livre-extraction",
+    "livre-derive",
+    "livre-objects",
 ]
