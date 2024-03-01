@@ -1,10 +1,17 @@
 use nom::IResult;
 
-use crate::error::{ExtractionError, Result};
+use crate::{
+    dictionary::RawDict,
+    error::{ExtractionError, Result},
+};
 
 /// Extraction trait
 pub trait Extract<'input>: Sized {
     fn extract(input: &'input [u8]) -> IResult<&'input [u8], Self>;
+}
+
+pub trait FromDict<'input>: Sized {
+    fn from_dict(dict: RawDict<'input>) -> Result<Self>;
 }
 
 /// Parse trait, which mirrors the [`Extract`] trait.
