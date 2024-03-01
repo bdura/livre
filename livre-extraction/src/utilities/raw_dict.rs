@@ -11,23 +11,17 @@ use crate::extraction::{Extract, Parse};
 use super::RawValue;
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
-pub struct RawDict<'input>(pub HashMap<String, &'input [u8]>);
+pub struct RawDict<'input>(pub HashMap<String, RawValue<'input>>);
 
 impl<'input> Extract<'input> for RawDict<'input> {
     fn extract(input: &'input [u8]) -> IResult<&'input [u8], Self> {
         let (input, map) = HashMap::<String, RawValue>::extract(input)?;
-
-        let map = map
-            .into_iter()
-            .map(|(key, RawValue(value))| (key, value))
-            .collect();
-
         Ok((input, Self(map)))
     }
 }
 
 impl<'input> Deref for RawDict<'input> {
-    type Target = HashMap<String, &'input [u8]>;
+    type Target = HashMap<String, RawValue<'input>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -48,6 +42,7 @@ impl<'input> RawDict<'input> {
         let result = self
             .remove(key)
             .ok_or_else(|| error::ExtractionError::KeyNotFound(key.into()))?
+            .0
             .parse()?;
 
         Ok(result)
@@ -57,7 +52,10 @@ impl<'input> RawDict<'input> {
     where
         T: Extract<'input>,
     {
-        let result = self.remove(key).map(|obj| obj.parse()).transpose()?;
+        let result = self
+            .remove(key)
+            .map(|RawValue(obj)| obj.parse())
+            .transpose()?;
         Ok(result)
     }
 
@@ -67,7 +65,7 @@ impl<'input> RawDict<'input> {
     {
         self.0
             .into_iter()
-            .map(|(key, value)| value.parse::<T>().map(|r| (key, r)))
+            .map(|(key, RawValue(value))| value.parse::<T>().map(|r| (key, r)))
             .collect()
     }
 }
@@ -84,7 +82,7 @@ mod tests {
     fn raw_dict(#[case] input: &[u8], #[case] result: Vec<(&str, &[u8])>) {
         let dict = result
             .into_iter()
-            .map(|(k, v)| (k.to_string(), v))
+            .map(|(k, v)| (k.to_string(), RawValue(v)))
             .collect();
 
         let (_, RawDict(r)) = RawDict::extract(input).unwrap();
