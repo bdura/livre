@@ -1,6 +1,6 @@
 use nom::multi::separated_list0;
 
-use crate::utilities::{take_whitespace, take_whitespace1, take_within_balanced};
+use livre_utilities::{take_whitespace, take_whitespace1, take_within_balanced};
 
 use crate::extraction::Extract;
 

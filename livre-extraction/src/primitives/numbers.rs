@@ -1,6 +1,6 @@
 use nom::IResult;
 
-use crate::utilities::{parse_integer, parse_real, parse_unsigned_integer};
+use livre_utilities::{parse_integer, parse_real, parse_unsigned_integer};
 
 use crate::extraction::Extract;
 

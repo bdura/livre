@@ -6,7 +6,7 @@ use nom::{
     IResult,
 };
 
-use crate::utilities::{parse_octal, parse_string_with_escapes, take_within_balanced};
+use livre_utilities::{parse_octal, parse_string_with_escapes, take_within_balanced};
 
 use crate::extraction::Extract;
 

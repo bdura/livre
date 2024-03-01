@@ -9,10 +9,11 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+use livre_utilities::{take_whitespace, take_within_balanced};
+
 use crate::{
     error::{self, Result},
     pdf::Name,
-    utilities::{take_whitespace, take_within_balanced},
 };
 
 use crate::extraction::{Extract, Parse};

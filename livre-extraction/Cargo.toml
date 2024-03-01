@@ -8,6 +8,7 @@ edition = "2021"
 nom = "7"
 thiserror = "1.0"
 livre-derive = { path = "../livre-derive" }
+livre-utilities = { path = "../livre-utilities" }
 
 [dev-dependencies]
 indoc = "2.0.4"
