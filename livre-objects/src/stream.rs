@@ -1,33 +1,50 @@
+use std::collections::HashMap;
+
+use livre_utilities::{take_eol_no_r, take_whitespace};
 use nom::{
     bytes::complete::{tag, take},
     sequence::tuple,
 };
 
-use livre_extraction::{
-    dictionary::RawDict,
-    utilities::{take_eol_no_r, take_whitespace},
-    Extract,
-};
+use livre_extraction::{Extract, MaybeArray, RawDict};
 
-pub struct Stream<'input> {
-    pub dict: RawDict<'input>,
+use livre_filters::Filter;
+
+pub struct Stream<'input, T> {
+    pub dict: HashMap<String, T>,
+    pub filters: Vec<Filter>,
     pub inner: &'input [u8],
 }
 
-impl<'input> Extract<'input> for Stream<'input> {
+impl<'input, T> Extract<'input> for Stream<'input, T>
+where
+    T: Extract<'input>,
+{
     fn extract(input: &'input [u8]) -> nom::IResult<&'input [u8], Self> {
         let (input, mut dict) = RawDict::extract(input)?;
+
         let (input, _) = tuple((take_whitespace, tag(b"stream"), take_eol_no_r))(input)?;
 
         let length: usize = dict
             .pop("Length")
             .expect("A stream must have a length parameter");
 
+        let MaybeArray(filters) = dict
+            .pop_opt("Filter")
+            .expect("Filter is a name or array.")
+            .unwrap_or_default();
+
         let (input, inner) = take(length)(input)?;
 
         let (input, _) = tuple((take_whitespace, tag(b"endstream"), take_whitespace))(input)?;
 
-        let stream = Self { dict, inner };
+        let dict = dict.convert().unwrap();
+
+        let stream = Self {
+            dict,
+            inner,
+            filters,
+        };
 
         Ok((input, stream))
     }
@@ -41,7 +58,7 @@ mod tests {
 
     #[rstest]
     #[case(
-        b"<</Length 10/Test true>>stream\n0123456789\nendstream",
+        b"<</Length 10/Test true/Filter/FlateDecode>>stream\n0123456789\nendstream",
         b"0123456789",
         vec![("Test", b"true".as_slice())]
     )]
@@ -56,7 +73,7 @@ mod tests {
         vec![("Test", b"false".as_slice()), ("Ok", b"true".as_slice())]
     )]
     fn stream(#[case] input: &[u8], #[case] expected: &[u8], #[case] dict: Vec<(&str, &[u8])>) {
-        let (_, stream) = Stream::extract(input).unwrap();
+        let (_, stream) = Stream::<'_, &[u8]>::extract(input).unwrap();
         assert_eq!(stream.inner, expected);
 
         assert_eq!(stream.dict.len(), dict.len());
