@@ -1,4 +1,5 @@
 use nom::{
+    bytes::complete::take_till,
     error::{Error, ErrorKind, ParseError},
     multi::many0,
     Err, IResult,
@@ -10,14 +11,11 @@ use std::{
 
 use crate::{
     error::{self, Result},
+    pdf::Name,
     utilities::{take_whitespace, take_within_balanced},
 };
 
 use crate::extraction::{Extract, Parse};
-
-mod utilities;
-use utilities::parse_key_value;
-pub use utilities::parse_name;
 
 #[derive(Debug, PartialEq, Clone, Default)]
 pub struct Dictionary<T>(pub HashMap<String, T>);
@@ -50,6 +48,14 @@ impl<'input> Extract<'input> for HashMap<String, &'input [u8]> {
 
         Ok((input, map))
     }
+}
+
+pub(super) fn parse_key_value(input: &[u8]) -> IResult<&[u8], (String, &[u8])> {
+    let (input, Name(key)) = Name::extract(input)?;
+    let (input, _) = take_whitespace(input)?;
+    let (input, value) = take_till(|b| b == b'/')(input)?;
+
+    Ok((input, (key, value)))
 }
 
 impl<'input> Extract<'input> for RawDict<'input> {
@@ -164,5 +170,15 @@ mod tests {
         let result: Option<String> = dict.pop_opt(key).unwrap();
         let expected = expected.map(|s| s.to_string());
         assert_eq!(result, expected);
+    }
+
+    #[rstest]
+    #[case(b"/Name1 (test)", "Name1", b"(test)")]
+    #[case(b"/Bool true ", "Bool", b"true ")]
+    #[case(b"/Bool true/", "Bool", b"true")]
+    fn key_value(#[case] input: &[u8], #[case] key: &str, #[case] value: &[u8]) {
+        let (_, (k, v)) = parse_key_value(input).unwrap();
+        assert_eq!(k, key);
+        assert_eq!(v, value);
     }
 }
