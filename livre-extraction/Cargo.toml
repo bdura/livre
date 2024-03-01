@@ -11,5 +11,4 @@ livre-derive = { path = "../livre-derive" }
 livre-utilities = { path = "../livre-utilities" }
 
 [dev-dependencies]
-indoc = "2.0.4"
 rstest = "0.18.2"
