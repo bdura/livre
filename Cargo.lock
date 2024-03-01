@@ -197,14 +197,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "livre-objects"
+name = "livre-utilities"
 version = "0.1.0"
 dependencies = [
- "indoc",
- "livre-extraction",
  "nom",
  "rstest",
- "thiserror",
 ]
 
 [[package]]

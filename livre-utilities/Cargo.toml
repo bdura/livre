@@ -1,0 +1,10 @@
+[package]
+name = "livre-utilities"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+nom = "7"
+
+[dev-dependencies]
+rstest = "0.18.2"
