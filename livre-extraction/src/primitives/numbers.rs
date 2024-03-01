@@ -1,11 +1,20 @@
 use nom::IResult;
 
-use crate::utilities::{parse_integer, parse_real};
+use crate::utilities::{parse_integer, parse_real, parse_unsigned_integer};
 
 use crate::extraction::Extract;
 
-// TODO: handle parsing error.
-macro_rules! extract_integer {
+macro_rules! unsigned {
+    ($type:ty) => {
+        impl Extract<'_> for $type {
+            fn extract(input: &[u8]) -> IResult<&[u8], Self> {
+                parse_unsigned_integer(input)
+            }
+        }
+    };
+}
+
+macro_rules! signed {
     ($type:ty) => {
         impl Extract<'_> for $type {
             fn extract(input: &[u8]) -> IResult<&[u8], Self> {
@@ -15,8 +24,7 @@ macro_rules! extract_integer {
     };
 }
 
-// TODO: handle parsing error.
-macro_rules! extract_real {
+macro_rules! real {
     ($type:ty) => {
         impl Extract<'_> for $type {
             fn extract(input: &'_ [u8]) -> IResult<&'_ [u8], Self> {
@@ -26,21 +34,22 @@ macro_rules! extract_real {
     };
 }
 
-extract_integer!(u8);
-extract_integer!(i8);
-extract_integer!(u16);
-extract_integer!(i16);
-extract_integer!(u32);
-extract_integer!(i32);
-extract_integer!(u64);
-extract_integer!(i64);
-extract_integer!(usize);
-extract_integer!(isize);
-extract_integer!(u128);
-extract_integer!(i128);
+unsigned!(u8);
+unsigned!(u16);
+unsigned!(u32);
+unsigned!(u64);
+unsigned!(usize);
+unsigned!(u128);
 
-extract_real!(f32);
-extract_real!(f64);
+signed!(i8);
+signed!(i16);
+signed!(i32);
+signed!(i64);
+signed!(isize);
+signed!(i128);
+
+real!(f32);
+real!(f64);
 
 #[cfg(test)]
 mod tests {
