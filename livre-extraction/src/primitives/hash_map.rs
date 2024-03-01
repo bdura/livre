@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use livre_utilities::{take_whitespace, take_within_balanced};
 use nom::{
+    branch::alt,
     bytes::complete::take_till,
+    combinator::{recognize, verify},
     error::{Error, ErrorKind, ParseError},
     multi::many0,
     Err, IResult,
@@ -47,7 +49,12 @@ where
 {
     let (input, Name(key)) = Name::extract(input)?;
     let (input, _) = take_whitespace(input)?;
-    let (input, value) = take_till(|b| b == b'/')(input)?;
+
+    // We need this to handle the case where the value *is* a [`Name`].
+    let (input, value) = alt((
+        verify(take_till(|b| b == b'/'), |v: &[u8]| !v.is_empty()),
+        recognize(Name::extract),
+    ))(input)?;
 
     // FIXME: handle error.
     let parsed = value.parse().unwrap();
