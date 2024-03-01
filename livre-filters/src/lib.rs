@@ -3,7 +3,7 @@
 use enum_dispatch::enum_dispatch;
 
 mod error;
-use error::Result;
+pub use error::Result;
 
 mod filters;
 pub use filters::{DCTDecode, FlateDecode};

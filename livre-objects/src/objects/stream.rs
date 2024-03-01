@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{borrow::Cow, collections::HashMap};
 
 use livre_utilities::{take_eol_no_r, take_whitespace};
 use nom::{
@@ -9,7 +9,7 @@ use nom::{
 
 use livre_extraction::{Extract, MaybeArray, RawDict};
 
-use livre_filters::Filter;
+use livre_filters::{Filter, Filtering, Result};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Stream<'input, T> {
@@ -63,6 +63,18 @@ where
     }
 }
 
+impl<'input, T> Stream<'input, T> {
+    pub fn decode(&self) -> Result<Cow<'input, [u8]>> {
+        let mut decoded = Cow::from(self.inner);
+
+        for filter in &self.filters {
+            decoded = Cow::Owned(filter.decode(&decoded)?);
+        }
+
+        Ok(decoded)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use indoc::indoc;
@@ -73,7 +85,7 @@ mod tests {
     #[rstest]
     #[case(
         indoc! {b"
-            <</Length 10/Test true/Filter/FlateDecode>> stream
+            <</Length 10/Test true>> stream
             0123456789
             endstream
         "},
@@ -103,5 +115,8 @@ mod tests {
         for (k, v) in dict {
             assert_eq!(stream.dict.get(k).unwrap(), &v);
         }
+
+        // Dummy decode
+        assert_eq!(stream.decode().unwrap(), expected);
     }
 }
