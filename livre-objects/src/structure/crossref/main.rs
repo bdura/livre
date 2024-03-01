@@ -3,7 +3,10 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use livre_extraction::Reference;
+use livre_extraction::{Extract, Reference};
+use nom::{branch::alt, combinator::map};
+
+use super::PlainCrossRefs;
 
 /// Mapping between indirect objects and the byte offset.
 #[derive(Debug, Clone, Default)]
@@ -20,6 +23,17 @@ impl CrossRefs {
     }
 }
 
+impl Extract<'_> for CrossRefs {
+    fn extract(input: &'_ [u8]) -> nom::IResult<&'_ [u8], Self> {
+        let (input, refs) = alt((
+            map(PlainCrossRefs::extract, |PlainCrossRefs(refs)| refs),
+            // map(StreamCrossRefs::extract, |StreamCrossRefs(refs)| refs),
+        ))(input)?;
+        let map = refs.into_iter().collect();
+        Ok((input, Self(map)))
+    }
+}
+
 impl Deref for CrossRefs {
     type Target = HashMap<Reference, usize>;
 
@@ -27,6 +41,7 @@ impl Deref for CrossRefs {
         &self.0
     }
 }
+
 impl DerefMut for CrossRefs {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
