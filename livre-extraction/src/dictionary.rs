@@ -17,7 +17,7 @@ use crate::{
 
 use crate::extraction::{Extract, Parse};
 
-#[derive(Debug, PartialEq, Clone, Default)]
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct Dictionary<T>(pub HashMap<String, T>);
 
 pub type RawDict<'input> = Dictionary<&'input [u8]>;
@@ -170,6 +170,18 @@ mod tests {
         let result: Option<String> = dict.pop_opt(key).unwrap();
         let expected = expected.map(|s| s.to_string());
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn dictionary_convert() {
+        let input = b"<</Key1 (test)/Key2 (false)>>";
+        let (_, raw) = RawDict::extract(input).unwrap();
+        let string_map = raw.convert::<String>().unwrap();
+
+        assert_eq!(string_map.len(), 2);
+
+        assert_eq!(string_map.get("Key1"), Some(&"test".to_string()));
+        assert_eq!(string_map.get("Key2"), Some(&"false".to_string()));
     }
 
     #[rstest]
