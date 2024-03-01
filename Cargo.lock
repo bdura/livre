@@ -180,7 +180,6 @@ dependencies = [
 name = "livre-extraction"
 version = "0.1.0"
 dependencies = [
- "indoc",
  "livre-derive",
  "livre-utilities",
  "nom",
@@ -194,6 +193,19 @@ version = "0.1.0"
 dependencies = [
  "enum_dispatch",
  "flate2",
+ "livre-extraction",
+ "thiserror",
+]
+
+[[package]]
+name = "livre-objects"
+version = "0.1.0"
+dependencies = [
+ "indoc",
+ "livre-extraction",
+ "livre-filters",
+ "nom",
+ "rstest",
  "thiserror",
 ]
 

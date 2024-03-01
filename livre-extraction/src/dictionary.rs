@@ -51,7 +51,7 @@ impl<'input> Extract<'input> for HashMap<String, &'input [u8]> {
     }
 }
 
-pub(super) fn parse_key_value(input: &[u8]) -> IResult<&[u8], (String, &[u8])> {
+fn parse_key_value(input: &[u8]) -> IResult<&[u8], (String, &[u8])> {
     let (input, Name(key)) = Name::extract(input)?;
     let (input, _) = take_whitespace(input)?;
     let (input, value) = take_till(|b| b == b'/')(input)?;
