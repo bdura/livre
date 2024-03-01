@@ -17,6 +17,7 @@ use crate::extraction::{Extract, Parse};
 
 mod utilities;
 use utilities::parse_key_value;
+pub use utilities::parse_name;
 
 #[derive(Debug, PartialEq, Clone, Default)]
 pub struct Dictionary<T>(pub HashMap<String, T>);

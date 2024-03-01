@@ -10,7 +10,7 @@ use crate::utilities::{
 };
 
 pub(super) fn parse_key_value(input: &[u8]) -> IResult<&[u8], (String, &[u8])> {
-    let (input, key) = parse_key(input)?;
+    let (input, key) = parse_name(input)?;
     let (input, _) = take_whitespace(input)?;
     let (input, value) = take_till(|b| b == b'/')(input)?;
 
@@ -26,7 +26,7 @@ fn escaped_char(input: &[u8]) -> IResult<&[u8], Option<char>> {
     Ok((input, n.map(|n| n as char)))
 }
 
-fn parse_key(input: &[u8]) -> IResult<&[u8], String> {
+pub fn parse_name(input: &[u8]) -> IResult<&[u8], String> {
     let (input, _) = tag("/")(input)?;
     let (input, value) =
         take_till(|b| is_space_or_newline(b) || b == b'/' || b == b'<' || b == b'[' || b == b'(')(
@@ -58,7 +58,7 @@ mod tests {
     #[case(b"/The_Key_of_F#23_Minor", "The_Key_of_F#_Minor")]
     #[case(b"/A#42", "AB")]
     fn key(#[case] input: &[u8], #[case] result: &str) {
-        let (_, key) = parse_key(input).unwrap();
+        let (_, key) = parse_name(input).unwrap();
         assert_eq!(key, result);
     }
 
