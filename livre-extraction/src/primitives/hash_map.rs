@@ -17,16 +17,7 @@ where
     T: Extract<'input>,
 {
     fn extract(input: &'input [u8]) -> IResult<&'input [u8], Self> {
-        // dictionaries are enclosed by double angle brackets.
-        let (input, value) = take_within_balanced(b'<', b'>')(input)?;
-        let (d, value) = take_within_balanced(b'<', b'>')(value)?;
-
-        if !d.is_empty() {
-            return Err(Err::Error(Error::from_error_kind(
-                input,
-                ErrorKind::TakeTill1,
-            )));
-        }
+        let (input, value) = parse_dict_body(input)?;
 
         let (value, _) = take_whitespace(value)?;
         let (r, array) = many0(parse_key_value)(value)?;
@@ -43,6 +34,21 @@ where
     }
 }
 
+fn parse_dict_body(input: &[u8]) -> IResult<&[u8], &[u8]> {
+    // dictionaries are enclosed by double angle brackets.
+    let (input, value) = take_within_balanced(b'<', b'>')(input)?;
+    let (d, value) = take_within_balanced(b'<', b'>')(value)?;
+
+    if !d.is_empty() {
+        return Err(Err::Error(Error::from_error_kind(
+            input,
+            ErrorKind::TakeTill1,
+        )));
+    }
+
+    Ok((input, value))
+}
+
 fn parse_key_value<'input, T>(input: &'input [u8]) -> IResult<&'input [u8], (String, T)>
 where
     T: Extract<'input>,
@@ -50,11 +56,14 @@ where
     let (input, Name(key)) = Name::extract(input)?;
     let (input, _) = take_whitespace(input)?;
 
-    // We need this to handle the case where the value *is* a [`Name`].
-    let (input, value) = alt((
-        verify(take_till(|b| b == b'/'), |v: &[u8]| !v.is_empty()),
-        recognize(Name::extract),
-    ))(input)?;
+    let (input, value) = take_till(|b| b == b'/')(input)?;
+
+    // // We need this to handle the case of an "exotic" value.
+    // let (input, value) = alt((
+    //     recognize(parse_dict_body),
+    //     verify(take_till(|b| b == b'/'), |v: &[u8]| !v.is_empty()),
+    //     recognize(Name::extract),
+    // ))(input)?;
 
     // FIXME: handle error.
     let parsed = value.parse().unwrap();
@@ -72,6 +81,8 @@ mod tests {
     #[case(b"/Name1 (test)", "Name1", b"(test)")]
     #[case(b"/Bool true ", "Bool", b"true ")]
     #[case(b"/Bool true/", "Bool", b"true")]
+    #[case(b"/NamedValue /Value", "NamedValue", b"/Value")]
+    #[case(b"/Dict <</Test true>>", "Dict", b"<</Test true>>")]
     fn key_value_bytes(#[case] input: &[u8], #[case] key: &str, #[case] value: &[u8]) {
         let (_, (k, v)) = parse_key_value::<&[u8]>(input).unwrap();
         assert_eq!(k, key);
