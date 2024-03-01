@@ -8,12 +8,20 @@ use crate::error::{self, Result};
 
 use crate::extraction::{Extract, Parse};
 
+use super::RawValue;
+
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct RawDict<'input>(pub HashMap<String, &'input [u8]>);
 
 impl<'input> Extract<'input> for RawDict<'input> {
     fn extract(input: &'input [u8]) -> IResult<&'input [u8], Self> {
-        let (input, map) = HashMap::<String, &'input [u8]>::extract(input)?;
+        let (input, map) = HashMap::<String, RawValue>::extract(input)?;
+
+        let map = map
+            .into_iter()
+            .map(|(key, RawValue(value))| (key, value))
+            .collect();
+
         Ok((input, Self(map)))
     }
 }
