@@ -1,7 +1,7 @@
 use nom::IResult;
 
 use crate::{
-    dictionary::RawDict,
+    RawDict,
     error::{ExtractionError, Result},
 };
 
