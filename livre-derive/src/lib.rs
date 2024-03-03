@@ -8,12 +8,12 @@ mod from_dict;
 
 #[proc_macro_derive(Extract, attributes(livre))]
 pub fn derive_extract(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    extract::derive_extract(input)
+    extract::derive(input)
 }
 
 #[proc_macro_derive(FromDict, attributes(livre))]
 pub fn derive_from_dict(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    from_dict::derive_from_dict(input)
+    from_dict::derive(input)
 }
 
 // Add a bound `T: Extract` to every type parameter T.
