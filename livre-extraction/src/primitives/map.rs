@@ -5,17 +5,17 @@ use nom::{multi::many0, IResult};
 
 use crate::{utilities::RawValue, Extract, FromDict, Name, Parse, RawDict};
 
-impl<'input, T> Extract<'input> for HashMap<String, T>
+pub type Map<T> = HashMap<String, T>;
+
+impl<'input, T> Extract<'input> for Map<T>
 where
     T: Extract<'input>,
 {
     fn extract(input: &'input [u8]) -> IResult<&'input [u8], Self> {
         let (input, value) = parse_dict_body(input)?;
-
         let (value, _) = take_whitespace(value)?;
-        let (r, array) = many0(parse_key_value)(value)?;
 
-        let (r, _) = take_whitespace(r)?;
+        let (r, array) = many0(parse_key_value)(value)?;
 
         assert!(
             r.is_empty(),
@@ -23,13 +23,13 @@ where
             String::from_utf8_lossy(r)
         );
 
-        let map: HashMap<String, T> = array.into_iter().collect();
+        let map: Self = array.into_iter().collect();
 
         Ok((input, map))
     }
 }
 
-impl<'input, T> FromDict<'input> for HashMap<String, T>
+impl<'input, T> FromDict<'input> for Map<T>
 where
     T: Extract<'input>,
 {
@@ -49,6 +49,7 @@ where
     let (input, _) = take_whitespace(input)?;
 
     let (input, value) = T::extract(input)?;
+    let (input, _) = take_whitespace(input)?;
 
     Ok((input, (key, value)))
 }
@@ -85,5 +86,14 @@ mod tests {
         let (_, (k, v)) = parse_key_value::<i32>(input).unwrap();
         assert_eq!(k, key);
         assert_eq!(v, value);
+    }
+
+    #[rstest]
+    #[case(b"<</Val 1 /Test -12>>", vec![("Val".to_string(), 1), ("Test".to_string(), -12)])]
+    #[case(b"<</Val 1 >>", vec![("Val".to_string(), 1)])]
+    fn map_i32(#[case] input: &[u8], #[case] expected: Vec<(String, i32)>) {
+        let dict: Map<i32> = expected.into_iter().collect();
+        let (_, map) = Map::<i32>::extract(input).unwrap();
+        assert_eq!(map, dict);
     }
 }

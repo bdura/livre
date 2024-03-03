@@ -1,6 +1,7 @@
 pub mod error;
 
 pub mod primitives;
+pub use primitives::map::Map;
 
 mod utilities;
 pub use utilities::{MaybeArray, OptRef, RawDict};
