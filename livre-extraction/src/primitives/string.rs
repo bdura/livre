@@ -42,7 +42,7 @@ mod tests {
     use rstest::rstest;
 
     use super::*;
-    use crate::extraction::Parse;
+    use crate::Parse;
 
     #[rstest]
     #[case(b"(abcd)", "abcd")]

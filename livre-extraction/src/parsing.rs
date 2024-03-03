@@ -1,16 +1,14 @@
 use nom::IResult;
 
 use crate::{
-    error::{ExtractionError, Result}, Extract, FromDict, FromDictRef, Parse, RawDict
+    error::{ExtractionError, Result},
+    Extract,
 };
 
-impl<'input, T> FromDict<'input> for T
-where
-    T: FromDictRef<'input>,
-{
-    fn from_dict(mut dict: RawDict<'input>) -> Result<Self> {
-        T::from_dict_ref(&mut dict)
-    }
+/// Parse trait, which mirrors the [`Extract`] trait.
+pub trait Parse<'input>: Sized {
+    fn extract<T: Extract<'input>>(self) -> IResult<Self, T>;
+    fn parse<T: Extract<'input>>(self) -> Result<T>;
 }
 
 impl<'input> Parse<'input> for &'input [u8] {

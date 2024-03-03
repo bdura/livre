@@ -1,4 +1,4 @@
-use livre_extraction::{extraction::Parse, Extract, FromDict, FromDictRef, RawDict};
+use livre_extraction::{Extract, FromDict, FromDictRef, Parse, RawDict};
 
 #[derive(Debug, Extract, FromDictRef)]
 struct Test {
