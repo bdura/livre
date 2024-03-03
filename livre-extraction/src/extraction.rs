@@ -1,13 +1,17 @@
 use nom::IResult;
 
 use crate::{
-    RawDict,
     error::{ExtractionError, Result},
+    RawDict,
 };
 
 /// Extraction trait
 pub trait Extract<'input>: Sized {
     fn extract(input: &'input [u8]) -> IResult<&'input [u8], Self>;
+}
+
+pub trait FromDictRef<'input>: Sized {
+    fn from_dict_ref(dict: &'input mut RawDict<'input>) -> Result<Self>;
 }
 
 pub trait FromDict<'input>: Sized {

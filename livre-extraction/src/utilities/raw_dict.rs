@@ -4,7 +4,10 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use crate::error::{self, Result};
+use crate::{
+    error::{self, Result},
+    FromDict,
+};
 
 use crate::extraction::{Extract, Parse};
 
@@ -59,14 +62,11 @@ impl<'input> RawDict<'input> {
         Ok(result)
     }
 
-    pub fn convert<T>(self) -> Result<HashMap<String, T>>
+    pub fn convert<T>(self) -> Result<T>
     where
-        T: Extract<'input>,
+        T: FromDict<'input>,
     {
-        self.0
-            .into_iter()
-            .map(|(key, RawValue(value))| value.parse::<T>().map(|r| (key, r)))
-            .collect()
+        T::from_dict(self)
     }
 }
 
@@ -115,7 +115,7 @@ mod tests {
     fn raw_dict_convert() {
         let input = b"<</Key1 (test)/Key2 (false)>>";
         let (_, raw) = RawDict::extract(input).unwrap();
-        let string_map = raw.convert::<String>().unwrap();
+        let string_map = raw.convert::<HashMap<String, String>>().unwrap();
 
         assert_eq!(string_map.len(), 2);
 

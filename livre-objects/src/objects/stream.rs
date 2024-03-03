@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashMap};
+use std::borrow::Cow;
 
 use livre_utilities::{take_eol_no_r, take_whitespace};
 use nom::{
@@ -7,20 +7,20 @@ use nom::{
     IResult,
 };
 
-use livre_extraction::{Extract, MaybeArray, RawDict};
+use livre_extraction::{Extract, FromDict, MaybeArray, RawDict};
 
 use livre_filters::{Filter, Filtering, Result};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Stream<'input, T> {
-    pub dict: HashMap<String, T>,
+    pub structured: T,
     pub filters: Vec<Filter>,
     pub inner: &'input [u8],
 }
 
 impl<'input, T> Stream<'input, T>
 where
-    T: Extract<'input>,
+    T: FromDict<'input>,
 {
     pub(crate) fn extract_from_dict(
         input: &'input [u8],
@@ -41,10 +41,10 @@ where
 
         let (input, _) = tuple((take_whitespace, tag(b"endstream"), take_whitespace))(input)?;
 
-        let dict = dict.convert().unwrap();
+        let structured = T::from_dict(dict).unwrap();
 
         let stream = Self {
-            dict,
+            structured,
             inner,
             filters,
         };
@@ -55,7 +55,7 @@ where
 
 impl<'input, T> Extract<'input> for Stream<'input, T>
 where
-    T: Extract<'input>,
+    T: FromDict<'input>,
 {
     fn extract(input: &'input [u8]) -> nom::IResult<&'input [u8], Self> {
         let (input, dict) = RawDict::extract(input)?;
@@ -77,6 +77,8 @@ impl<'input, T> Stream<'input, T> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use indoc::indoc;
     use rstest::rstest;
 
@@ -107,13 +109,13 @@ mod tests {
         vec![("Test", b"false".as_slice()), ("Ok", b"true".as_slice())]
     )]
     fn stream(#[case] input: &[u8], #[case] expected: &[u8], #[case] dict: Vec<(&str, &[u8])>) {
-        let (_, stream) = Stream::<'_, &[u8]>::extract(input).unwrap();
+        let (_, stream) = Stream::<'_, HashMap<String, &[u8]>>::extract(input).unwrap();
         assert_eq!(stream.inner, expected);
 
-        assert_eq!(stream.dict.len(), dict.len());
+        assert_eq!(stream.structured.len(), dict.len());
 
         for (k, v) in dict {
-            assert_eq!(stream.dict.get(k).unwrap(), &v);
+            assert_eq!(stream.structured.get(k).unwrap(), &v);
         }
 
         // Dummy decode

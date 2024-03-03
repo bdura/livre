@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use livre_utilities::{parse_dict_body, take_whitespace};
 use nom::{multi::many0, IResult};
 
-use crate::{Extract, Name};
+use crate::{utilities::RawValue, Extract, FromDict, Name, Parse, RawDict};
 
 impl<'input, T> Extract<'input> for HashMap<String, T>
 where
@@ -26,6 +26,18 @@ where
         let map: HashMap<String, T> = array.into_iter().collect();
 
         Ok((input, map))
+    }
+}
+
+impl<'input, T> FromDict<'input> for HashMap<String, T>
+where
+    T: Extract<'input>,
+{
+    fn from_dict(dict: RawDict<'input>) -> crate::error::Result<Self> {
+        dict.0
+            .into_iter()
+            .map(|(key, RawValue(value))| value.parse::<T>().map(|r| (key, r)))
+            .collect()
     }
 }
 

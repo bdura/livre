@@ -13,6 +13,8 @@ use nom::{
 use super::Stream;
 use crate::{HexString, Name, Reference};
 
+type ObjectMap<'input> = HashMap<String, Object<'input>>;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Object<'input> {
     Null,
@@ -24,7 +26,7 @@ pub enum Object<'input> {
     Name(Name),
     Array(Vec<Object<'input>>),
     Dictionary(HashMap<String, Object<'input>>),
-    Stream(Stream<'input, Object<'input>>),
+    Stream(Stream<'input, ObjectMap<'input>>),
     Reference(Reference),
 }
 
@@ -36,7 +38,8 @@ impl<'input> Object<'input> {
         let res = peek(tag::<&[u8], &[u8], Error<&'input [u8]>>(b"stream"))(input);
 
         if res.is_ok() {
-            let (input, stream) = Stream::<'input, Object<'input>>::extract_from_dict(input, dict)?;
+            let (input, stream) =
+                Stream::<'input, ObjectMap<'input>>::extract_from_dict(input, dict)?;
             let obj = Self::Stream(stream);
             Ok((input, obj))
         } else {
@@ -104,10 +107,10 @@ mod tests {
             Object::Dictionary(vec![$(($k.to_string(), $v)),+].into_iter().collect())
         };
         (s:$val:literal) => {
-            Object::Stream(Stream{inner: $val, filters: Vec::new(), dict: Default::default()})
+            Object::Stream(Stream{inner: $val, filters: Vec::new(), structured: Default::default()})
         };
         (s:$val:literal | $filters:expr) => {
-            Object::Stream(Stream{inner: $val, filters: $filters, dict: Default::default()})
+            Object::Stream(Stream{inner: $val, filters: $filters, structured: Default::default()})
         };
     }
 

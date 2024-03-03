@@ -1,70 +1,19 @@
-use proc_macro2::TokenStream;
-use quote::quote;
-use syn::{
-    parse_macro_input, parse_quote, Data, DataStruct, DeriveInput, Fields, GenericParam, Generics,
-};
+use syn::{parse_quote, GenericParam, Generics};
 
 mod attr;
 mod option;
 
+mod extract;
+mod from_dict;
+
 #[proc_macro_derive(Extract, attributes(livre))]
 pub fn derive_extract(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    // Parse the input tokens into a syntax tree.
-    let input = parse_macro_input!(input as DeriveInput);
-
-    // Used in the quasi-quotation below as `#name`.
-    let name = input.ident;
-
-    // Add a bound `T: Extract` to every type parameter T.
-    let generics = add_trait_bounds(input.generics);
-    let (_impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-
-    // Generate an expression to sum up the heap size of each field.
-    let extraction = generate_extraction(&input.data);
-
-    let expanded = quote! {
-        use ::nom::error::ParseError;
-        // The generated impl.
-        impl<'input> ::livre_extraction::Extract<'input> for #name #ty_generics #where_clause {
-            fn extract(input: &'input [u8]) -> ::nom::IResult<&'input [u8], Self> {
-                let (new_input, mut dict) = ::livre_extraction::RawDict::extract(input)?;
-
-                #extraction
-            }
-        }
-    };
-
-    // Hand the output tokens back to the compiler.
-    proc_macro::TokenStream::from(expanded)
+    extract::derive_extract(input)
 }
 
 #[proc_macro_derive(FromDict, attributes(livre))]
 pub fn derive_from_dict(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    // Parse the input tokens into a syntax tree.
-    let input = parse_macro_input!(input as DeriveInput);
-
-    // Used in the quasi-quotation below as `#name`.
-    let name = input.ident;
-
-    // Add a bound `T: Extract` to every type parameter T.
-    let generics = add_trait_bounds(input.generics);
-    let (_impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-
-    // Generate an expression to sum up the heap size of each field.
-    let extraction = generate_extraction(&input.data);
-
-    let expanded = quote! {
-        use ::nom::error::ParseError;
-        // The generated impl.
-        impl<'input> ::livre_extraction::FromDict<'input> for #name #ty_generics #where_clause {
-            fn from_dict(dict: &mut ::livre_extraction::RawDict<'input>) -> ::livre_extraction::error::Result<Self> {
-                #extraction
-            }
-        }
-    };
-
-    // Hand the output tokens back to the compiler.
-    proc_macro::TokenStream::from(expanded)
+    from_dict::derive_from_dict(input)
 }
 
 // Add a bound `T: Extract` to every type parameter T.
@@ -73,51 +22,8 @@ fn add_trait_bounds(mut generics: Generics) -> Generics {
         if let GenericParam::Type(ref mut type_param) = *param {
             type_param
                 .bounds
-                .push(parse_quote!(livre_parser::Extract<'_>));
+                .push(parse_quote!(livre_parser::Extract<'input>));
         }
     }
     generics
-}
-
-fn generate_extraction(data: &Data) -> TokenStream {
-    match data {
-        Data::Struct(DataStruct {
-            fields: Fields::Named(fields),
-            ..
-        }) => {
-            let fieldname = fields.named.iter().map(|f| &f.ident).collect::<Vec<_>>();
-            let fieldty = fields.named.iter().map(|f| &f.ty);
-            let dictfunc = fields.named.iter().map(|f| {
-                let is_opt = option::is_option(&f.ty);
-                if is_opt {
-                    quote!(pop_opt)
-                } else {
-                    quote!(pop)
-                }
-            });
-            let fieldstr = fields
-                .named
-                .iter()
-                .map(attr::name_of_field)
-                .collect::<Result<Vec<_>, _>>()
-                .unwrap();
-
-            quote! {
-                #(
-                    let #fieldname: #fieldty = dict
-                        .#dictfunc(#fieldstr)
-                        .map_err(|_| nom::Err::Error(nom::error::Error::from_error_kind(input, nom::error::ErrorKind::IsNot)))?;
-                )*
-
-                let res = Self {
-                    #(
-                        #fieldname,
-                    )*
-                };
-
-                Ok((new_input, res))
-            }
-        }
-        _ => unimplemented!(),
-    }
 }

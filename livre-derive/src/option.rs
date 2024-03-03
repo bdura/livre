@@ -7,8 +7,6 @@ fn extract_type_path(ty: &Type) -> Option<&Path> {
     }
 }
 
-// TODO store (with lazy static) the vec of string
-// TODO maybe optimization, reverse the order of segments
 fn extract_option_segment(path: &Path) -> Option<&PathSegment> {
     let idents_of_path = path.segments.iter().fold(String::new(), |mut acc, v| {
         acc.push_str(&v.ident.to_string());
