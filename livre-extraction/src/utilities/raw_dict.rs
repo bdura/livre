@@ -1,12 +1,9 @@
 use nom::IResult;
-use std::{
-    collections::HashMap,
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 use crate::{
     error::{self, Result},
-    FromDict, Parse,
+    FromDict, Map, Parse,
 };
 
 use crate::extraction::Extract;
@@ -14,17 +11,17 @@ use crate::extraction::Extract;
 use super::RawValue;
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
-pub struct RawDict<'input>(pub HashMap<String, RawValue<'input>>);
+pub struct RawDict<'input>(pub Map<RawValue<'input>>);
 
 impl<'input> Extract<'input> for RawDict<'input> {
     fn extract(input: &'input [u8]) -> IResult<&'input [u8], Self> {
-        let (input, map) = HashMap::<String, RawValue>::extract(input)?;
+        let (input, map) = Map::<RawValue>::extract(input)?;
         Ok((input, Self(map)))
     }
 }
 
 impl<'input> Deref for RawDict<'input> {
-    type Target = HashMap<String, RawValue<'input>>;
+    type Target = Map<RawValue<'input>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -115,7 +112,7 @@ mod tests {
     fn raw_dict_convert() {
         let input = b"<</Key1 (test)/Key2 (false)>>";
         let (_, raw) = RawDict::extract(input).unwrap();
-        let string_map = raw.convert::<HashMap<String, String>>().unwrap();
+        let string_map = raw.convert::<Map<String>>().unwrap();
 
         assert_eq!(string_map.len(), 2);
 
