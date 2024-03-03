@@ -1,6 +1,6 @@
-use livre_extraction::{extraction::Parse, Extract, FromDict, RawDict};
+use livre_extraction::{extraction::Parse, Extract, FromDict, FromDictRef, RawDict};
 
-#[derive(Debug, Extract, FromDict)]
+#[derive(Debug, Extract, FromDictRef)]
 struct Test {
     n: usize,
     prev: Option<String>,
