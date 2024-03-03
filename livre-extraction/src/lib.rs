@@ -9,9 +9,11 @@ pub mod pdf;
 pub use pdf::{HexString, Indirect, Name, Reference};
 
 pub mod extraction;
-pub use extraction::{Extract, FromDict, Parse};
+pub use extraction::{Extract, FromDict, FromDictRef, Parse};
 
-pub use livre_derive::{Extract, FromDict};
+pub use livre_derive::{Extract, FromDict, FromDictRef};
+
+pub mod implementations;
 
 /// Re-export IResult. Avoids depending on `nom` for downstream crates.
 pub use nom::IResult;

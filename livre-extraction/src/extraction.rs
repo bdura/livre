@@ -1,9 +1,6 @@
 use nom::IResult;
 
-use crate::{
-    error::{ExtractionError, Result},
-    RawDict,
-};
+use crate::{error::Result, RawDict};
 
 /// Extraction trait
 pub trait Extract<'input>: Sized {
@@ -11,7 +8,7 @@ pub trait Extract<'input>: Sized {
 }
 
 pub trait FromDictRef<'input>: Sized {
-    fn from_dict_ref(dict: &'input mut RawDict<'input>) -> Result<Self>;
+    fn from_dict_ref(dict: &mut RawDict<'input>) -> Result<Self>;
 }
 
 pub trait FromDict<'input>: Sized {
@@ -22,15 +19,4 @@ pub trait FromDict<'input>: Sized {
 pub trait Parse<'input>: Sized {
     fn extract<T: Extract<'input>>(self) -> IResult<Self, T>;
     fn parse<T: Extract<'input>>(self) -> Result<T>;
-}
-
-impl<'input> Parse<'input> for &'input [u8] {
-    fn parse<T: Extract<'input>>(self) -> Result<T> {
-        let (_, obj) = T::extract(self).map_err(|_| ExtractionError::Unknown)?;
-        Ok(obj)
-    }
-
-    fn extract<T: Extract<'input>>(self) -> IResult<Self, T> {
-        T::extract(self)
-    }
 }
