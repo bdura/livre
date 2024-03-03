@@ -13,7 +13,7 @@ impl Extract<'_> for bool {
 #[cfg(test)]
 mod tests {
 
-    use crate::extraction::Parse;
+    use crate::Parse;
 
     use super::*;
 

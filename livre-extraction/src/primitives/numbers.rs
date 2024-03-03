@@ -53,7 +53,7 @@ real!(f64);
 
 #[cfg(test)]
 mod tests {
-    use crate::extraction::Parse;
+    use crate::Parse;
     use rstest::rstest;
 
     #[rstest]

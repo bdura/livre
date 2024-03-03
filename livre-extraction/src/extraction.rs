@@ -15,8 +15,11 @@ pub trait FromDict<'input>: Sized {
     fn from_dict(dict: RawDict<'input>) -> Result<Self>;
 }
 
-/// Parse trait, which mirrors the [`Extract`] trait.
-pub trait Parse<'input>: Sized {
-    fn extract<T: Extract<'input>>(self) -> IResult<Self, T>;
-    fn parse<T: Extract<'input>>(self) -> Result<T>;
+impl<'input, T> FromDict<'input> for T
+where
+    T: FromDictRef<'input>,
+{
+    fn from_dict(mut dict: RawDict<'input>) -> Result<Self> {
+        T::from_dict_ref(&mut dict)
+    }
 }

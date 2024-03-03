@@ -6,10 +6,10 @@ use std::{
 
 use crate::{
     error::{self, Result},
-    FromDict,
+    FromDict, Parse,
 };
 
-use crate::extraction::{Extract, Parse};
+use crate::extraction::Extract;
 
 use super::RawValue;
 
