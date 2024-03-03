@@ -6,7 +6,7 @@ use crate::add_trait_bounds;
 
 use super::{attr, option};
 
-pub fn derive_from_dict(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // Parse the input tokens into a syntax tree.
     let input = parse_macro_input!(input as DeriveInput);
 
