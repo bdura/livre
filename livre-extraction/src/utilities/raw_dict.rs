@@ -67,6 +67,12 @@ impl<'input> RawDict<'input> {
     }
 }
 
+impl<'input> FromDict<'input> for RawDict<'input> {
+    fn from_dict(dict: RawDict<'input>) -> Result<Self> {
+        Ok(dict)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use rstest::rstest;
