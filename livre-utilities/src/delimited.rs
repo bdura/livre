@@ -11,7 +11,7 @@ pub fn take_within_balanced(
     closing_bracket: u8,
 ) -> impl Fn(&[u8]) -> IResult<&[u8], &[u8]> {
     move |input: &[u8]| {
-        if input[0] != opening_bracket {
+        if input.is_empty() || input[0] != opening_bracket {
             return Err(Err::Error(Error::from_error_kind(
                 input,
                 ErrorKind::TakeUntil,
@@ -62,6 +62,7 @@ mod tests {
 
     #[rstest]
     #[case(b"<test>", b"test")]
+    #[case(b"<>", b"")]
     #[case(b"<te<s>t>", b"te<s>t")]
     #[case(b"<te<s>eafwt>", b"te<s>eafwt")]
     fn chevron_delimited(#[case] input: &[u8], #[case] expected: &[u8]) {
