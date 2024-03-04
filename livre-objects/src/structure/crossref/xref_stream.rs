@@ -1,4 +1,4 @@
-use livre_extraction::{Extract, FromDict};
+use livre_extraction::{Extract, FromDict, Reference};
 use livre_utilities::space;
 use nom::{bytes::complete::take, multi::count, sequence::separated_pair, IResult};
 
@@ -90,12 +90,16 @@ struct XRefStreamConfig {
     /// byte offset of the previous section
     prev: Option<usize>,
     w: FieldSize,
+    root: Reference,
+    info: Reference,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct XRefStream {
     pub refs: Vec<(usize, Ref)>,
     pub prev: Option<usize>,
+    pub root: Reference,
+    pub info: Reference,
 }
 
 impl<'input> Extract<'input> for XRefStream {
@@ -110,6 +114,8 @@ impl<'input> Extract<'input> for XRefStream {
             index,
             prev,
             w,
+            root,
+            info,
         } = stream.structured;
 
         let index = index.unwrap_or(vec![SubSection { start: 0, n: size }]);
@@ -129,7 +135,14 @@ impl<'input> Extract<'input> for XRefStream {
             refs.extend(iter);
         }
 
-        Ok((input, Self { refs, prev }))
+        let xref_stream = Self {
+            refs,
+            prev,
+            root,
+            info,
+        };
+
+        Ok((input, xref_stream))
     }
 }
 
