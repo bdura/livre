@@ -80,6 +80,7 @@ mod tests {
     use std::collections::HashMap;
 
     use indoc::indoc;
+    use livre_extraction::NoOp;
     use rstest::rstest;
 
     use super::*;
@@ -120,5 +121,16 @@ mod tests {
 
         // Dummy decode
         assert_eq!(stream.decode().unwrap(), expected);
+    }
+
+    #[test]
+    fn real_world() {
+        let input = &include_bytes!("../../../tests/text.pdf")[0x645D..(0x645D + 410)];
+        let (_, stream) = Stream::<'_, NoOp>::extract(input).unwrap();
+
+        assert_eq!(stream.filters.len(), 1);
+        assert_eq!(stream.inner.len(), 351);
+
+        stream.decode().unwrap();
     }
 }
