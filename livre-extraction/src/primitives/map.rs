@@ -90,7 +90,7 @@ mod tests {
 
     #[rstest]
     #[case(b"<</Val 1 /Test -12>>", vec![("Val".to_string(), 1), ("Test".to_string(), -12)])]
-    #[case(b"<</Val 1 >>", vec![("Val".to_string(), 1)])]
+    #[case(b"<< /Val 1 >>", vec![("Val".to_string(), 1)])]
     fn map_i32(#[case] input: &[u8], #[case] expected: Vec<(String, i32)>) {
         let dict: Map<i32> = expected.into_iter().collect();
         let (_, map) = Map::<i32>::extract(input).unwrap();
