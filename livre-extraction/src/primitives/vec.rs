@@ -1,6 +1,6 @@
 use nom::multi::separated_list0;
 
-use livre_utilities::{take_whitespace, take_whitespace1, take_within_balanced};
+use livre_utilities::{parse_array_body, take_whitespace, take_whitespace1};
 
 use crate::extraction::Extract;
 
@@ -9,7 +9,7 @@ where
     T: Extract<'input>,
 {
     fn extract(input: &'input [u8]) -> nom::IResult<&'input [u8], Self> {
-        let (input, value) = take_within_balanced(b'[', b']')(input)?;
+        let (input, value) = parse_array_body(input)?;
 
         // We need to remove preceding whitespace.
         let (value, _) = take_whitespace(value)?;
