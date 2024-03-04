@@ -1,9 +1,3 @@
-pub enum Reference {
-    Free,
-    Uncompressed { offset: usize },
-    Compressed { objstream_offset: usize },
-}
-
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Ref {
     pub offset: usize,
