@@ -54,6 +54,10 @@ pub fn parse_dict_body(input: &[u8]) -> IResult<&[u8], &[u8]> {
     Ok((input, value))
 }
 
+pub fn parse_array_body(input: &[u8]) -> IResult<&[u8], &[u8]> {
+    take_within_balanced(b'[', b']')(input)
+}
+
 #[cfg(test)]
 mod tests {
     use rstest::rstest;
