@@ -9,3 +9,6 @@ pub(crate) use raw_dict_value::RawValue;
 
 mod optional_reference;
 pub use optional_reference::OptRef;
+
+mod noop;
+pub use noop::NoOp;
