@@ -4,7 +4,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     combinator::map,
-    multi::many0,
+    multi::{count, many0},
     sequence::{separated_pair, tuple},
     IResult,
 };
@@ -61,11 +61,9 @@ fn parse_xref_section(input: &[u8]) -> IResult<&[u8], Vec<(Reference, usize)>> {
 
     let (input, _) = take_whitespace1(input)?;
 
-    let (input, refs) = many0(CrossRef::extract)(input)?;
+    let (input, refs) = count(CrossRef::extract, len)(input)?;
 
     let (input, _) = take_whitespace(input)?;
-
-    assert_eq!(refs.len(), len);
 
     let res = refs
         .into_iter()
