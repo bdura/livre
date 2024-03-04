@@ -23,7 +23,7 @@ pub enum Object<'input> {
     Real(f32),
     LiteralString(String),
     HexString(HexString),
-    Name(Name),
+    Name(String),
     Array(Vec<Object<'input>>),
     Dictionary(HashMap<String, Object<'input>>),
     Stream(Stream<'input, ObjectMap<'input>>),
@@ -61,7 +61,7 @@ impl<'input> Extract<'input> for Object<'input> {
             map(Vec::<Object>::extract, Self::Array),
             map(String::extract, Self::LiteralString),
             map(HexString::extract, Self::HexString),
-            map(Name::extract, Self::Name),
+            map(Name::extract, |Name(name)| Self::Name(name)),
         ))(input)
     }
 }
@@ -95,7 +95,7 @@ mod tests {
             Object::HexString(HexString($val.to_vec()))
         };
         (n:$val:literal) => {
-            Object::Name(Name($val.to_string()))
+            Object::Name($val.to_string())
         };
         ($($o:expr),+ $(,)?) => {
             Object::Array(vec![$($o),+].into())
@@ -123,6 +123,12 @@ mod tests {
     #[case(b"<00A01>", obj!(h:[0, 160, 16]))]
     #[case(b"<00A010>", obj!(h:[0, 160, 16]))]
     #[case(b"<</FirstKey/Test/AnotherKey 2.>>", obj!("FirstKey" obj!(n:"Test"), "AnotherKey" obj!(f:2.0)))]
+    #[case(indoc!{b"
+        <<
+            /DA(/Helv 0 Tf 0 g )
+            /Fields[]
+        >>
+    "}, obj!("DA" obj!(t:"/Helv 0 Tf 0 g "), "Fields" Object::Array(vec![])))]
     #[case(
         indoc! {b"
             <</Length 10>> stream
