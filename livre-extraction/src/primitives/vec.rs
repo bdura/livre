@@ -13,6 +13,12 @@ where
 
         // We need to remove preceding whitespace.
         let (value, _) = take_whitespace(value)?;
+
+        // Return early if empty: no need to call `T::extract`.
+        if value.is_empty() {
+            return Ok((input, Vec::new()));
+        }
+
         let (value, array) = separated_list0(take_whitespace1, T::extract)(value)?;
         let (value, _) = take_whitespace(value)?;
 
@@ -36,6 +42,7 @@ mod tests {
     #[rstest]
     #[case(b"[1 2 4]", vec![1, 2, 4])]
     #[case(b"[  1  2 4   ]", vec![1, 2, 4])]
+    #[case(b"[  ]", vec![])]
     fn vec_i32(#[case] input: &[u8], #[case] expected: Vec<i32>) {
         let (_, parsed) = Vec::<i32>::extract(input).unwrap();
         assert_eq!(parsed, expected);
