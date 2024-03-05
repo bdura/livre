@@ -33,8 +33,12 @@ pub fn name_of_field(field: &Field) -> Result<String> {
     let rename = attr_rename(&field.attrs)?;
     Ok(rename.unwrap_or_else(|| {
         let name = field.ident.as_ref().unwrap().to_string();
-        capitalize(&name)
+        pascal_case(&name)
     }))
+}
+
+fn pascal_case(s: &str) -> String {
+    s.split('_').map(capitalize).collect()
 }
 
 fn capitalize(s: &str) -> String {
