@@ -4,7 +4,9 @@ pub mod primitives;
 pub use primitives::map::Map;
 
 mod utilities;
-pub use utilities::{MaybeArray, NoOp, OptRef, RawDict};
+pub use utilities::{
+    Angles, Brackets, DoubleAngles, MaybeArray, NoOp, OptRef, Parentheses, RawDict,
+};
 
 pub mod pdf;
 pub use pdf::{HexString, Indirect, Name, Reference};
@@ -19,3 +21,7 @@ pub use parsing::Parse;
 
 /// Re-export IResult. Avoids depending on `nom` for downstream crates.
 pub use nom::IResult;
+
+pub fn extract<'input, T: Extract<'input>>(input: &'input [u8]) -> IResult<&'input [u8], T> {
+    T::extract(input)
+}

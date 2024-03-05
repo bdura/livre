@@ -1,15 +1,15 @@
 use nom::multi::separated_list0;
 
-use livre_utilities::{parse_array_body, take_whitespace, take_whitespace1};
+use livre_utilities::{take_whitespace, take_whitespace1};
 
-use crate::extraction::Extract;
+use crate::{extract, extraction::Extract, Brackets};
 
 impl<'input, T> Extract<'input> for Vec<T>
 where
     T: Extract<'input>,
 {
     fn extract(input: &'input [u8]) -> nom::IResult<&'input [u8], Self> {
-        let (input, value) = parse_array_body(input)?;
+        let (input, Brackets(value)) = extract(input)?;
 
         // We need to remove preceding whitespace.
         let (value, _) = take_whitespace(value)?;

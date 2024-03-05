@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use livre_utilities::{parse_dict_body, take_whitespace};
+use livre_utilities::take_whitespace;
 use nom::{multi::many0, IResult};
 
-use crate::{utilities::RawValue, Extract, FromDict, Name, Parse, RawDict};
+use crate::{extract, utilities::RawValue, DoubleAngles, Extract, FromDict, Name, Parse, RawDict};
 
 pub type Map<T> = HashMap<String, T>;
 
@@ -12,7 +12,7 @@ where
     T: Extract<'input>,
 {
     fn extract(input: &'input [u8]) -> IResult<&'input [u8], Self> {
-        let (input, value) = parse_dict_body(input)?;
+        let (input, DoubleAngles(value)) = extract(input)?;
         let (value, _) = take_whitespace(value)?;
 
         let (r, array) = many0(parse_key_value)(value)?;
