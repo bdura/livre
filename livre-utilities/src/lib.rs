@@ -6,7 +6,7 @@ pub use whitespace::{
 };
 
 mod delimited;
-pub use delimited::{parse_array_body, parse_dict_body, take_within_balanced};
+pub use delimited::take_within_balanced;
 
 mod digits;
 pub use digits::{
