@@ -1,4 +1,3 @@
-use livre_utilities::take_within_balanced;
 use nom::{
     branch::alt,
     bytes::complete::take_till,
@@ -6,7 +5,7 @@ use nom::{
     IResult,
 };
 
-use crate::{Extract, Name};
+use crate::{Angles, Brackets, Extract, Name, Parentheses};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct RawValue<'input>(pub &'input [u8]);
@@ -14,9 +13,9 @@ pub struct RawValue<'input>(pub &'input [u8]);
 impl<'input> Extract<'input> for RawValue<'input> {
     fn extract(input: &'input [u8]) -> IResult<&'input [u8], Self> {
         let (input, value) = alt((
-            recognize(take_within_balanced(b'[', b']')),
-            recognize(take_within_balanced(b'<', b'>')),
-            recognize(take_within_balanced(b'(', b')')),
+            recognize(Brackets::extract),
+            recognize(Angles::extract),
+            recognize(Parentheses::extract),
             verify(take_till(|b| b == b'/'), |v: &[u8]| !v.is_empty()),
             recognize(Name::extract),
         ))(input)?;

@@ -6,7 +6,9 @@ edition = "2021"
 
 [dependencies]
 nom = "7"
+
 thiserror = "1.0"
+
 livre-derive = { path = "../livre-derive" }
 livre-utilities = { path = "../livre-utilities" }
 

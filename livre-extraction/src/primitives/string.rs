@@ -6,13 +6,13 @@ use nom::{
     IResult,
 };
 
-use livre_utilities::{parse_octal, parse_string_with_escapes, take_within_balanced};
+use livre_utilities::{parse_octal, parse_string_with_escapes};
 
-use crate::extraction::Extract;
+use crate::{extract, extraction::Extract, Parentheses};
 
 impl Extract<'_> for String {
     fn extract(input: &[u8]) -> nom::IResult<&[u8], Self> {
-        let (input, value) = take_within_balanced(b'(', b')')(input)?;
+        let (input, Parentheses(value)) = extract(input)?;
         let (d, lines) = many0(parse_string_with_escapes(b'\\', escaped_char))(value)?;
         assert!(d.is_empty());
         Ok((input, lines.join("")))
