@@ -13,7 +13,7 @@ mod catalogue;
 pub use catalogue::Catalogue;
 
 mod pages;
-pub use pages::Node;
+pub use pages::{Node, Page};
 
 mod dictionaries;
 pub use dictionaries::FontDict;
