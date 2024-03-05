@@ -1,0 +1,13 @@
+[package]
+name = "livre-structures"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+nom = "7"
+
+livre-extraction = { path = "../livre-extraction" }
+livre-utilities = { path = "../livre-utilities" }
+
+[dev-dependencies]
+rstest = "0.18.2"

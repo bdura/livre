@@ -204,10 +204,21 @@ dependencies = [
  "indoc",
  "livre-extraction",
  "livre-filters",
+ "livre-structures",
  "livre-utilities",
  "nom",
  "rstest",
  "thiserror",
+]
+
+[[package]]
+name = "livre-structures"
+version = "0.1.0"
+dependencies = [
+ "livre-extraction",
+ "livre-utilities",
+ "nom",
+ "rstest",
 ]
 
 [[package]]

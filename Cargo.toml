@@ -6,4 +6,5 @@ members = [
     "livre-extraction",
     "livre-derive",
     "livre-objects",
+    "livre-structures",
 ]
