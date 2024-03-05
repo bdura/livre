@@ -11,3 +11,6 @@ pub use object_stream::ObjectStream;
 
 mod catalogue;
 pub use catalogue::Catalogue;
+
+mod pages;
+pub use pages::Node;
