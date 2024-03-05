@@ -1,15 +1,15 @@
 use nom::{multi::many0, IResult};
 
-use livre_utilities::{parse_hexadecimal_bigram, take_within_balanced};
+use livre_utilities::parse_hexadecimal_bigram;
 
-use crate::Extract;
+use crate::{extract, Angles, Extract};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct HexString(pub Vec<u8>);
 
 impl Extract<'_> for HexString {
     fn extract(input: &'_ [u8]) -> IResult<&'_ [u8], Self> {
-        let (input, value) = take_within_balanced(b'<', b'>')(input)?;
+        let (input, Angles(value)) = extract(input)?;
         let (d, uvec) = many0(parse_hexadecimal_bigram)(value)?;
         assert!(d.is_empty());
         Ok((input, Self(uvec)))
