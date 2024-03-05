@@ -14,3 +14,6 @@ pub use catalogue::Catalogue;
 
 mod pages;
 pub use pages::Node;
+
+mod dictionaries;
+pub use dictionaries::FontDict;
