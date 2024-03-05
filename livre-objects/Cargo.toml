@@ -10,6 +10,7 @@ thiserror = "1.0"
 livre-extraction = { path = "../livre-extraction" }
 livre-utilities = { path = "../livre-utilities" }
 livre-filters = { path = "../livre-filters" }
+livre-structures = { path = "../livre-structures" }
 
 
 [dev-dependencies]
