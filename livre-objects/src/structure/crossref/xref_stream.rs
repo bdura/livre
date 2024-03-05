@@ -1,4 +1,4 @@
-use livre_extraction::{Extract, FromDict, Reference};
+use livre_extraction::{extract, Extract, FromDict, Reference};
 use livre_utilities::space;
 use nom::{bytes::complete::take, multi::count, sequence::separated_pair, IResult};
 
@@ -74,10 +74,7 @@ impl FieldSize {
 
 impl Extract<'_> for FieldSize {
     fn extract(input: &'_ [u8]) -> nom::IResult<&'_ [u8], Self> {
-        let (input, array) = Vec::<u8>::extract(input)?;
-        let f1 = array[0];
-        let f2 = array[1];
-        let f3 = array[2];
+        let (input, [f1, f2, f3]) = extract::<[u8; 3]>(input)?;
         Ok((input, Self { f1, f2, f3 }))
     }
 }
