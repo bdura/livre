@@ -1,11 +1,11 @@
 use livre_extraction::{extract, Extract};
 
-use crate::Point;
+use crate::Position;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Rectangle {
-    pub lower_left: Point,
-    pub upper_right: Point,
+    pub lower_left: Position,
+    pub upper_right: Position,
 }
 
 impl Extract<'_> for Rectangle {
@@ -23,8 +23,8 @@ impl Extract<'_> for Rectangle {
 
 impl Rectangle {
     pub fn from_ll_ur(llx: i32, lly: i32, urx: i32, ury: i32) -> Self {
-        let lower_left = Point::new(llx, lly);
-        let upper_right = Point::new(urx, ury);
+        let lower_left = Position::new(llx, lly);
+        let upper_right = Position::new(urx, ury);
         Self {
             lower_left,
             upper_right,

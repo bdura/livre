@@ -2,7 +2,7 @@ use livre_extraction::{extract, Extract, FromDict, Reference};
 use livre_utilities::space;
 use nom::{bytes::complete::take, multi::count, sequence::separated_pair, IResult};
 
-use crate::Stream;
+use livre_objects::Stream;
 
 use super::Ref;
 
@@ -150,7 +150,7 @@ mod tests {
 
     #[test]
     fn object_stream() {
-        let input = include_bytes!("../../../../tests/objects/xref_stream.bin");
+        let input = include_bytes!("../../../tests/objects/xref_stream.bin");
 
         let (_, xref_stream) = XRefStream::extract(input).unwrap();
 

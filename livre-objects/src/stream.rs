@@ -125,7 +125,7 @@ mod tests {
 
     #[test]
     fn real_world() {
-        let input = &include_bytes!("../../../tests/text.pdf")[0x645D..(0x645D + 410)];
+        let input = &include_bytes!("../../tests/text.pdf")[0x645D..(0x645D + 410)];
         let (_, stream) = Stream::<'_, NoOp>::extract(input).unwrap();
 
         assert_eq!(stream.filters.len(), 1);

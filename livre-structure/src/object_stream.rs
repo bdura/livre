@@ -7,7 +7,7 @@ use nom::{
     sequence::{terminated, tuple},
 };
 
-use crate::Stream;
+use livre_objects::Stream;
 
 #[derive(FromDict)]
 struct ObjectStreamConfig {
@@ -55,13 +55,13 @@ impl<'input> Extract<'input> for ObjectStream {
 #[cfg(test)]
 mod tests {
 
-    use crate::Object;
+    use livre_objects::Object;
 
     use super::*;
 
     #[test]
     fn object_stream() {
-        let input = include_bytes!("../../../tests/objects/stream.bin");
+        let input = include_bytes!("../../tests/objects/stream.bin");
 
         let (_, objstm) = ObjectStream::extract(input).unwrap();
 

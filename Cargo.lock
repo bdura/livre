@@ -168,6 +168,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e186cfbae8084e513daff4240b4797e342f988cecda4fb6c939150f96315fd8"
 
 [[package]]
+name = "livre-data"
+version = "0.1.0"
+dependencies = [
+ "livre-extraction",
+ "livre-utilities",
+ "nom",
+ "rstest",
+]
+
+[[package]]
 name = "livre-derive"
 version = "0.1.0"
 dependencies = [
@@ -202,9 +212,9 @@ name = "livre-objects"
 version = "0.1.0"
 dependencies = [
  "indoc",
+ "livre-data",
  "livre-extraction",
  "livre-filters",
- "livre-structures",
  "livre-utilities",
  "nom",
  "rstest",
@@ -212,10 +222,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "livre-structures"
+name = "livre-structure"
 version = "0.1.0"
 dependencies = [
+ "indoc",
+ "livre-data",
  "livre-extraction",
+ "livre-filters",
+ "livre-objects",
  "livre-utilities",
  "nom",
  "rstest",

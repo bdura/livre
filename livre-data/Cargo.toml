@@ -1,5 +1,5 @@
 [package]
-name = "livre-structures"
+name = "livre-data"
 version = "0.1.0"
 edition = "2021"
 
