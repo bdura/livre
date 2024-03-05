@@ -9,7 +9,7 @@ use livre_objects::Stream;
 use livre_structure::{Catalogue, Node, Page};
 
 fn main() {
-    let file = File::open("tests/text.pdf").unwrap();
+    let file = File::open("tests/letter.pdf").unwrap();
     let mut reader = BufReader::new(file);
 
     let mut buf: Vec<u8> = Vec::new();
