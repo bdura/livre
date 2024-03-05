@@ -22,7 +22,7 @@ impl Extract<'_> for Rectangle {
 }
 
 impl Rectangle {
-    pub fn from_ll_ur(llx: i32, lly: i32, urx: i32, ury: i32) -> Self {
+    pub fn from_ll_ur(llx: f32, lly: f32, urx: f32, ury: f32) -> Self {
         let lower_left = Position::new(llx, lly);
         let upper_right = Position::new(urx, ury);
         Self {
@@ -39,8 +39,8 @@ mod tests {
     use super::*;
 
     #[rstest]
-    #[case(b"[ 0 0 10 10]", Rectangle::from_ll_ur(0, 0, 10, 10))]
-    #[case(b"[ -3 2 10 10]", Rectangle::from_ll_ur(-3, 2, 10, 10))]
+    #[case(b"[ 0 0 10 10]", Rectangle::from_ll_ur(0.0, 0.0, 10.0, 10.0))]
+    #[case(b"[ -3 2 10 10.5]", Rectangle::from_ll_ur(-3.0, 2.0, 10.0, 10.5))]
     fn rectangle(#[case] input: &[u8], #[case] expected: Rectangle) {
         let (_, rectangle) = extract(input).unwrap();
         assert_eq!(expected, rectangle);
