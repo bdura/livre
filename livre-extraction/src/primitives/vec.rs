@@ -37,7 +37,7 @@ mod tests {
     use rstest::rstest;
 
     use super::*;
-    use crate::Parse;
+    use crate::parse;
 
     #[rstest]
     #[case(b"[1 2 4]", vec![1, 2, 4])]
@@ -46,7 +46,7 @@ mod tests {
     fn vec_i32(#[case] input: &[u8], #[case] expected: Vec<i32>) {
         let (_, parsed) = Vec::<i32>::extract(input).unwrap();
         assert_eq!(parsed, expected);
-        assert_eq!(input.parse::<Vec<i32>>().unwrap(), expected);
+        assert_eq!(parse::<Vec<i32>>(input).unwrap(), expected);
     }
 
     #[rstest]

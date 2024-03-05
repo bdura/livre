@@ -17,7 +17,7 @@ mod tests {
     use rstest::rstest;
 
     use super::*;
-    use crate::Parse;
+    use crate::parse;
 
     #[rstest]
     #[case(b"true", Some(true))]
@@ -26,7 +26,7 @@ mod tests {
     fn opt_bool(#[case] input: &[u8], #[case] expected: Option<bool>) {
         let (_, parsed) = Option::<bool>::extract(input).unwrap();
         assert_eq!(parsed, expected);
-        assert_eq!(input.parse::<Option<bool>>().unwrap(), expected);
+        assert_eq!(parse::<Option<bool>>(input).unwrap(), expected);
     }
 
     #[rstest]
@@ -36,6 +36,6 @@ mod tests {
     fn opt_i32(#[case] input: &[u8], #[case] expected: Option<i32>) {
         let (_, parsed) = Option::<i32>::extract(input).unwrap();
         assert_eq!(parsed, expected);
-        assert_eq!(input.parse::<Option<i32>>().unwrap(), expected);
+        assert_eq!(parse::<Option<i32>>(input).unwrap(), expected);
     }
 }
