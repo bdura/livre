@@ -1,5 +1,5 @@
-mod point;
-pub use point::Point;
+mod position;
+pub use position::Position;
 
 mod rectangle;
 pub use rectangle::Rectangle;

@@ -1,16 +1,16 @@
 [package]
-name = "livre-objects"
+name = "livre-structure"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 nom = "7"
-thiserror = "1.0"
 
 livre-extraction = { path = "../livre-extraction" }
 livre-utilities = { path = "../livre-utilities" }
 livre-filters = { path = "../livre-filters" }
 livre-data = { path = "../livre-data" }
+livre-objects = { path = "../livre-objects" }
 
 
 [dev-dependencies]

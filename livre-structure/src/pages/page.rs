@@ -1,5 +1,5 @@
+use livre_data::Rectangle;
 use livre_extraction::{Extract, FromDictRef, MaybeArray, Reference};
-use livre_structures::Rectangle;
 use nom::{branch::alt, bytes::complete::tag, combinator::map};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
