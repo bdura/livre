@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use livre_extraction::Extract;
 use nom::{multi::many1, IResult};
 
-use livre_objects::{Object, Reference};
+use livre_objects::Reference;
 
 use livre_utilities::take_whitespace;
 

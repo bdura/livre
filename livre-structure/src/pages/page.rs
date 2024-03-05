@@ -47,12 +47,13 @@ pub struct Page {
 mod tests {
 
     use indoc::indoc;
+    use rstest::rstest;
 
     use super::*;
 
-    #[test]
-    fn page() {
-        let input = indoc! {b"
+    #[rstest]
+    #[case(
+        indoc! {b"
             <<
                 /Type /Page
                 /Parent 4 0 R
@@ -69,9 +70,51 @@ mod tests {
                 24 0 R
                 ]
             >>
-        "};
-
+        "},
+        Reference::new(4, 0)
+    )]
+    #[case(
+        indoc! {b"
+            <<
+                /Type/Page
+                /Parent 2 0 R
+                /Resources<<
+                    /XObject<<
+                        /Image5 5 0 R
+                        /Image18 18 0 R
+                    >>
+                    /ExtGState<<
+                        /GS6 6 0 R
+                        /GS9 9 0 R
+                    >>
+                    /Font<<
+                        /F1 7 0 R
+                        /F2 10 0 R
+                        /F3 12 0 R
+                        /F4 14 0 R
+                        /F5 16 0 R
+                        /F6 19 0 R
+                        /F7 24 0 R
+                        /F8 29 0 R
+                        /F9 34 0 R
+                    >>
+                    /ProcSet[/PDF/Text/ImageB/ImageC/ImageI] 
+                >>
+                /MediaBox[ 0 0 595.32 841.92] 
+                /Contents 4 0 R
+                /Group<<
+                    /Type/Group
+                    /S/Transparency
+                    /CS/DeviceRGB
+                >>
+                /Tabs/S
+                /StructParents 0
+            >>
+        "},
+        Reference::new(2, 0)
+    )]
+    fn page(#[case] input: &[u8], #[case] parent: Reference) {
         let (_, page) = Page::extract(input).unwrap();
-        assert_eq!(page.parent, Reference::new(4, 0));
+        assert_eq!(page.parent, parent);
     }
 }

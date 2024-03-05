@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use livre_extraction::Extract;
-use livre_objects::{Indirect, Object, Reference};
+use livre_objects::{Indirect, Reference};
 use livre_structure::{crossref::CrossRefs, StartXRef, Trailer, TrailerDict};
 use livre_utilities::take_whitespace;
 use nom::{
