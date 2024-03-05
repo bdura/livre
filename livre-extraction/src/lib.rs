@@ -10,7 +10,7 @@ pub use utilities::{
 };
 
 pub mod pdf;
-pub use pdf::{HexString, Indirect, Name, Reference};
+pub use pdf::{HexString, Indirect, Name, Reference, TypedReference};
 
 pub mod extraction;
 pub use extraction::{Extract, FromDict, FromDictRef};

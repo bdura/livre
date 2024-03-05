@@ -1,5 +1,6 @@
 use crate::{Extract, FromDictRef};
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct NoOp;
 
 impl FromDictRef<'_> for NoOp {

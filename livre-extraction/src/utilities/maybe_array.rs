@@ -1,6 +1,6 @@
 use nom::{branch::alt, combinator::map, IResult};
 
-use crate::Extract;
+use crate::{extract, Extract};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct MaybeArray<T>(pub Vec<T>);
@@ -16,7 +16,7 @@ where
     T: Extract<'input>,
 {
     fn extract(input: &'input [u8]) -> IResult<&'input [u8], Self> {
-        let (input, value) = alt((Vec::<T>::extract, map(T::extract, |r| vec![r])))(input)?;
+        let (input, value) = alt((extract, map(extract, |r| vec![r])))(input)?;
         Ok((input, Self(value)))
     }
 }
