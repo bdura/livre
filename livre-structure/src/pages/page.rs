@@ -25,15 +25,10 @@ pub struct Page {
     // #[livre(rename = "LastModified")]
     // pub last_modified: DateTime
     // pub resources
-    #[livre(rename = "MediaBox")]
     pub media_box: Option<Rectangle>,
-    // #[livre(rename = "CropBox")]
     // pub crop_box: Option<Rectangle>,
-    // #[livre(rename = "BleedBox")]
     // pub bleed_box: Option<Rectangle>,
-    // #[livre(rename = "TrimBox")]
     // pub trim_box: Option<Rectangle>,
-    // #[livre(rename = "ArtBox")]
     // pub art_box: Option<Rectangle>,
     // pub box_color_info
     pub contents: Option<MaybeArray<Reference>>,
@@ -75,7 +70,7 @@ mod tests {
                 ]
             >>
         "};
-        println!("{}", String::from_utf8_lossy(input));
+
         let (_, page) = Page::extract(input).unwrap();
         assert_eq!(page.parent, Reference::new(4, 0));
     }
