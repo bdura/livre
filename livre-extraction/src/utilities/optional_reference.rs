@@ -20,6 +20,16 @@ where
     }
 }
 
+impl<T> OptRef<T> {
+    pub fn is_ref(&self) -> bool {
+        matches!(self, Self::Ref(_))
+    }
+
+    pub fn is_val(&self) -> bool {
+        matches!(self, Self::Val(_))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
