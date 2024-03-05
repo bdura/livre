@@ -42,7 +42,7 @@ mod tests {
     use rstest::rstest;
 
     use super::*;
-    use crate::Parse;
+    use crate::parse;
 
     #[rstest]
     #[case(b"(abcd)", "abcd")]
@@ -55,6 +55,6 @@ mod tests {
     fn string(#[case] input: &[u8], #[case] expected: &str) {
         let (_, parsed) = String::extract(input).unwrap();
         assert_eq!(parsed, expected);
-        assert_eq!(input.parse::<String>().unwrap(), expected);
+        assert_eq!(parse::<String>(input).unwrap(), expected);
     }
 }

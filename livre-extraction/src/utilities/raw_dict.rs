@@ -3,7 +3,7 @@ use std::ops::{Deref, DerefMut};
 
 use crate::{
     error::{self, Result},
-    FromDict, Map, Parse,
+    parse, FromDict, Map,
 };
 
 use crate::extraction::Extract;
@@ -39,11 +39,12 @@ impl<'input> RawDict<'input> {
     where
         T: Extract<'input>,
     {
-        let result = self
+        let input = self
             .remove(key)
             .ok_or_else(|| error::ExtractionError::KeyNotFound(key.into()))?
-            .0
-            .parse()?;
+            .0;
+
+        let result = parse(input)?;
 
         Ok(result)
     }
@@ -54,7 +55,7 @@ impl<'input> RawDict<'input> {
     {
         let result = self
             .remove(key)
-            .map(|RawValue(obj)| obj.parse())
+            .map(|RawValue(obj)| parse(obj))
             .transpose()?;
         Ok(result)
     }

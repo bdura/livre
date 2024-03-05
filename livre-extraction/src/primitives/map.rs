@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use livre_utilities::take_whitespace;
 use nom::{multi::many0, IResult};
 
-use crate::{extract, utilities::RawValue, DoubleAngles, Extract, FromDict, Name, Parse, RawDict};
+use crate::{extract, parse, utilities::RawValue, DoubleAngles, Extract, FromDict, Name, RawDict};
 
 pub type Map<T> = HashMap<String, T>;
 
@@ -36,7 +36,7 @@ where
     fn from_dict(dict: RawDict<'input>) -> crate::error::Result<Self> {
         dict.0
             .into_iter()
-            .map(|(key, RawValue(value))| value.parse::<T>().map(|r| (key, r)))
+            .map(|(key, RawValue(value))| parse::<T>(value).map(|r| (key, r)))
             .collect()
     }
 }
