@@ -15,3 +15,6 @@ pub use noop::NoOp;
 
 mod delimited;
 pub use delimited::{Angles, Brackets, DoubleAngles, Parentheses};
+
+mod into_string;
+pub use into_string::IntoString;
