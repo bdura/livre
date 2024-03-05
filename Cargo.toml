@@ -8,4 +8,5 @@ members = [
     "livre-objects",
     "livre-data",
     "livre-structure",
+    "livre-document",
 ]
