@@ -1,6 +1,6 @@
 use nom::IResult;
 
-use livre_utilities::{parse_integer, parse_real, parse_unsigned_integer};
+use livre_utilities::{parse_integer, parse_number, parse_unsigned_integer};
 
 use crate::extraction::Extract;
 
@@ -28,7 +28,7 @@ macro_rules! real {
     ($type:ty) => {
         impl Extract<'_> for $type {
             fn extract(input: &'_ [u8]) -> IResult<&'_ [u8], Self> {
-                parse_real(input)
+                parse_number(input)
             }
         }
     };
