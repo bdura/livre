@@ -41,6 +41,7 @@ pub fn parse_stream(input: &[u8]) -> IResult<&[u8], Trailer> {
 #[cfg(test)]
 mod tests {
     use indoc::indoc;
+    use livre_extraction::TypedReference;
 
     use super::*;
 
@@ -63,7 +64,7 @@ mod tests {
         assert!(refs.is_empty());
 
         assert_eq!(dict.size, 194);
-        assert_eq!(dict.root, Reference::new(1, 0));
+        assert_eq!(dict.root, TypedReference::new(1, 0));
         assert_eq!(dict.info, Reference::new(36, 0));
         assert_eq!(dict.prev, Some(160714));
     }
@@ -82,7 +83,7 @@ mod tests {
         assert_eq!(refs.len(), 2010);
 
         assert_eq!(dict.size, 92813);
-        assert_eq!(dict.root, Reference::new(90794, 0));
+        assert_eq!(dict.root, TypedReference::new(90794, 0));
         assert_eq!(dict.info, Reference::new(90792, 0));
         assert_eq!(dict.prev, Some(116));
     }
