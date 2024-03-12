@@ -21,16 +21,16 @@ fn main() {
         // .map_err(|_| ExtractionError::ParsingError("test".to_string()))
         .unwrap();
 
-    let &root_raw = doc.body.get(&doc.root).unwrap();
+    let root_raw = doc.get_referenced_bytes(doc.root).unwrap();
     let (_, root) = extract::<Catalogue>(root_raw).unwrap();
 
-    let &pages_raw = doc.body.get(&root.pages).unwrap();
+    let pages_raw = doc.get_referenced_bytes(root.pages).unwrap();
     // let (_, IntoString(pages)) = extract(pages_raw).unwrap();
     // println!("{pages}");
     let (_, pages) = extract::<Node>(pages_raw).unwrap();
     // println!("{pages:?}");
 
-    let &page_raw = doc.body.get(&pages.kids[0]).unwrap();
+    let page_raw = doc.get_referenced_bytes(pages.kids[0]).unwrap();
     // let (_, IntoString(page)) = extract(page_raw).unwrap();
     let (_, page) = extract::<Page>(page_raw).unwrap();
 
