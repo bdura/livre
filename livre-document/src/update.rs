@@ -3,10 +3,11 @@ use std::collections::HashMap;
 use livre_extraction::Extract;
 use livre_objects::{Indirect, Reference};
 use livre_structure::{StartXRef, Trailer};
-use livre_utilities::take_whitespace;
+use livre_utilities::{take_whitespace, take_whitespace1};
 use nom::{
+    bytes::complete::tag,
     multi::many0,
-    sequence::{preceded, terminated},
+    sequence::{preceded, terminated, tuple},
     IResult,
 };
 
@@ -29,6 +30,7 @@ impl<'input> Extract<'input> for Update<'input> {
 
         let (input, trailer) = preceded(take_whitespace, Trailer::extract)(input)?;
         let (input, startxref) = preceded(take_whitespace, StartXRef::extract)(input)?;
+        let (input, _) = tuple((take_whitespace1, tag(b"%%EOF"), take_whitespace))(input)?;
 
         let update = Self {
             body,
