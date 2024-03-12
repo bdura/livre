@@ -152,7 +152,7 @@ mod tests {
 
     #[test]
     fn object_stream() {
-        let input = include_bytes!("../../../tests/objects/xref_stream.bin");
+        let input = include_bytes!("../../../../tests/objects/xref_stream.bin");
 
         let (_, xref_stream) = XRefStream::extract(input).unwrap();
 

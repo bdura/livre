@@ -3,10 +3,8 @@ use livre_objects::{Indirect, Reference};
 use livre_utilities::take_whitespace;
 use nom::{branch::alt, sequence::separated_pair, IResult};
 
-use crate::{
-    crossref::{PlainCrossRefs, RefLocation, XRefStream},
-    TrailerDict,
-};
+use super::{PlainCrossRefs, RefLocation, XRefStream};
+use crate::TrailerDict;
 
 use super::PlainTrailer;
 

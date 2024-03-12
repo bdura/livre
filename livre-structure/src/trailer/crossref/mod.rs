@@ -1,8 +1,5 @@
 mod location;
-pub use location::{RefLocation};
-
-mod main;
-pub use main::CrossRefs;
+pub use location::RefLocation;
 
 mod plain;
 pub use plain::PlainCrossRefs;

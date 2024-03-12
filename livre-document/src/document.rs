@@ -7,7 +7,7 @@ use livre_objects::Reference;
 
 use livre_utilities::take_whitespace;
 
-use livre_structure::{crossref::RefLocation, StartXRef, Trailer};
+use livre_structure::{RefLocation, StartXRef, Trailer};
 
 use crate::{Header, Update};
 
