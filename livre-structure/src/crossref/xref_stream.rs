@@ -1,5 +1,5 @@
 use livre_extraction::{extract, Extract, FromDict, Reference};
-use livre_utilities::space;
+use livre_utilities::take_whitespace1;
 use nom::{bytes::complete::take, multi::count, sequence::separated_pair, IResult};
 
 use livre_objects::Stream;
@@ -18,7 +18,8 @@ struct SubSection {
 
 impl Extract<'_> for SubSection {
     fn extract(input: &'_ [u8]) -> nom::IResult<&'_ [u8], Self> {
-        let (input, (start, n)) = separated_pair(usize::extract, space, usize::extract)(input)?;
+        let (input, (start, n)) =
+            separated_pair(usize::extract, take_whitespace1, usize::extract)(input)?;
         Ok((input, Self { start, n }))
     }
 }
