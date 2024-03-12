@@ -15,7 +15,6 @@ impl Extract<'_> for StartXRef {
         let (input, _) = tag(STARTXREF_TAG)(input)?;
         let (input, _) = take_whitespace1(input)?;
         let (input, startxref) = extract(input)?;
-        let (input, _) = take_whitespace1(input)?;
 
         Ok((input, Self(startxref)))
     }
