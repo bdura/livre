@@ -10,11 +10,19 @@ pub struct Reference {
     pub generation: u16,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct TypedReference<T> {
     pub reference: Reference,
     marker: PhantomData<T>,
 }
+
+// Manual implementation is needed: otherwise it's only derived when `T` is `Clone` and `Copy`.
+impl<T> Clone for TypedReference<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl<T> Copy for TypedReference<T> {}
 
 impl Reference {
     pub fn new(object: usize, generation: u16) -> Self {
@@ -56,6 +64,18 @@ where
             tuple((extract, tag(" "), extract, tag(" R")))(input)?;
 
         Ok((input, Self::new(object, generation)))
+    }
+}
+
+impl<T> AsRef<Reference> for TypedReference<T> {
+    fn as_ref(&self) -> &Reference {
+        &self.reference
+    }
+}
+
+impl<T> From<TypedReference<T>> for Reference {
+    fn from(value: TypedReference<T>) -> Self {
+        value.reference
     }
 }
 
