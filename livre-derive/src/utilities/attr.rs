@@ -1,4 +1,4 @@
-use syn::{Attribute, Field, LitStr, Result};
+use syn::{Field, LitStr, Result};
 
 use super::option;
 
@@ -6,30 +6,6 @@ pub struct Attributes {
     pub field_str: String,
     pub flatten: bool,
     pub is_opt: bool,
-}
-
-/// Find the value of a #[livre(rename = "...")] attribute.
-fn attr_rename(attrs: &[Attribute]) -> Result<Option<String>> {
-    let mut rename = None;
-
-    for attr in attrs {
-        if !attr.path().is_ident("livre") {
-            continue;
-        }
-
-        attr.parse_nested_meta(|meta| {
-            if meta.path.is_ident("rename") {
-                let s: LitStr = meta.value()?.parse()?;
-                if rename.is_some() {
-                    return Err(meta.error("duplicate rename attribute"));
-                }
-                rename = Some(s.value());
-            }
-            Ok(())
-        })?;
-    }
-
-    Ok(rename)
 }
 
 /// Find the value of a #[livre] attribute.
@@ -74,17 +50,6 @@ pub fn parse_attributes(field: &Field) -> Result<Attributes> {
         flatten,
         is_opt,
     })
-}
-
-/// Determine the name of a field, respecting a rename attribute.
-///
-/// The field is converted to PascalCase by default.
-pub fn name_of_field(field: &Field) -> Result<String> {
-    let rename = attr_rename(&field.attrs)?;
-    Ok(rename.unwrap_or_else(|| {
-        let name = field.ident.as_ref().unwrap().to_string();
-        pascal_case(&name)
-    }))
 }
 
 fn pascal_case(s: &str) -> String {

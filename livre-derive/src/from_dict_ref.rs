@@ -56,7 +56,7 @@ fn generate_extraction(data: &Data) -> TokenStream {
 
                 if flatten {
                     quote! {
-                        let #name: #ty = ::livre_extraction::from_dict_ref(dict)?;
+                        let #name = #ty::from_dict_ref(dict)?;
                     }
                 } else {
                     let func = if is_opt {
