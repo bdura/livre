@@ -6,11 +6,11 @@ use std::{
 use livre_extraction::{Extract, Reference};
 use nom::{branch::alt, combinator::map};
 
-use super::PlainCrossRefs;
+use super::{xref_stream::XRefStream, PlainCrossRefs, RefLocation};
 
 /// Mapping between indirect objects and the byte offset.
 #[derive(Debug, Clone, Default)]
-pub struct CrossRefs(pub HashMap<Reference, usize>);
+pub struct CrossRefs(pub HashMap<Reference, RefLocation>);
 
 impl CrossRefs {
     /// Merge two [`CrossRefs`] objects together.
@@ -27,7 +27,7 @@ impl Extract<'_> for CrossRefs {
     fn extract(input: &'_ [u8]) -> nom::IResult<&'_ [u8], Self> {
         let (input, refs) = alt((
             map(PlainCrossRefs::extract, |PlainCrossRefs(refs)| refs),
-            // map(StreamCrossRefs::extract, |StreamCrossRefs(refs)| refs),
+            map(XRefStream::extract, |XRefStream { refs, .. }| refs),
         ))(input)?;
         let map = refs.into_iter().collect();
         Ok((input, Self(map)))
@@ -35,7 +35,7 @@ impl Extract<'_> for CrossRefs {
 }
 
 impl Deref for CrossRefs {
-    type Target = HashMap<Reference, usize>;
+    type Target = HashMap<Reference, RefLocation>;
 
     fn deref(&self) -> &Self::Target {
         &self.0

@@ -20,6 +20,13 @@ impl Reference {
     pub fn new(object: usize, generation: u16) -> Self {
         Self { object, generation }
     }
+
+    pub fn first(object: usize) -> Self {
+        Self {
+            object,
+            generation: 0,
+        }
+    }
 }
 
 impl<T> TypedReference<T> {
