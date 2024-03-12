@@ -96,7 +96,7 @@ fn recognize_real(input: &[u8]) -> IResult<&[u8], &[u8]> {
     ))(input)
 }
 
-fn recognize_number(input: &[u8]) -> IResult<&[u8], ()> {
+fn recognize_unsigned_number(input: &[u8]) -> IResult<&[u8], ()> {
     let (input, _) = alt((recognize_real, digit1))(input)?;
     Ok((input, ()))
 }
@@ -146,12 +146,16 @@ where
     Ok((input, n))
 }
 
+pub fn recognize_number(input: &[u8]) -> IResult<&[u8], &[u8]> {
+    recognize(tuple((opt(parse_sign), recognize_unsigned_number)))(input)
+}
+
 pub fn parse_number<O, E>(input: &[u8]) -> IResult<&[u8], O>
 where
     O: FromStr<Err = E>,
     E: Debug,
 {
-    let (input, number) = recognize(tuple((opt(parse_sign), recognize_number)))(input)?;
+    let (input, number) = recognize_number(input)?;
 
     // SAFETY: we know for a fact that `digits` contains digits only,
     // and are therefore both utf-8-encoded and parsable.

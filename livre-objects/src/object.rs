@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
 use livre_extraction::{Extract, RawDict};
-use livre_utilities::take_whitespace;
+use livre_utilities::{recognize_number, take_whitespace};
 use nom::{
     branch::alt,
     bytes::complete::tag,
     combinator::{map, peek},
     error::Error,
-    IResult,
+    IResult, ParseTo,
 };
 
 use super::Stream;
@@ -47,6 +47,21 @@ impl<'input> Object<'input> {
             Ok((input, obj))
         }
     }
+
+    fn extract_numeric(input: &'input [u8]) -> IResult<&'input [u8], Self> {
+        let (input, num) = recognize_number(input)?;
+        if num.contains(&b'.') {
+            let x: f32 = num
+                .parse_to()
+                .expect("By construction, the format is correct");
+            Ok((input, Self::Real(x)))
+        } else {
+            let n: i32 = num
+                .parse_to()
+                .expect("By construction, the format is correct");
+            Ok((input, Self::Integer(n)))
+        }
+    }
 }
 
 impl<'input> Extract<'input> for Object<'input> {
@@ -56,8 +71,7 @@ impl<'input> Extract<'input> for Object<'input> {
             map(bool::extract, Self::Boolean),
             Self::extract_stream_or_dict,
             map(Reference::extract, Self::Reference),
-            map(f32::extract, Self::Real),
-            map(i32::extract, Self::Integer),
+            Self::extract_numeric,
             map(Vec::<Object>::extract, Self::Array),
             map(String::extract, Self::LiteralString),
             map(HexString::extract, Self::HexString),
