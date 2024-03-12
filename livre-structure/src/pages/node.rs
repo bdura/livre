@@ -1,11 +1,13 @@
 use livre_extraction::{Extract, FromDictRef, Reference};
 
-#[derive(Debug, PartialEq, Eq, Clone, FromDictRef, Extract)]
+use super::props::PageProperties;
+
+#[derive(Debug, PartialEq, Clone, FromDictRef, Extract)]
 pub struct Node {
     pub parent: Option<Reference>,
     pub kids: Vec<Reference>,
-    // Redundant.
-    // pub count: usize,
+    #[livre(flatten)]
+    pub props: PageProperties,
 }
 
 #[cfg(test)]
