@@ -2,7 +2,7 @@ use livre_extraction::{Extract, FromDictRef, TypedReference};
 
 use crate::Node;
 
-#[derive(Debug, PartialEq, Eq, FromDictRef, Extract, Clone)]
+#[derive(Debug, PartialEq, FromDictRef, Extract, Clone)]
 pub struct Catalogue {
     // pub version: Option<Name>,
     // pub extensions

@@ -1,55 +1,29 @@
-
-use livre_extraction::{Extract, FromDictRef, MaybeArray, Reference};
-use nom::{branch::alt, bytes::complete::tag, combinator::map};
-
-use super::props::PageProperties;
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum Variant {
-    Page,
-    Template,
-}
-
-impl Extract<'_> for Variant {
-    fn extract(input: &'_ [u8]) -> nom::IResult<&'_ [u8], Self> {
-        alt((
-            map(tag("/Page"), |_| Variant::Page),
-            map(tag("/Template"), |_| Variant::Template),
-        ))(input)
-    }
-}
+use livre_data::Rectangle;
+use livre_extraction::{Extract, FromDictRef};
 
 #[derive(Debug, PartialEq, Clone, FromDictRef, Extract)]
-pub struct Page {
-    #[livre(rename = "Type")]
-    pub variant: Variant,
-    pub parent: Reference,
-    // #[livre(rename = "LastModified")]
-    // pub last_modified: DateTime
-    // pub resources
-    // pub crop_box: Option<Rectangle>,
-    // pub bleed_box: Option<Rectangle>,
-    // pub trim_box: Option<Rectangle>,
-    // pub art_box: Option<Rectangle>,
-    // pub box_color_info
-    #[livre(flatten)]
-    pub props: PageProperties,
-    pub contents: Option<MaybeArray<Reference>>,
-    // pub rotate: Option<u8>,
-    // pub group: Option<...>
-    // pub thumb: Option<...>
-    // pub b: Option<...>
-    // pub dur: Option<...>
-    // pub trans: Option<...>
-    // pub annots: Option<Vec<...annotation dict...>>
-    // and more!
-    pub user_unit: Option<f32>,
+pub struct PageProperties {
+    // pub resource: Option<>
+    /// A rectangle expressed in default user space units,
+    /// that shall define the boundaries of the physical medium
+    /// on which the page shall be displayed or printed
+    pub media_box: Option<Rectangle>,
+    /// A rectangle, expressed in default user space units,
+    /// that shall define the visible region of default user space.
+    /// When the page is displayed or printed, its contents shall be
+    /// clipped (cropped) to this rectangle
+    pub crop_box: Option<Rectangle>,
+    /// The number of degrees by which the page shall be rotated clockwise
+    /// when displayed or printed. The value shall be a multiple of 90.
+    /// Default value: 0.
+    pub rotate: Option<i16>,
 }
 
 #[cfg(test)]
 mod tests {
 
     use indoc::indoc;
+    use livre_extraction::RawDict;
     use rstest::rstest;
 
     use super::*;
@@ -74,7 +48,7 @@ mod tests {
                 ]
             >>
         "},
-        Reference::new(4, 0)
+        Rectangle::from_ll_ur(0.0, 0.0, 612., 792.)
     )]
     #[case(
         indoc! {b"
@@ -114,10 +88,12 @@ mod tests {
                 /StructParents 0
             >>
         "},
-        Reference::new(2, 0)
+        Rectangle::from_ll_ur(0.0, 0.0, 595.32, 841.92)
     )]
-    fn page(#[case] input: &[u8], #[case] parent: Reference) {
-        let (_, page) = Page::extract(input).unwrap();
-        assert_eq!(page.parent, parent);
+    fn page(#[case] input: &[u8], #[case] expected: Rectangle) {
+        let (_, mut raw_dict) = RawDict::extract(input).unwrap();
+        let (_, props) = PageProperties::extract(input).unwrap();
+        assert_eq!(props, PageProperties::from_dict_ref(&mut raw_dict).unwrap());
+        assert_eq!(props.media_box, Some(expected));
     }
 }
