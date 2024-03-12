@@ -47,7 +47,10 @@ impl Extract<'_> for CrossRef {
 }
 
 impl CrossRef {
-    fn into_ref_offset(self, object: usize) -> (Reference, RefLocation) {
+    /// Converts a [`CrossRef`] into a ([`Reference`], [`RefLocation`]) tuple.
+    ///
+    /// This is the first step towards building a [`Trailer`](crate::trailer::Trailer).
+    fn into_xref_entry(self, object: usize) -> (Reference, RefLocation) {
         let Self {
             offset, generation, ..
         } = self;
@@ -70,7 +73,7 @@ fn parse_xref_section(input: &[u8]) -> IResult<&[u8], Vec<(Reference, RefLocatio
     let res = refs
         .into_iter()
         .enumerate()
-        .map(|(i, r)| r.into_ref_offset(start + i))
+        .map(|(i, r)| r.into_xref_entry(start + i))
         .collect();
 
     Ok((input, res))
