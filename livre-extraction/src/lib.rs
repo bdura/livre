@@ -24,6 +24,10 @@ pub fn extract<'input, T: Extract<'input>>(input: &'input [u8]) -> IResult<&'inp
     T::extract(input)
 }
 
+pub fn from_dict_ref<'input, T: FromDictRef<'input>>(dict: &mut RawDict<'input>) -> Result<T> {
+    T::from_dict_ref(dict)
+}
+
 pub fn parse<'input, T: Extract<'input>>(input: &'input [u8]) -> Result<T> {
     let (_, obj) = T::extract(input).map_err(|_| ExtractionError::Unknown)?;
     Ok(obj)

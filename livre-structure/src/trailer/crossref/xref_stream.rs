@@ -84,14 +84,12 @@ impl Extract<'_> for FieldSize {
 
 #[derive(Debug, FromDictRef)]
 struct XRefStreamConfig {
-    size: usize,
     /// Array containing sub-section info (id of first object, # objects)
     index: Option<Vec<SubSection>>,
     /// byte offset of the previous section
-    prev: Option<usize>,
     w: FieldSize,
-    root: Reference,
-    info: Reference,
+    #[livre(flatten)]
+    dict: TrailerDict,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -107,16 +105,12 @@ impl<'input> Extract<'input> for XRefStream {
         // Remove this unwrap
         let mut decoded = &stream.decode().unwrap()[..];
 
-        let XRefStreamConfig {
-            size,
-            index,
-            prev,
-            w,
-            root,
-            info,
-        } = stream.structured;
+        let XRefStreamConfig { index, w, dict } = stream.structured;
 
-        let index = index.unwrap_or(vec![SubSection { start: 0, n: size }]);
+        let index = index.unwrap_or(vec![SubSection {
+            start: 0,
+            n: dict.size,
+        }]);
 
         let mut refs = Vec::new();
 
@@ -133,12 +127,6 @@ impl<'input> Extract<'input> for XRefStream {
             refs.extend(iter);
         }
 
-        let dict = TrailerDict {
-            size,
-            prev,
-            root,
-            info,
-        };
         let xref_stream = Self { refs, dict };
 
         Ok((input, xref_stream))
