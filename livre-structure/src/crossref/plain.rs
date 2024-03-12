@@ -76,7 +76,7 @@ fn parse_xref_section(input: &[u8]) -> IResult<&[u8], Vec<(Reference, RefLocatio
     Ok((input, res))
 }
 
-pub(super) struct PlainCrossRefs(pub Vec<(Reference, RefLocation)>);
+pub struct PlainCrossRefs(pub Vec<(Reference, RefLocation)>);
 
 impl Extract<'_> for PlainCrossRefs {
     fn extract(input: &'_ [u8]) -> IResult<&'_ [u8], Self> {

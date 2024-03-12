@@ -7,7 +7,7 @@ use livre_objects::Reference;
 
 use livre_utilities::take_whitespace;
 
-use livre_structure::{crossref::CrossRefs, StartXRef};
+use livre_structure::{crossref::RefLocation, StartXRef, Trailer};
 
 use crate::{Header, Update};
 
@@ -15,7 +15,7 @@ use crate::{Header, Update};
 pub struct Document<'input> {
     pub header: Header,
     pub body: HashMap<Reference, &'input [u8]>,
-    pub crossrefs: CrossRefs,
+    pub crossrefs: HashMap<Reference, RefLocation>,
     pub root: Reference,
     pub startxref: StartXRef,
 }
@@ -30,7 +30,7 @@ impl<'input> Extract<'input> for Document<'input> {
             .last()
             .expect("There should be at least one update.");
 
-        let root = last_update.trailer.root;
+        let root = last_update.trailer.dict.root;
         let startxref = last_update.startxref;
 
         let mut body = Vec::new();
@@ -39,19 +39,17 @@ impl<'input> Extract<'input> for Document<'input> {
         for update in updates.into_iter().rev() {
             let Update {
                 body: b,
-                crossrefs: c,
+                trailer: Trailer { refs: r, .. },
                 ..
             } = update;
             body.push(b);
-            crossrefs.push(c)
+            crossrefs.push(r)
         }
 
         let doc = Self {
             header,
             body: body.into_iter().flat_map(|h| h.into_iter()).collect(),
-            crossrefs: crossrefs
-                .into_iter()
-                .fold(CrossRefs::default(), |a, b| a.merge(b)),
+            crossrefs: crossrefs.into_iter().flatten().collect(),
             root,
             startxref,
         };
