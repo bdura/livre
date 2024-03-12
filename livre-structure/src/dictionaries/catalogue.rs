@@ -1,10 +1,12 @@
-use livre_extraction::{Extract, FromDictRef, Reference};
+use livre_extraction::{Extract, FromDictRef, TypedReference};
 
-#[derive(Debug, PartialEq, Eq, FromDictRef, Extract)]
+use crate::Node;
+
+#[derive(Debug, PartialEq, Eq, FromDictRef, Extract, Clone)]
 pub struct Catalogue {
     // pub version: Option<Name>,
     // pub extensions
-    pub pages: Reference,
+    pub pages: TypedReference<Node>,
 }
 
 #[cfg(test)]
@@ -25,6 +27,6 @@ mod tests {
         "};
 
         let (_, catalogue) = Catalogue::extract(input).unwrap();
-        assert_eq!(catalogue.pages, Reference::new(2, 0));
+        assert_eq!(catalogue.pages, TypedReference::new(2, 0));
     }
 }

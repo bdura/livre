@@ -22,7 +22,7 @@ impl Extract<'_> for PlainTrailer {
 mod tests {
     use super::*;
     use indoc::indoc;
-    use livre_extraction::extract;
+    use livre_extraction::{extract, TypedReference};
     use livre_objects::Reference;
 
     #[test]
@@ -43,7 +43,7 @@ mod tests {
             TrailerDict {
                 size: 22,
                 prev: None,
-                root: Reference::new(2, 0),
+                root: TypedReference::new(2, 0),
                 info: Reference::new(1, 0)
             }
         )
