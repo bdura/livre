@@ -4,7 +4,7 @@ pub use startxref::StartXRef;
 pub mod crossref;
 
 mod trailer;
-pub use trailer::{Trailer, TrailerDict};
+pub use trailer::Trailer;
 
 mod object_stream;
 pub use object_stream::ObjectStream;
@@ -16,4 +16,4 @@ mod pages;
 pub use pages::{Node, Page};
 
 mod dictionaries;
-pub use dictionaries::FontDict;
+pub use dictionaries::{FontDict, TrailerDict};

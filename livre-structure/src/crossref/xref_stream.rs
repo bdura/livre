@@ -4,6 +4,8 @@ use nom::{bytes::complete::take, multi::count, sequence::separated_pair, IResult
 
 use livre_objects::Stream;
 
+use crate::TrailerDict;
+
 use super::RefLocation;
 
 #[derive(Debug)]
@@ -93,10 +95,8 @@ struct XRefStreamConfig {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct XRefStream {
+    pub dict: TrailerDict,
     pub refs: Vec<(Reference, RefLocation)>,
-    pub prev: Option<usize>,
-    pub root: Reference,
-    pub info: Reference,
 }
 
 impl<'input> Extract<'input> for XRefStream {
@@ -132,12 +132,13 @@ impl<'input> Extract<'input> for XRefStream {
             refs.extend(iter);
         }
 
-        let xref_stream = Self {
-            refs,
+        let dict = TrailerDict {
+            size,
             prev,
             root,
             info,
         };
+        let xref_stream = Self { refs, dict };
 
         Ok((input, xref_stream))
     }

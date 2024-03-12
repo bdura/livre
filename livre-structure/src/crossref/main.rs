@@ -9,7 +9,7 @@ use nom::{branch::alt, combinator::map};
 use super::{xref_stream::XRefStream, PlainCrossRefs, RefLocation};
 
 /// Mapping between indirect objects and the byte offset.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct CrossRefs(pub HashMap<Reference, RefLocation>);
 
 impl CrossRefs {

@@ -1,26 +1,17 @@
-use livre_extraction::{Extract, Reference};
+use livre_extraction::{extract, Extract};
 use livre_utilities::take_whitespace1;
 use nom::{bytes::complete::tag, IResult};
 
-#[derive(Debug, Clone, PartialEq, Extract)]
-pub struct TrailerDict {
-    pub size: usize,
-    pub prev: Option<usize>,
-    pub root: Reference,
-    // pub encrypt: Encrypt,
-    pub info: Reference,
-    // #[livre(rename = "ID")]
-    // pub id: MaybeArray<HexString>,
-}
+use crate::TrailerDict;
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Trailer(pub TrailerDict);
+pub struct PlainTrailer(pub TrailerDict);
 
-impl Extract<'_> for Trailer {
+impl Extract<'_> for PlainTrailer {
     fn extract(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, _) = tag(b"trailer")(input)?;
         let (input, _) = take_whitespace1(input)?;
-        let (input, dict) = TrailerDict::extract(input)?;
+        let (input, dict) = extract(input)?;
         let (input, _) = take_whitespace1(input)?;
 
         Ok((input, Self(dict)))
@@ -31,6 +22,8 @@ impl Extract<'_> for Trailer {
 mod tests {
     use super::*;
     use indoc::indoc;
+    use livre_extraction::extract;
+    use livre_objects::Reference;
 
     #[test]
     fn parse_trailer() {
@@ -43,7 +36,7 @@ mod tests {
             <001>]>>
         "};
 
-        let (_, Trailer(trailer)) = Trailer::extract(input).unwrap();
+        let (_, PlainTrailer(trailer)) = extract(input).unwrap();
 
         assert_eq!(
             trailer,

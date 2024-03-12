@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use livre_extraction::Extract;
 use livre_objects::{Indirect, Reference};
-use livre_structure::{crossref::CrossRefs, StartXRef, Trailer, TrailerDict};
+use livre_structure::{StartXRef, Trailer};
 use livre_utilities::take_whitespace;
 use nom::{
     multi::many0,
@@ -13,8 +13,7 @@ use nom::{
 #[derive(Debug, Clone)]
 pub struct Update<'input> {
     pub body: HashMap<Reference, &'input [u8]>,
-    pub crossrefs: CrossRefs,
-    pub trailer: TrailerDict,
+    pub trailer: Trailer,
     pub startxref: StartXRef,
 }
 
@@ -28,13 +27,11 @@ impl<'input> Extract<'input> for Update<'input> {
             .map(|Indirect { reference, inner }| (reference, inner))
             .collect();
 
-        let (input, crossrefs) = preceded(take_whitespace, CrossRefs::extract)(input)?;
-        let (input, Trailer(trailer)) = preceded(take_whitespace, Trailer::extract)(input)?;
+        let (input, trailer) = preceded(take_whitespace, Trailer::extract)(input)?;
         let (input, startxref) = preceded(take_whitespace, StartXRef::extract)(input)?;
 
         let update = Self {
             body,
-            crossrefs,
             trailer,
             startxref,
         };
