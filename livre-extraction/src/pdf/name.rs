@@ -36,6 +36,12 @@ fn escaped_char(input: &[u8]) -> IResult<&[u8], Option<char>> {
     Ok((input, n.map(|n| n as char)))
 }
 
+impl From<Name> for String {
+    fn from(Name(value): Name) -> Self {
+        value
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
