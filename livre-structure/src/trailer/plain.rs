@@ -23,7 +23,6 @@ mod tests {
     use super::*;
     use indoc::indoc;
     use livre_extraction::{extract, TypedReference};
-    use livre_objects::Reference;
 
     #[test]
     fn parse_trailer() {
@@ -44,7 +43,7 @@ mod tests {
                 size: 22,
                 prev: None,
                 root: TypedReference::new(2, 0),
-                info: Reference::new(1, 0)
+                info: TypedReference::new(1, 0)
             }
         )
     }
