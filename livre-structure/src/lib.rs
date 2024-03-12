@@ -9,11 +9,8 @@ pub use trailer::Trailer;
 mod object_stream;
 pub use object_stream::ObjectStream;
 
-mod catalogue;
-pub use catalogue::Catalogue;
-
 mod pages;
 pub use pages::{Node, Page};
 
 mod dictionaries;
-pub use dictionaries::{FontDict, TrailerDict};
+pub use dictionaries::{Catalogue, FontDict, TrailerDict};
