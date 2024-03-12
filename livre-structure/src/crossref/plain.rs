@@ -9,6 +9,8 @@ use nom::{
     IResult,
 };
 
+use super::RefLocation;
+
 /// Cross-reference entry EOL.
 /// Can be: SP CR, SP LF, or CR LF (OMG!)
 fn xref_entry_eol(input: &[u8]) -> IResult<&[u8], &[u8]> {
@@ -45,18 +47,18 @@ impl Extract<'_> for CrossRef {
 }
 
 impl CrossRef {
-    fn into_ref_offset(self, object: usize) -> (Reference, usize) {
+    fn into_ref_offset(self, object: usize) -> (Reference, RefLocation) {
         let Self {
             offset, generation, ..
         } = self;
 
         let reference = Reference::new(object, generation);
 
-        (reference, offset)
+        (reference, RefLocation::Uncompressed(offset))
     }
 }
 
-fn parse_xref_section(input: &[u8]) -> IResult<&[u8], Vec<(Reference, usize)>> {
+fn parse_xref_section(input: &[u8]) -> IResult<&[u8], Vec<(Reference, RefLocation)>> {
     let (input, (start, len)) = separated_pair(usize::extract, space, usize::extract)(input)?;
 
     let (input, _) = take_whitespace1(input)?;
@@ -74,7 +76,7 @@ fn parse_xref_section(input: &[u8]) -> IResult<&[u8], Vec<(Reference, usize)>> {
     Ok((input, res))
 }
 
-pub(super) struct PlainCrossRefs(pub Vec<(Reference, usize)>);
+pub(super) struct PlainCrossRefs(pub Vec<(Reference, RefLocation)>);
 
 impl Extract<'_> for PlainCrossRefs {
     fn extract(input: &'_ [u8]) -> IResult<&'_ [u8], Self> {
@@ -138,11 +140,11 @@ mod tests {
         assert_eq!(refs.len(), 5);
 
         let expected = vec![
-            (Reference::new(0, 65535), 0),
-            (Reference::new(3, 0), 25325),
-            (Reference::new(23, 2), 25518),
-            (Reference::new(24, 0), 25635),
-            (Reference::new(30, 0), 25777),
+            (Reference::new(0, 65535), RefLocation::Uncompressed(0)),
+            (Reference::new(3, 0), RefLocation::Uncompressed(25325)),
+            (Reference::new(23, 2), RefLocation::Uncompressed(25518)),
+            (Reference::new(24, 0), RefLocation::Uncompressed(25635)),
+            (Reference::new(30, 0), RefLocation::Uncompressed(25777)),
         ];
 
         assert_eq!(expected, refs);

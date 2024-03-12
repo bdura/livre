@@ -4,7 +4,7 @@ use nom::{bytes::complete::take, multi::count, sequence::separated_pair, IResult
 
 use livre_objects::Stream;
 
-use super::Ref;
+use super::RefLocation;
 
 #[derive(Debug)]
 struct SubSection {
@@ -52,7 +52,7 @@ impl FieldSize {
         Ok((input, res))
     }
 
-    fn parse_ref<'i>(&self, input: &'i [u8]) -> IResult<&'i [u8], Option<Ref>> {
+    fn parse_ref<'i>(&self, input: &'i [u8]) -> IResult<&'i [u8], Option<RefLocation>> {
         let (input, ref_type) = self.parse_ref_type(input)?;
         let (input, offset) = self.parse_offset(input)?;
         let (input, _) = take(self.f3)(input)?;
@@ -66,7 +66,7 @@ impl FieldSize {
             _ => unreachable!(),
         };
 
-        let reference = Ref { offset, compressed };
+        let reference = RefLocation::from_offset_and_flag(offset, compressed);
 
         Ok((input, Some(reference)))
     }
@@ -93,7 +93,7 @@ struct XRefStreamConfig {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct XRefStream {
-    pub refs: Vec<(usize, Ref)>,
+    pub refs: Vec<(Reference, RefLocation)>,
     pub prev: Option<usize>,
     pub root: Reference,
     pub info: Reference,
@@ -127,7 +127,7 @@ impl<'input> Extract<'input> for XRefStream {
             let iter = subsection
                 .into_iter()
                 .enumerate()
-                .filter_map(|(i, reference)| reference.map(|r| (start + i, r)));
+                .filter_map(|(i, reference)| reference.map(|r| (Reference::first(start + i), r)));
 
             refs.extend(iter);
         }
