@@ -2,9 +2,9 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, Data, DataStruct, DeriveInput, Fields};
 
-use crate::add_trait_bounds;
+use crate::{add_trait_bounds, utilities::attr::Attributes};
 
-use super::utilities::{attr, option};
+use super::utilities::attr;
 
 pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // Parse the input tokens into a syntax tree.
@@ -45,27 +45,40 @@ fn generate_extraction(data: &Data) -> TokenStream {
             ..
         }) => {
             let fieldname = fields.named.iter().map(|f| &f.ident).collect::<Vec<_>>();
-            let fieldty = fields.named.iter().map(|f| &f.ty);
-            let dictfunc = fields.named.iter().map(|f| {
-                let is_opt = option::is_option(&f.ty);
-                if is_opt {
-                    quote!(pop_opt)
+
+            let field_by_field = fields.named.iter().map(|f| {
+                let name = &f.ident;
+                let ty = &f.ty;
+
+                let Attributes {
+                    flatten,
+                    field_str,
+                    is_opt,
+                } = attr::parse_attributes(f).unwrap();
+
+                if flatten {
+                    quote! {
+                        let #name = #ty::from_dict_ref(&mut dict).unwrap();
+                    }
                 } else {
-                    quote!(pop)
+                    let func = if is_opt {
+                        quote! {pop_opt}
+                    } else {
+                        quote! {pop}
+                    };
+
+                    quote! {
+                        let #name: #ty = dict
+                            .#func(#field_str)
+                            .map_err(|_| nom::Err::Error(nom::error::Error::from_error_kind(input, nom::error::ErrorKind::IsNot)))?;
+                    }
                 }
+
             });
-            let fieldstr = fields
-                .named
-                .iter()
-                .map(attr::name_of_field)
-                .collect::<Result<Vec<_>, _>>()
-                .unwrap();
 
             quote! {
                 #(
-                    let #fieldname: #fieldty = dict
-                        .#dictfunc(#fieldstr)
-                        .map_err(|_| nom::Err::Error(nom::error::Error::from_error_kind(input, nom::error::ErrorKind::IsNot)))?;
+                    #field_by_field
                 )*
 
                 let res = Self {
