@@ -15,7 +15,7 @@ pub use pdf::{HexString, Indirect, Name, Reference, TypedReference};
 pub mod extraction;
 pub use extraction::{Extract, FromDict, FromDictRef};
 
-pub use livre_derive::{Extract, FromDict, FromDictRef};
+pub use livre_derive::{Extract, FromDictRef};
 
 /// Re-export IResult. Avoids depending on `nom` for downstream crates.
 pub use nom::IResult;
