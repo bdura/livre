@@ -4,8 +4,7 @@ use syn::{parse_macro_input, Data, DataStruct, DeriveInput, Fields};
 
 use crate::add_trait_bounds;
 
-use super::attr;
-use super::option;
+use super::utilities::{attr, option};
 
 pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // Parse the input tokens into a syntax tree.

@@ -1,4 +1,4 @@
-use livre_extraction::{extract, Extract, FromDict, Reference};
+use livre_extraction::{extract, Extract, FromDictRef, Reference};
 use livre_utilities::take_whitespace1;
 use nom::{bytes::complete::take, multi::count, sequence::separated_pair, IResult};
 
@@ -82,7 +82,7 @@ impl Extract<'_> for FieldSize {
     }
 }
 
-#[derive(Debug, FromDict)]
+#[derive(Debug, FromDictRef)]
 struct XRefStreamConfig {
     size: usize,
     /// Array containing sub-section info (id of first object, # objects)

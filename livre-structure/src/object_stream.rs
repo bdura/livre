@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use livre_extraction::{Extract, FromDict};
+use livre_extraction::{Extract, FromDictRef};
 use livre_utilities::{space, take_whitespace};
 use nom::{
     multi::count,
@@ -9,7 +9,7 @@ use nom::{
 
 use livre_objects::Stream;
 
-#[derive(FromDict)]
+#[derive(FromDictRef)]
 struct ObjectStreamConfig {
     n: usize,
     first: usize,
