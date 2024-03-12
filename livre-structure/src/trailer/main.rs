@@ -65,7 +65,7 @@ mod tests {
 
         assert_eq!(dict.size, 194);
         assert_eq!(dict.root, TypedReference::new(1, 0));
-        assert_eq!(dict.info, Reference::new(36, 0));
+        assert_eq!(dict.info, TypedReference::new(36, 0));
         assert_eq!(dict.prev, Some(160714));
     }
 
@@ -84,7 +84,7 @@ mod tests {
 
         assert_eq!(dict.size, 92813);
         assert_eq!(dict.root, TypedReference::new(90794, 0));
-        assert_eq!(dict.info, Reference::new(90792, 0));
+        assert_eq!(dict.info, TypedReference::new(90792, 0));
         assert_eq!(dict.prev, Some(116));
     }
 }
