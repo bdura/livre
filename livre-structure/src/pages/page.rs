@@ -1,23 +1,7 @@
 
 use livre_extraction::{Extract, FromDictRef, MaybeArray, Reference};
-use nom::{branch::alt, bytes::complete::tag, combinator::map};
 
-use super::props::PageProperties;
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum Variant {
-    Page,
-    Template,
-}
-
-impl Extract<'_> for Variant {
-    fn extract(input: &'_ [u8]) -> nom::IResult<&'_ [u8], Self> {
-        alt((
-            map(tag("/Page"), |_| Variant::Page),
-            map(tag("/Template"), |_| Variant::Template),
-        ))(input)
-    }
-}
+use super::{PageProperties, Variant};
 
 #[derive(Debug, PartialEq, Clone, FromDictRef, Extract)]
 pub struct Page {
