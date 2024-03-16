@@ -18,7 +18,8 @@ pub struct Page {
     // pub box_color_info
     #[livre(flatten)]
     pub props: PageProperties,
-    pub contents: Option<MaybeArray<Reference>>,
+    #[livre(default)]
+    pub contents: MaybeArray<Reference>,
     // pub rotate: Option<u8>,
     // pub group: Option<...>
     // pub thumb: Option<...>
