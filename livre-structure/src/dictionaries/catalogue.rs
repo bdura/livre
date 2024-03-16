@@ -1,12 +1,12 @@
 use livre_extraction::{Extract, FromDictRef, TypedReference};
 
-use crate::Node;
+use crate::PageNode;
 
 #[derive(Debug, PartialEq, FromDictRef, Extract, Clone)]
 pub struct Catalogue {
     // pub version: Option<Name>,
     // pub extensions
-    pub pages: TypedReference<Node>,
+    pub pages: TypedReference<PageNode>,
 }
 
 #[cfg(test)]

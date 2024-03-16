@@ -6,7 +6,7 @@ use std::{
 use livre_document::Document;
 use livre_extraction::{extract, Extract, NoOp};
 use livre_objects::Stream;
-use livre_structure::{Catalogue, Node, Page};
+use livre_structure::{Catalogue, PageLeaf, PageNode};
 
 fn main() {
     let file = File::open("tests/letter.pdf").unwrap();
@@ -27,12 +27,12 @@ fn main() {
     let pages_raw = doc.get_referenced_bytes(root.pages).unwrap();
     // let (_, IntoString(pages)) = extract(pages_raw).unwrap();
     // println!("{pages}");
-    let (_, pages) = extract::<Node>(pages_raw).unwrap();
+    let (_, pages) = extract::<PageNode>(pages_raw).unwrap();
     // println!("{pages:?}");
 
     let page_raw = doc.get_referenced_bytes(pages.kids[0]).unwrap();
     // let (_, IntoString(page)) = extract(page_raw).unwrap();
-    let (_, page) = extract::<Page>(page_raw).unwrap();
+    let (_, page) = extract::<PageLeaf>(page_raw).unwrap();
 
     let &content_raw = doc.body.get(&page.contents.0[0]).unwrap();
     // let (_, IntoString(content)) = extract(content_raw).unwrap();

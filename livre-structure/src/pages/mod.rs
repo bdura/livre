@@ -1,11 +1,14 @@
 mod node;
-pub use node::Node;
+pub use node::PageNode;
 
-mod page;
-pub use page::Page;
+mod leaf;
+pub use leaf::PageLeaf;
 
 mod props;
 pub use props::PageProperties;
 
 mod variant;
 pub use variant::Variant;
+
+mod element;
+pub use element::PageElement;
