@@ -1,10 +1,9 @@
-
 use livre_extraction::{Extract, FromDictRef, MaybeArray, Reference};
 
 use super::{PageProperties, Variant};
 
 #[derive(Debug, PartialEq, Clone, FromDictRef, Extract)]
-pub struct Page {
+pub struct PageLeaf {
     #[livre(rename = "Type")]
     pub variant: Variant,
     pub parent: Reference,
@@ -102,7 +101,7 @@ mod tests {
         Reference::new(2, 0)
     )]
     fn page(#[case] input: &[u8], #[case] parent: Reference) {
-        let (_, page) = Page::extract(input).unwrap();
+        let (_, page) = PageLeaf::extract(input).unwrap();
         assert_eq!(page.parent, parent);
     }
 }

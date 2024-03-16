@@ -3,7 +3,7 @@ use livre_extraction::{Extract, FromDictRef, Reference};
 use super::props::PageProperties;
 
 #[derive(Debug, PartialEq, Clone, FromDictRef, Extract)]
-pub struct Node {
+pub struct PageNode {
     pub parent: Option<Reference>,
     pub kids: Vec<Reference>,
     #[livre(flatten)]
@@ -28,7 +28,7 @@ mod tests {
             >>
         "};
 
-        let (_, node) = Node::extract(input).unwrap();
+        let (_, node) = PageNode::extract(input).unwrap();
         assert_eq!(
             node.kids,
             vec![
