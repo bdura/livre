@@ -34,7 +34,7 @@ fn main() {
     // let (_, IntoString(page)) = extract(page_raw).unwrap();
     let (_, page) = extract::<Page>(page_raw).unwrap();
 
-    let &content_raw = doc.body.get(&page.contents.unwrap().0[0]).unwrap();
+    let &content_raw = doc.body.get(&page.contents.0[0]).unwrap();
     // let (_, IntoString(content)) = extract(content_raw).unwrap();
     let (_, content) = extract::<Stream<'_, NoOp>>(content_raw).unwrap();
     let decoded = content.decode().unwrap();
