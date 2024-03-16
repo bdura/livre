@@ -5,6 +5,7 @@ use super::option;
 pub struct Attributes {
     pub field_str: String,
     pub flatten: bool,
+    pub default: bool,
     pub is_opt: bool,
 }
 
@@ -12,6 +13,7 @@ pub struct Attributes {
 pub fn parse_attributes(field: &Field) -> Result<Attributes> {
     let mut rename = None;
     let mut flatten = false;
+    let mut default = false;
 
     for attr in &field.attrs {
         if !attr.path().is_ident("livre") {
@@ -31,10 +33,15 @@ pub fn parse_attributes(field: &Field) -> Result<Attributes> {
                 }
                 rename = Some(s.value());
 
-                Ok(())
-            } else {
-                Err(meta.error("unsupported attribute"))
+                return Ok(());
             }
+
+            if meta.path.is_ident("default") {
+                default = true;
+                return Ok(());
+            }
+
+            Err(meta.error("unsupported attribute"))
         })?;
     }
 
@@ -48,6 +55,7 @@ pub fn parse_attributes(field: &Field) -> Result<Attributes> {
     Ok(Attributes {
         field_str,
         flatten,
+        default,
         is_opt,
     })
 }

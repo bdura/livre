@@ -52,9 +52,16 @@ fn generate_extraction(data: &Data) -> TokenStream {
                     flatten,
                     field_str,
                     is_opt,
+                    default,
                 } = attr::parse_attributes(f).unwrap();
 
-                if flatten {
+                let ty = if default {
+                    quote! {Option::<#ty>}
+                } else {
+                    quote! {#ty}
+                };
+
+                let mut extraction = if flatten {
                     quote! {
                         let #name = #ty::from_dict_ref(dict)?;
                     }
@@ -68,7 +75,14 @@ fn generate_extraction(data: &Data) -> TokenStream {
                     quote! {
                         let #name: #ty = dict.#func(#field_str)?;
                     }
+                };
+                if default {
+                    extraction = quote! {
+                        #extraction
+                        let #name = #name.unwrap_or_default();
+                    }
                 }
+                extraction
             });
 
             quote! {
