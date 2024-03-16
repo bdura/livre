@@ -1,11 +1,13 @@
-use livre_extraction::{Extract, FromDictRef, Reference};
+use livre_extraction::{Extract, FromDictRef, Reference, TypedReference};
+
+use crate::PageElement;
 
 use super::props::PageProperties;
 
 #[derive(Debug, PartialEq, Clone, FromDictRef, Extract)]
 pub struct PageNode {
     pub parent: Option<Reference>,
-    pub kids: Vec<Reference>,
+    pub kids: Vec<TypedReference<PageElement>>,
     #[livre(flatten)]
     pub props: PageProperties,
 }
@@ -32,9 +34,9 @@ mod tests {
         assert_eq!(
             node.kids,
             vec![
-                Reference::new(4, 0),
-                Reference::new(10, 0),
-                Reference::new(24, 0)
+                TypedReference::new(4, 0),
+                TypedReference::new(10, 0),
+                TypedReference::new(24, 0)
             ]
         );
     }
