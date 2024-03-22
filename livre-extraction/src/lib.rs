@@ -6,7 +6,7 @@ pub use primitives::map::Map;
 
 mod utilities;
 pub use utilities::{
-    Angles, Brackets, DoubleAngles, IntoString, MaybeArray, NoOp, OptRef, Parentheses, RawDict,
+    Angles, Brackets, DbgStr, DoubleAngles, MaybeArray, NoOp, OptRef, Parentheses, RawDict,
 };
 
 pub mod pdf;
