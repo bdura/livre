@@ -19,6 +19,20 @@ pub struct PageProperties {
     pub rotate: Option<i16>,
 }
 
+impl PageProperties {
+    pub fn merge_with_parent(&mut self, parent_props: &PageProperties) {
+        if let Some(media_box) = &parent_props.media_box {
+            self.media_box.get_or_insert(media_box.clone());
+        }
+        if let Some(crop_box) = &parent_props.crop_box {
+            self.crop_box.get_or_insert(crop_box.clone());
+        }
+        if let Some(rotate) = parent_props.rotate {
+            self.rotate.get_or_insert(rotate);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
