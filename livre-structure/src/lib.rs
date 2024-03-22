@@ -2,7 +2,7 @@ mod startxref;
 pub use startxref::StartXRef;
 
 mod trailer;
-pub use trailer::{RefLocation, Trailer};
+pub use trailer::{RefLocation, Trailer, XRefVec};
 
 mod object_stream;
 pub use object_stream::ObjectStream;
