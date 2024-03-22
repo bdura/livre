@@ -1,6 +1,18 @@
-use livre_extraction::{Extract, FromDictRef, MaybeArray, Reference};
+use livre_extraction::{Extract, FromDictRef, MaybeArray, NoOp, Reference, TypedReference};
+use livre_objects::Stream;
 
 use super::{PageProperties, Variant};
+
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct ContentStream(pub Vec<u8>);
+
+impl Extract<'_> for ContentStream {
+    fn extract(input: &'_ [u8]) -> nom::IResult<&'_ [u8], Self> {
+        let (_, stream) = Stream::<'_, NoOp>::extract(input)?;
+        let decoded = stream.decode().unwrap().into();
+        Ok((input, Self(decoded)))
+    }
+}
 
 #[derive(Debug, PartialEq, Clone, FromDictRef, Extract)]
 pub struct PageLeaf {
@@ -18,7 +30,7 @@ pub struct PageLeaf {
     #[livre(flatten)]
     pub props: PageProperties,
     #[livre(default)]
-    pub contents: MaybeArray<Reference>,
+    pub contents: MaybeArray<TypedReference<ContentStream>>,
     // pub rotate: Option<u8>,
     // pub group: Option<...>
     // pub thumb: Option<...>
