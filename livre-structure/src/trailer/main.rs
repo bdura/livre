@@ -8,10 +8,12 @@ use crate::TrailerDict;
 
 use super::PlainTrailer;
 
+pub type XRefVec = Vec<(Reference, RefLocation)>;
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct Trailer {
     pub dict: TrailerDict,
-    pub refs: Vec<(Reference, RefLocation)>,
+    pub refs: XRefVec,
 }
 
 impl Extract<'_> for Trailer {
