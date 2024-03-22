@@ -1,68 +1,84 @@
 use std::collections::HashMap;
 
-use livre_extraction::{Extract, TypedReference};
-use nom::{multi::many1, IResult};
+use livre_extraction::{extract, Extract, TypedReference};
+use nom::IResult;
 
-use livre_objects::Reference;
+use livre_objects::{Indirect, Reference};
 
-use livre_utilities::take_whitespace;
+use livre_structure::{Catalogue, RefLocation, StartXRef, Trailer, TrailerDict, XRefVec};
 
-use livre_structure::{Catalogue, RefLocation, StartXRef, Trailer};
-
-use crate::{Header, Update};
+use crate::Header;
 
 #[derive(Debug, Clone)]
-pub struct Document<'input> {
+pub struct Document {
     pub header: Header,
-    pub body: HashMap<Reference, &'input [u8]>,
     pub crossrefs: HashMap<Reference, RefLocation>,
     pub root: TypedReference<Catalogue>,
-    pub startxref: StartXRef,
+    pub startxref: usize,
 }
 
-impl Document<'_> {
+impl Document {
     pub fn get_location(&self, reference: impl Into<Reference>) -> Option<RefLocation> {
         let reference = reference.into();
+        println!("{reference:?}");
         self.crossrefs.get(&reference).copied()
     }
-    pub fn get_referenced_bytes(&self, reference: impl Into<Reference>) -> Option<&[u8]> {
-        let reference = reference.into();
-        self.body.get(&reference).copied()
+    pub fn get_referenced_bytes<'a>(
+        &self,
+        reference: impl Into<Reference>,
+        input: &'a [u8],
+    ) -> Option<&'a [u8]> {
+        let location = self.get_location(reference)?;
+
+        println!("{location:?}");
+
+        match location {
+            RefLocation::Uncompressed(loc) => {
+                let (_, Indirect { inner, .. }) = extract(&input[loc..]).unwrap();
+                Some(inner)
+            }
+            RefLocation::Compressed(_) => todo!(),
+        }
+    }
+    pub fn parse_referenced<'input, T>(
+        &self,
+        reference: TypedReference<T>,
+        input: &'input [u8],
+    ) -> T
+    where
+        T: Extract<'input>,
+    {
+        let raw = self.get_referenced_bytes(reference, input).unwrap();
+        let (_, inner) = extract(raw).unwrap();
+        inner
     }
 }
 
-impl<'input> Extract<'input> for Document<'input> {
+fn find_refs(input: &[u8], prev: usize) -> IResult<&[u8], (TrailerDict, XRefVec)> {
+    let (_, Trailer { dict, mut refs }) = extract(&input[prev..])?;
+
+    if let Some(prev) = dict.prev {
+        let (_, (_, prev_refs)) = find_refs(input, prev)?;
+        refs.extend(prev_refs)
+    }
+
+    Ok((input, (dict, refs)))
+}
+
+impl<'input> Extract<'input> for Document {
     fn extract(input: &'input [u8]) -> IResult<&'input [u8], Self> {
-        let (input, header) = Header::parse(input)?;
-        let (input, _) = take_whitespace(input)?;
-        let (input, updates) = many1(Update::extract)(input)?;
+        let (_, header) = Header::parse(input)?;
 
-        let last_update = updates
-            .last()
-            .expect("There should be at least one update.");
-
-        let root = last_update.trailer.dict.root;
-        let startxref = last_update.startxref;
-
-        let mut body = Vec::new();
-        let mut crossrefs = Vec::new();
-
-        for update in updates.into_iter().rev() {
-            let Update {
-                body: b,
-                trailer: Trailer { refs: r, .. },
-                ..
-            } = update;
-            body.push(b);
-            crossrefs.push(r)
-        }
+        // Find last trailer
+        let (_, StartXRef(startxref)) = StartXRef::find(&input[(input.len() - 50)..])?;
+        let (_, (TrailerDict { root, .. }, crossrefs)) = find_refs(input, startxref)?;
 
         let doc = Self {
+            // input,
             header,
-            body: body.into_iter().flat_map(|h| h.into_iter()).collect(),
-            crossrefs: crossrefs.into_iter().flatten().collect(),
             root,
             startxref,
+            crossrefs: crossrefs.into_iter().rev().collect(),
         };
 
         Ok((input, doc))
