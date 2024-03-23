@@ -15,4 +15,4 @@ pub use digits::{
 };
 
 mod misc;
-pub use misc::{parse_comment, parse_string_with_escapes};
+pub use misc::{parse_comment, parse_escaped, parse_string_with_escapes};

@@ -6,11 +6,12 @@ pub use primitives::map::Map;
 
 mod utilities;
 pub use utilities::{
-    Angles, Brackets, DbgStr, DoubleAngles, MaybeArray, NoOp, OptRef, Parentheses, RawDict,
+    Angles, Brackets, DbgStr, DoubleAngles, HexString, LitStr, MaybeArray, NoOp, OptRef,
+    Parentheses, RawDict,
 };
 
 pub mod pdf;
-pub use pdf::{HexString, Indirect, Name, Reference, TypedReference};
+pub use pdf::{Indirect, Name, Reference, TypedReference};
 
 pub mod extraction;
 pub use extraction::{Extract, FromDict, FromDictRef};
