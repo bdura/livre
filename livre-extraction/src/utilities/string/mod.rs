@@ -2,7 +2,7 @@ mod dbg;
 pub use dbg::DbgStr;
 
 mod hex;
-pub use hex::HexString;
+pub use hex::HexBytes;
 
 mod literal;
-pub use literal::LitStr;
+pub use literal::LitBytes;

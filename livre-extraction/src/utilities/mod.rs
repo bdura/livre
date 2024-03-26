@@ -17,4 +17,4 @@ mod delimited;
 pub use delimited::{Angles, Brackets, DoubleAngles, Parentheses};
 
 mod string;
-pub use string::{DbgStr, HexString, LitStr};
+pub use string::{DbgStr, HexBytes, LitBytes};
