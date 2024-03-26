@@ -11,7 +11,7 @@ use nom::{
 };
 
 use super::Stream;
-use crate::{HexString, Name, Reference};
+use crate::{HexBytes, Name, Reference};
 
 type ObjectMap<'input> = HashMap<String, Object<'input>>;
 
@@ -22,7 +22,7 @@ pub enum Object<'input> {
     Integer(i32),
     Real(f32),
     LiteralString(String),
-    HexString(HexString),
+    HexString(HexBytes),
     Name(String),
     Array(Vec<Object<'input>>),
     Dictionary(HashMap<String, Object<'input>>),
@@ -73,8 +73,8 @@ impl<'input> Extract<'input> for Object<'input> {
             map(Reference::extract, Self::Reference),
             Self::extract_numeric,
             map(Vec::<Object>::extract, Self::Array),
+            map(HexBytes::extract, Self::HexString),
             map(String::extract, Self::LiteralString),
-            map(HexString::extract, Self::HexString),
             map(Name::extract, |Name(name)| Self::Name(name)),
         ))(input)
     }
@@ -106,7 +106,7 @@ mod tests {
             Object::LiteralString($val.to_string())
         };
         (h:$val:tt) => {
-            Object::HexString(HexString($val.to_vec()))
+            Object::HexString(HexBytes($val.to_vec()))
         };
         (n:$val:literal) => {
             Object::Name($val.to_string())

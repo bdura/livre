@@ -6,7 +6,7 @@ pub use primitives::map::Map;
 
 mod utilities;
 pub use utilities::{
-    Angles, Brackets, DbgStr, DoubleAngles, HexString, LitStr, MaybeArray, NoOp, OptRef,
+    Angles, Brackets, DbgStr, DoubleAngles, HexBytes, LitBytes, MaybeArray, NoOp, OptRef,
     Parentheses, RawDict,
 };
 
@@ -17,6 +17,8 @@ pub mod extraction;
 pub use extraction::{Extract, FromDict, FromDictRef};
 
 pub use livre_derive::{Extract, FromDictRef};
+
+pub mod encoding;
 
 /// Re-export IResult. Avoids depending on `nom` for downstream crates.
 pub use nom::IResult;

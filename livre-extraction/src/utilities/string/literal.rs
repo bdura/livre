@@ -11,7 +11,7 @@ use livre_utilities::{parse_escaped, parse_octal};
 
 use crate::{extract, extraction::Extract, Parentheses};
 
-pub struct LitStr<'input>(pub Cow<'input, [u8]>);
+pub struct LitBytes<'input>(pub Cow<'input, [u8]>);
 
 static EMPTY: &[u8] = b"";
 static NEWLINE: &[u8] = b"\n";
@@ -23,7 +23,7 @@ static LEFT_PAR: &[u8] = b"(";
 static RIGHT_PAR: &[u8] = b")";
 static BACKSLASH: &[u8] = b"\\";
 
-impl<'input> Extract<'input> for LitStr<'input> {
+impl<'input> Extract<'input> for LitBytes<'input> {
     fn extract(input: &'input [u8]) -> nom::IResult<&'input [u8], Self> {
         let (input, Parentheses(value)) = extract(input)?;
         let (_, cow) = parse_escaped(b'\\', escaped_char)(value)?;
@@ -62,7 +62,7 @@ mod tests {
     #[case(b"(te\\\\st)", b"te\\st")]
     #[case(b"(te\\\nst)", b"test")]
     fn literal_string(#[case] input: &[u8], #[case] expected: &[u8]) {
-        let (_, LitStr(parsed)) = extract(input).unwrap();
+        let (_, LitBytes(parsed)) = extract(input).unwrap();
         assert_eq!(parsed, expected);
     }
 }
