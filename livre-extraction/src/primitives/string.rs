@@ -1,39 +1,31 @@
-use nom::{
-    branch::alt,
-    bytes::complete::{tag, take},
-    combinator::map,
-    multi::many0,
-    IResult,
-};
+use crate::{encoding::pdf_decode, extract, extraction::Extract, LitBytes};
 
-use livre_utilities::{parse_octal, parse_string_with_escapes};
-
-use crate::{extract, extraction::Extract, Parentheses};
+static UTF8_MARKER: &[u8] = &[239, 187, 191];
+static UTF16BE_MARKER: &[u8] = &[254, 255];
 
 impl Extract<'_> for String {
     fn extract(input: &[u8]) -> nom::IResult<&[u8], Self> {
-        let (input, Parentheses(value)) = extract(input)?;
-        let (d, lines) = many0(parse_string_with_escapes(b'\\', escaped_char))(value)?;
-        assert!(d.is_empty());
-        Ok((input, lines.join("")))
+        let (input, LitBytes(bytes)) = extract(input)?;
+
+        let res = if bytes.starts_with(UTF8_MARKER) {
+            std::str::from_utf8(&bytes[3..])
+                .expect("Per the specs, the string is UTF-8 encoded")
+                .to_owned()
+        } else if bytes.starts_with(UTF16BE_MARKER) {
+            let utf16: Vec<u16> = bytes[2..]
+                .chunks_exact(2)
+                .map(|b| u16::from_be_bytes([b[0], b[1]]))
+                .collect();
+            String::from_utf16(&utf16).expect("Per the specs, the string is UTF-16BE encoded")
+        } else {
+            let bytes = pdf_decode(&bytes);
+            std::str::from_utf8(&bytes)
+                .expect("Per the specs, the string is UTF-8 encoded")
+                .to_owned()
+        };
+
+        Ok((input, res))
     }
-}
-
-fn escaped_char(input: &[u8]) -> IResult<&[u8], Option<char>> {
-    let (input, _) = take(1usize)(input)?;
-
-    alt((
-        map(tag("\n"), |_| None),
-        map(tag("n"), |_| Some('\n')),
-        map(tag("r"), |_| Some('\r')),
-        map(tag("t"), |_| Some('\t')),
-        map(tag("b"), |_| Some('\u{21A1}')),
-        map(tag("f"), |_| Some('\u{232B}')),
-        map(tag("("), |_| Some('(')),
-        map(tag(")"), |_| Some(')')),
-        map(tag("\\"), |_| Some('\\')),
-        map(parse_octal, |n| Some(n as char)),
-    ))(input)
 }
 
 #[cfg(test)]
