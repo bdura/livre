@@ -1,6 +1,4 @@
 use livre_extraction::{extract, Extract};
-use livre_utilities::space;
-use nom::sequence::separated_pair;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Position {
@@ -10,7 +8,7 @@ pub struct Position {
 
 impl Extract<'_> for Position {
     fn extract(input: &'_ [u8]) -> nom::IResult<&'_ [u8], Self> {
-        let (input, (x, y)) = separated_pair(extract, space, extract)(input)?;
+        let (input, (x, y)) = extract(input)?;
         Ok((input, Position { x, y }))
     }
 }
