@@ -1,30 +1,10 @@
-use crate::{encoding::pdf_decode, extract, extraction::Extract, LitBytes};
-
-static UTF8_MARKER: &[u8] = &[239, 187, 191];
-static UTF16BE_MARKER: &[u8] = &[254, 255];
+use crate::{encoding::decode_str, extract, extraction::Extract, LitBytes};
 
 impl Extract<'_> for String {
     fn extract(input: &[u8]) -> nom::IResult<&[u8], Self> {
         let (input, LitBytes(bytes)) = extract(input)?;
-
-        let res = if bytes.starts_with(UTF8_MARKER) {
-            std::str::from_utf8(&bytes[3..])
-                .expect("Per the specs, the string is UTF-8 encoded")
-                .to_owned()
-        } else if bytes.starts_with(UTF16BE_MARKER) {
-            let utf16: Vec<u16> = bytes[2..]
-                .chunks_exact(2)
-                .map(|b| u16::from_be_bytes([b[0], b[1]]))
-                .collect();
-            String::from_utf16(&utf16).expect("Per the specs, the string is UTF-16BE encoded")
-        } else {
-            let bytes = pdf_decode(&bytes);
-            std::str::from_utf8(&bytes)
-                .expect("Per the specs, the string is UTF-8 encoded")
-                .to_owned()
-        };
-
-        Ok((input, res))
+        let res = decode_str(&bytes);
+        Ok((input, res.to_string()))
     }
 }
 
