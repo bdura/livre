@@ -1,5 +1,5 @@
 mod space;
-pub use space::{CharSpace, Leading, Rise, Scale, WordSpace};
+pub use space::{CharSpace, HorizontalScale, Leading, Rise, WordSpace};
 
 mod font;
 pub use font::FontSize;

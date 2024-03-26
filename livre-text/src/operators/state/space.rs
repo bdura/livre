@@ -22,7 +22,7 @@ macro_rules! space_element {
 
 space_element!(CharSpace + "Tc");
 space_element!(WordSpace + "Tw");
-space_element!(Scale + "Tz");
+space_element!(HorizontalScale + "Tz");
 space_element!(Leading + "TL");
 space_element!(Rise + "Ts");
 
@@ -47,7 +47,6 @@ mod tests {
         };
     }
 
-
     #[rstest]
     #[case(b"12", 12.0)]
     #[case(b"1", 1.0)]
@@ -56,7 +55,7 @@ mod tests {
     fn space_operators(#[case] input: &[u8], #[case] expected: f32) {
         test!(CharSpace + b"Tc" + input + expected);
         test!(WordSpace + b"Tw" + input + expected);
-        test!(Scale + b"Tz" + input + expected);
+        test!(HorizontalScale + b"Tz" + input + expected);
         test!(Leading + b"TL" + input + expected);
         test!(Rise + b"Ts" + input + expected);
     }

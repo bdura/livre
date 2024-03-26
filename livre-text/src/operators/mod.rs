@@ -1,2 +1,2 @@
 mod state;
-pub use state::{CharSpace, FontSize, Leading, Rise, Scale, WordSpace};
+pub use state::{CharSpace, FontSize, HorizontalScale, Leading, Rise, WordSpace};
