@@ -9,6 +9,8 @@ nom = "7"
 
 thiserror = "1.0"
 
+paste = "1.0"
+
 livre-derive = { path = "../livre-derive" }
 livre-utilities = { path = "../livre-utilities" }
 
