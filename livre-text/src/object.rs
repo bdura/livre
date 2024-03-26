@@ -3,6 +3,7 @@ use nalgebra::Matrix3;
 
 use crate::{operators::RenderMode, Operator};
 
+#[derive(Debug, PartialEq, Clone)]
 pub struct TextElement {
     pub text: String,
     pub bounding_box: Rectangle,
@@ -58,8 +59,13 @@ impl TextObject {
         self.translate_and_set_leading(0.0, -self.leading);
     }
 
-    /// Tj/TJ operators
-    pub(crate) fn add_text(&mut self, element: TextElement) {
+    fn add_text_element(&mut self, element: TextElement) {
         self.elements.push(element);
+    }
+
+    /// Tj operator
+    pub(crate) fn show_text(&mut self, text: String) {
+        // TODO: create text element, add
+        todo!()
     }
 }

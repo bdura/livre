@@ -83,7 +83,7 @@ mod tests {
     }
 
     macro_rules! test {
-        ($name:ident + $tag:literal + $input:ident + $expected:ident) => {
+        ($name:ident + $tag:literal + $input:ident + $expected:tt) => {
             let _input = create_input($input, $tag);
             let (_, $name(result)) = extract(&_input).unwrap();
             assert_eq!(result, $expected);
@@ -92,13 +92,13 @@ mod tests {
 
     #[rstest]
     #[case(b"12", 12.0)]
-    #[case(b"1", 1.0)]
+    #[case(b"100", 100.0)]
     #[case(b"0.5", 0.5)]
     #[case(b"-0.5", -0.5)]
     fn space_operators(#[case] input: &[u8], #[case] expected: f32) {
         test!(CharSpace + b"Tc" + input + expected);
         test!(WordSpace + b"Tw" + input + expected);
-        test!(HorizontalScale + b"Tz" + input + expected);
+        test!(HorizontalScale + b"Tz" + input + (expected / 100.0));
         test!(Leading + b"TL" + input + expected);
         test!(Rise + b"Ts" + input + expected);
     }
