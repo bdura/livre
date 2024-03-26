@@ -2,15 +2,17 @@ use livre_extraction::{extract, Extract, Name};
 use livre_utilities::take_whitespace1;
 use nom::{bytes::complete::tag, sequence::preceded};
 
+use crate::Operator;
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct FontSize {
-    pub font: Name,
+    pub font: String,
     pub size: f32,
 }
 
 impl Extract<'_> for FontSize {
     fn extract(input: &'_ [u8]) -> nom::IResult<&'_ [u8], Self> {
-        let (input, (font, size)) = extract(input)?;
+        let (input, (Name(font), size)) = extract(input)?;
         let (input, _) = preceded(take_whitespace1, tag("Tf"))(input)?;
 
         let font_size = FontSize { font, size };
@@ -20,8 +22,16 @@ impl Extract<'_> for FontSize {
 
 impl FontSize {
     pub fn new(font: impl Into<String>, size: f32) -> Self {
-        let font = Name(font.into());
+        let font = font.into();
         Self { font, size }
+    }
+}
+
+impl Operator for FontSize {
+    fn operate(self, obj: &mut crate::TextObject) {
+        let FontSize { font, size } = self;
+        obj.font = font;
+        obj.size = size;
     }
 }
 

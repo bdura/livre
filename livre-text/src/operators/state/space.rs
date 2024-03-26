@@ -5,6 +5,8 @@ use nom::{
     sequence::{terminated, tuple},
 };
 
+use crate::Operator;
+
 macro_rules! space_element {
     ($name:ident + $tag:literal) => {
         #[derive(Debug, PartialEq, Clone, Copy)]
@@ -22,9 +24,50 @@ macro_rules! space_element {
 
 space_element!(CharSpace + "Tc");
 space_element!(WordSpace + "Tw");
-space_element!(HorizontalScale + "Tz");
 space_element!(Leading + "TL");
 space_element!(Rise + "Ts");
+
+/// The specs use a percentage. We transform it to a ratio.
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub struct HorizontalScale(pub f32);
+
+impl Extract<'_> for HorizontalScale {
+    fn extract(input: &'_ [u8]) -> nom::IResult<&'_ [u8], Self> {
+        let (input, scale) = f32::extract(input)?;
+        let (input, _) = tuple((take_whitespace1, tag("Tz")))(input)?;
+        Ok((input, Self(scale / 100.0)))
+    }
+}
+
+impl Operator for CharSpace {
+    fn operate(self, obj: &mut crate::TextObject) {
+        obj.character_spacing = self.0;
+    }
+}
+
+impl Operator for WordSpace {
+    fn operate(self, obj: &mut crate::TextObject) {
+        obj.word_spacing = self.0;
+    }
+}
+
+impl Operator for Leading {
+    fn operate(self, obj: &mut crate::TextObject) {
+        obj.leading = self.0;
+    }
+}
+
+impl Operator for Rise {
+    fn operate(self, obj: &mut crate::TextObject) {
+        obj.rise = self.0;
+    }
+}
+
+impl Operator for HorizontalScale {
+    fn operate(self, obj: &mut crate::TextObject) {
+        obj.horizontal_scaling = self.0;
+    }
+}
 
 #[cfg(test)]
 mod tests {

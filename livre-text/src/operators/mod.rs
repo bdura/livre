@@ -1,2 +1,7 @@
 mod state;
-pub use state::{CharSpace, FontSize, HorizontalScale, Leading, Rise, WordSpace};
+pub use state::{CharSpace, FontSize, HorizontalScale, Leading, RenderMode, Rise, WordSpace};
+
+mod position;
+pub use position::{MoveNextLine, MoveTD, MoveTd, TextMatrix};
+
+mod showing;

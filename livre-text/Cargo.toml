@@ -9,6 +9,9 @@ thiserror = "1.0"
 
 livre-extraction = { path = "../livre-extraction" }
 livre-utilities = { path = "../livre-utilities" }
+livre-data = { path = "../livre-data" }
+
+nalgebra = "0.32"
 
 
 [dev-dependencies]

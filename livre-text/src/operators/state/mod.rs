@@ -5,3 +5,4 @@ mod font;
 pub use font::FontSize;
 
 mod render;
+pub use render::RenderMode;

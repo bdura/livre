@@ -2,6 +2,8 @@ use livre_extraction::Extract;
 use livre_utilities::take_whitespace1;
 use nom::{bytes::complete::tag, sequence::tuple};
 
+use crate::Operator;
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum RenderMode {
     Fill,
@@ -32,6 +34,12 @@ impl Extract<'_> for RenderMode {
         };
 
         Ok((input, mode))
+    }
+}
+
+impl Operator for RenderMode {
+    fn operate(self, obj: &mut crate::TextObject) {
+        obj.mode = self;
     }
 }
 
