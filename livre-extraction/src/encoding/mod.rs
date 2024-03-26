@@ -96,3 +96,37 @@ pub fn pdf_decode(input: &[u8]) -> Cow<'_, [u8]> {
 
     Cow::Owned(res)
 }
+
+static UTF8_MARKER: &[u8] = &[239, 187, 191];
+static UTF16BE_MARKER: &[u8] = &[254, 255];
+
+pub fn decode_str(input: &[u8]) -> Cow<'_, str> {
+    if input.starts_with(UTF8_MARKER) {
+        let input = &input[3..];
+        let res = std::str::from_utf8(input).expect("Per the specs, the string is UTF-8 encoded");
+        Cow::Borrowed(res)
+    } else if input.starts_with(UTF16BE_MARKER) {
+        let input = &input[2..];
+        let utf16: Vec<u16> = input
+            .chunks_exact(2)
+            .map(|b| u16::from_be_bytes([b[0], b[1]]))
+            .collect();
+        let res =
+            String::from_utf16(&utf16).expect("Per the specs, the string is UTF-16BE encoded");
+        Cow::Owned(res)
+    } else {
+        let utf8 = pdf_decode(input);
+        match utf8 {
+            Cow::Borrowed(input) => {
+                let res =
+                    std::str::from_utf8(input).expect("Per the specs, the string is UTF-8 encoded");
+                Cow::Borrowed(res)
+            }
+            Cow::Owned(input) => {
+                let res = std::str::from_utf8(&input)
+                    .expect("Per the specs, the string is UTF-8 encoded");
+                Cow::Owned(res.to_owned())
+            }
+        }
+    }
+}
