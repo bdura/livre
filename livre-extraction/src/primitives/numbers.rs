@@ -144,6 +144,7 @@ mod tests {
     #[case(b"+0.", 0.0)]
     #[case(b"12345.6789", 12345.6789)]
     #[case(b"-12345.6789", -12345.6789)]
+    #[case(b"-7(n)", -7.0)]
     fn reals(#[case] input: &[u8], #[case] result: f64) {
         assert_eq!(result, parse(input).unwrap());
 
