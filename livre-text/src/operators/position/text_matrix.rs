@@ -3,7 +3,7 @@ use nalgebra::Matrix3;
 
 use crate::Operator;
 
-#[derive()]
+#[derive(Debug, PartialEq, Clone)]
 pub struct TextMatrix {
     pub a: f32,
     pub b: f32,
@@ -11,6 +11,13 @@ pub struct TextMatrix {
     pub d: f32,
     pub e: f32,
     pub f: f32,
+}
+
+impl From<TextMatrix> for Matrix3<f32> {
+    fn from(value: TextMatrix) -> Self {
+        let TextMatrix { a, b, c, d, e, f } = value;
+        Matrix3::new(a, b, 0.0, c, d, 0.0, e, f, 1.0)
+    }
 }
 
 impl Extract<'_> for TextMatrix {
@@ -22,7 +29,7 @@ impl Extract<'_> for TextMatrix {
 }
 
 impl Operator for TextMatrix {
-    fn operate(self, obj: &mut crate::TextObject) {
+    fn apply(self, obj: &mut crate::TextObject) {
         let TextMatrix { a, b, c, d, e, f } = self;
         obj.set_matrix(a, b, c, d, e, f);
     }
