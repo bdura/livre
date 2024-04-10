@@ -4,25 +4,31 @@ use nom::{bytes::complete::tag, combinator::value, sequence::tuple};
 
 use crate::Operator;
 
-/// Move to the start of the next line, offset from the start
-/// of the current line by (`x`, `y`). `x` and `y` shall denote
-/// numbers expressed in unscaled text space units.
+///`Td` operator: move to the start of the next line,
+/// offset from the start of the current line by (`x`, `y`).
+/// `x` and `y` shall denote numbers expressed in unscaled text space units.
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct MoveTd {
     pub x: f32,
     pub y: f32,
 }
 
-/// Move to the start of the next line, offset from the start
-/// of the current line by (`x`, `y`). As a side effect, this
-/// operator shall set the leading parameter in the text state
+/// `TD` operator: move to the start of the next line,
+/// offset from the start of the current line by (`x`, `y`).
+/// As a side effect, this operator shall set the leading parameter in the text state
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct MoveTD {
     pub x: f32,
     pub y: f32,
 }
 
-/// Move to the start of the next line. This operator has the same effect as the code 0 –Tl TD where Tl denotes the current leading parameter in the text state. The negative of Tl is used here because Tl is the text leading expressed as a positive number. Going to the next line entails decreasing the y coordinate.
+/// `T*` operator: move to the start of the next line.
+///
+/// This operator has the same effect as the code 0 –Tl TD
+/// where Tl denotes the current leading parameter in the text state.
+/// The negative of Tl is used here because Tl is the text leading
+/// expressed as a positive number.
+/// Going to the next line entails decreasing the y coordinate.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct MoveNextLine;
 
@@ -51,21 +57,21 @@ impl_extract!(MoveTd + b"Td");
 impl_extract!(MoveTD + b"TD");
 
 impl Operator for MoveTd {
-    fn operate(self, obj: &mut crate::TextObject) {
+    fn apply(self, obj: &mut crate::TextObject) {
         let Self { x, y } = self;
         obj.translate(x, y);
     }
 }
 
 impl Operator for MoveTD {
-    fn operate(self, obj: &mut crate::TextObject) {
+    fn apply(self, obj: &mut crate::TextObject) {
         let Self { x, y } = self;
         obj.translate_and_set_leading(x, y);
     }
 }
 
 impl Operator for MoveNextLine {
-    fn operate(self, obj: &mut crate::TextObject) {
+    fn apply(self, obj: &mut crate::TextObject) {
         obj.next_line();
     }
 }
