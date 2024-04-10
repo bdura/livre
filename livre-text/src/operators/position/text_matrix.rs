@@ -29,7 +29,7 @@ impl Extract<'_> for TextMatrix {
 }
 
 impl Operator for TextMatrix {
-    fn apply(self, obj: &mut crate::TextObject) {
+    fn apply(self, obj: &mut crate::TextState) {
         let TextMatrix { a, b, c, d, e, f } = self;
         obj.set_matrix(a, b, c, d, e, f);
     }

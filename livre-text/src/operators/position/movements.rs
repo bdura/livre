@@ -57,21 +57,21 @@ impl_extract!(MoveTd + b"Td");
 impl_extract!(MoveTD + b"TD");
 
 impl Operator for MoveTd {
-    fn apply(self, obj: &mut crate::TextObject) {
+    fn apply(self, obj: &mut crate::TextState) {
         let Self { x, y } = self;
         obj.translate(x, y);
     }
 }
 
 impl Operator for MoveTD {
-    fn apply(self, obj: &mut crate::TextObject) {
+    fn apply(self, obj: &mut crate::TextState) {
         let Self { x, y } = self;
         obj.translate_and_set_leading(x, y);
     }
 }
 
 impl Operator for MoveNextLine {
-    fn apply(self, obj: &mut crate::TextObject) {
+    fn apply(self, obj: &mut crate::TextState) {
         obj.next_line();
     }
 }

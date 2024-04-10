@@ -5,3 +5,4 @@ mod position;
 pub use position::{MoveNextLine, MoveTD, MoveTd, TextMatrix};
 
 mod showing;
+pub use showing::{ShowApostrophe, ShowQuote, ShowTJ, ShowTj};

@@ -9,7 +9,7 @@ pub struct TextElement {
     pub bounding_box: Rectangle,
 }
 
-pub struct TextObject {
+pub struct TextState {
     pub character_spacing: f32,
     pub word_spacing: f32,
     pub horizontal_scaling: f32,
@@ -23,9 +23,9 @@ pub struct TextObject {
     pub elements: Vec<TextElement>,
 }
 
-impl TextObject {
+impl TextState {
     pub(crate) fn apply<O: Operator>(&mut self, op: O) {
-        op.operate(self)
+        op.apply(self)
     }
 
     /// Td operator

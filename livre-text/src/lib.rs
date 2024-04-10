@@ -1,8 +1,8 @@
 pub mod operators;
 
 mod object;
-pub use object::TextObject;
+pub use object::TextState;
 
 trait Operator {
-    fn apply(self, obj: &mut TextObject);
+    fn apply(self, obj: &mut TextState);
 }
