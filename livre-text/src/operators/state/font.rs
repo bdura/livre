@@ -28,7 +28,7 @@ impl FontSize {
 }
 
 impl Operator for FontSize {
-    fn operate(self, obj: &mut crate::TextObject) {
+    fn apply(self, obj: &mut crate::TextObject) {
         let FontSize { font, size } = self;
         obj.font = font;
         obj.size = size;

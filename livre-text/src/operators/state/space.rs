@@ -40,31 +40,31 @@ impl Extract<'_> for HorizontalScale {
 }
 
 impl Operator for CharSpace {
-    fn operate(self, obj: &mut crate::TextObject) {
+    fn apply(self, obj: &mut crate::TextObject) {
         obj.character_spacing = self.0;
     }
 }
 
 impl Operator for WordSpace {
-    fn operate(self, obj: &mut crate::TextObject) {
+    fn apply(self, obj: &mut crate::TextObject) {
         obj.word_spacing = self.0;
     }
 }
 
 impl Operator for Leading {
-    fn operate(self, obj: &mut crate::TextObject) {
+    fn apply(self, obj: &mut crate::TextObject) {
         obj.leading = self.0;
     }
 }
 
 impl Operator for Rise {
-    fn operate(self, obj: &mut crate::TextObject) {
+    fn apply(self, obj: &mut crate::TextObject) {
         obj.rise = self.0;
     }
 }
 
 impl Operator for HorizontalScale {
-    fn operate(self, obj: &mut crate::TextObject) {
+    fn apply(self, obj: &mut crate::TextObject) {
         obj.horizontal_scaling = self.0;
     }
 }

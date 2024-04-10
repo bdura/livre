@@ -38,7 +38,7 @@ impl Extract<'_> for RenderMode {
 }
 
 impl Operator for RenderMode {
-    fn operate(self, obj: &mut crate::TextObject) {
+    fn apply(self, obj: &mut crate::TextObject) {
         obj.mode = self;
     }
 }

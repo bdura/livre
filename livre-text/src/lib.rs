@@ -4,5 +4,5 @@ mod object;
 pub use object::TextObject;
 
 trait Operator {
-    fn operate(self, obj: &mut TextObject);
+    fn apply(self, obj: &mut TextObject);
 }
