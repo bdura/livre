@@ -2,7 +2,7 @@ use livre_extraction::{extract, Extract, Name};
 use livre_utilities::take_whitespace1;
 use nom::{bytes::complete::tag, sequence::preceded};
 
-use crate::Operator;
+use crate::operators::Operator;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct FontSize {

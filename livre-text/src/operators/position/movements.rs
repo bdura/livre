@@ -2,7 +2,7 @@ use livre_extraction::{extract, Extract};
 use livre_utilities::take_whitespace1;
 use nom::{bytes::complete::tag, combinator::value, sequence::tuple};
 
-use crate::Operator;
+use crate::operators::Operator;
 
 ///`Td` operator: move to the start of the next line,
 /// offset from the start of the current line by (`x`, `y`).

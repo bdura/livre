@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 nom = "7"
 thiserror = "1.0"
+enum_dispatch = "0.3"
 
 livre-extraction = { path = "../livre-extraction" }
 livre-utilities = { path = "../livre-utilities" }
@@ -15,5 +16,5 @@ nalgebra = "0.32"
 
 
 [dev-dependencies]
-indoc = "2.0.4"
-rstest = "0.18.2"
+indoc = "2"
+rstest = "0.19"

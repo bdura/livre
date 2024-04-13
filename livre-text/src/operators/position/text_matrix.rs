@@ -1,7 +1,7 @@
 use livre_extraction::{extract, Extract};
 use nalgebra::Matrix3;
 
-use crate::Operator;
+use crate::operators::Operator;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct TextMatrix {

@@ -24,7 +24,7 @@ impl Extract<'_> for ShowTj {
 /// `'` operator: move to the next line and show a text string.
 ///
 /// Equivalent to:
-/// 
+///
 /// ```no-rust
 /// T*
 /// (string) Tj
@@ -45,6 +45,12 @@ impl Extract<'_> for ShowApostrophe {
 /// parameters in the text state). aw and ac shall be numbers expressed in
 /// unscaled text space units. This operator shall have the same effect as
 /// this code:
+///
+/// ```no-rust
+/// aw Tw
+/// ac Tc
+/// string '
+/// ```
 #[derive(Debug, PartialEq, Clone)]
 pub struct ShowQuote {
     pub text: String,

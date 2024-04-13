@@ -9,13 +9,13 @@ mod filters;
 pub use filters::{DCTDecode, FlateDecode};
 use livre_extraction::{Extract, IResult, Name};
 
-#[enum_dispatch(Filter)]
+#[enum_dispatch]
 pub trait Filtering {
     fn decode(&self, bytes: &[u8]) -> Result<Vec<u8>>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[enum_dispatch]
+#[enum_dispatch(Filtering)]
 pub enum Filter {
     FlateDecode(FlateDecode),
     DCTDecode(DCTDecode),

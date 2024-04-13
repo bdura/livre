@@ -5,10 +5,16 @@ use nom::{
     sequence::{terminated, tuple},
 };
 
-use crate::Operator;
+use crate::operators::{ElementsExtract, Operator};
 
 macro_rules! space_element {
-    ($name:ident + $tag:literal) => {
+    (
+        $(#[$outer:meta])*
+        $name:ident + $tag:literal
+    ) => {
+        $(
+            #[$outer]
+        )*
         #[derive(Debug, PartialEq, Clone, Copy)]
         pub struct $name(pub f32);
 
@@ -19,15 +25,34 @@ macro_rules! space_element {
                 Ok((input, Self(space)))
             }
         }
+
+        impl ElementsExtract for $name {
+            fn extract_from_elements(elements: &[&[u8]]) -> Self {
+                assert_eq!(elements.len(), 1);
+                let (_, inner) = extract(elements[0]).expect("Should match");
+                Self(inner)
+            }
+        }
     };
 }
 
-space_element!(CharSpace + "Tc");
-space_element!(WordSpace + "Tw");
+space_element!(
+    /// `Tc` parameter: a number specified in unscaled text space units.
+    /// Subject to scaling by the [`Th`](`HorizontalScale`) parameter
+    /// if the writing mode is horizontal.
+    CharSpace
+        + "Tc"
+);
+
+space_element!(
+    /// The character-spacing parameter, `Tc`. A number specified in unscaled text space units.
+    WordSpace
+        + "Tw"
+);
 space_element!(Leading + "TL");
 space_element!(Rise + "Ts");
 
-/// The specs use a percentage. We transform it to a ratio.
+/// `Th` parameter. The specs use a percentage. We transform it to a ratio.
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct HorizontalScale(pub f32);
 
@@ -36,6 +61,14 @@ impl Extract<'_> for HorizontalScale {
         let (input, scale) = f32::extract(input)?;
         let (input, _) = tuple((take_whitespace1, tag("Tz")))(input)?;
         Ok((input, Self(scale / 100.0)))
+    }
+}
+
+impl ElementsExtract for HorizontalScale {
+    fn extract_from_elements(elements: &[&[u8]]) -> Self {
+        assert_eq!(elements.len(), 1);
+        let (_, inner) = f32::extract(elements[0]).expect("Should match");
+        Self(inner / 100.0)
     }
 }
 

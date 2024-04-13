@@ -2,7 +2,7 @@ use livre_extraction::Extract;
 use livre_utilities::take_whitespace1;
 use nom::{bytes::complete::tag, sequence::tuple};
 
-use crate::Operator;
+use crate::operators::Operator;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum RenderMode {
