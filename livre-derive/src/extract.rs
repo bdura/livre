@@ -52,20 +52,23 @@ fn generate_extraction(data: &Data) -> TokenStream {
 
                 let Attributes {
                     flatten,
+                    from,
                     field_str,
                     is_opt,
                     default,
                 } = attr::parse_attributes(f).unwrap();
 
-                let ty = if default {
-                    quote! {Option::<#ty>}
+                let from_ty = from.as_ref().unwrap_or(ty);
+
+                let from_ty = if default {
+                    quote! {Option::<#from_ty>}
                 } else {
-                    quote! {#ty}
+                    quote! {#from_ty}
                 };
 
                 let mut extraction = if flatten {
                     quote! {
-                        let #name = #ty::from_dict_ref(&mut dict).unwrap();
+                        let #name = #from_ty::from_dict_ref(&mut dict).unwrap();
                     }
                 } else {
                     let func = if is_opt {
@@ -75,7 +78,7 @@ fn generate_extraction(data: &Data) -> TokenStream {
                     };
 
                     quote! {
-                        let #name: #ty = dict
+                        let #name: #from_ty = dict
                             .#func(#field_str)
                             .map_err(|_| nom::Err::Error(nom::error::Error::from_error_kind(input, nom::error::ErrorKind::IsNot)))?;
                     }
@@ -85,6 +88,13 @@ fn generate_extraction(data: &Data) -> TokenStream {
                     extraction = quote! {
                         #extraction
                         let #name = #name.unwrap_or_default();
+                    }
+                }
+
+                if from.is_some() {
+                    extraction = quote! {
+                        #extraction
+                        let #name: #ty = #name.into();
                     }
                 }
 
