@@ -20,7 +20,6 @@ pub struct Document {
 impl Document {
     pub fn get_location(&self, reference: impl Into<Reference>) -> Option<RefLocation> {
         let reference = reference.into();
-        println!("{reference:?}");
         self.crossrefs.get(&reference).copied()
     }
     pub fn get_referenced_bytes<'a>(
@@ -29,8 +28,6 @@ impl Document {
         input: &'a [u8],
     ) -> Option<&'a [u8]> {
         let location = self.get_location(reference)?;
-
-        println!("{location:?}");
 
         match location {
             RefLocation::Uncompressed(loc) => {
