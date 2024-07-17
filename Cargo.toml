@@ -11,4 +11,5 @@ members = [
     "livre-document",
     "livre-text",
     "livre-fonts",
+    "livre-serde",
 ]

@@ -16,5 +16,5 @@ livre-structure = { path = "../livre-structure" }
 
 [dev-dependencies]
 indoc = "2.0.4"
-rstest = "0.19"
+rstest = "0.21"
 livre-fonts = { path = "../livre-fonts" }

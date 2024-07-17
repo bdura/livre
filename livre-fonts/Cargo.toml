@@ -14,4 +14,4 @@ livre-data = { path = "../livre-data" }
 
 [dev-dependencies]
 indoc = "2"
-rstest = "0.19"
+rstest = "0.21"
