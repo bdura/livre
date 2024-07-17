@@ -1,9 +1,10 @@
-use syn::{Field, LitStr, Result};
+use syn::{Field, LitStr, Result, Type};
 
 use super::option;
 
 pub struct Attributes {
     pub field_str: String,
+    pub from: Option<Type>,
     pub flatten: bool,
     pub default: bool,
     pub is_opt: bool,
@@ -12,6 +13,7 @@ pub struct Attributes {
 /// Find the value of a #[livre] attribute.
 pub fn parse_attributes(field: &Field) -> Result<Attributes> {
     let mut rename = None;
+    let mut from = None;
     let mut flatten = false;
     let mut default = false;
 
@@ -36,6 +38,16 @@ pub fn parse_attributes(field: &Field) -> Result<Attributes> {
                 return Ok(());
             }
 
+            if meta.path.is_ident("from") {
+                let s: Type = meta.value()?.parse()?;
+                if from.is_some() {
+                    return Err(meta.error("duplicate rename attribute"));
+                }
+                from = Some(s);
+
+                return Ok(());
+            }
+
             if meta.path.is_ident("default") {
                 default = true;
                 return Ok(());
@@ -54,6 +66,7 @@ pub fn parse_attributes(field: &Field) -> Result<Attributes> {
 
     Ok(Attributes {
         field_str,
+        from,
         flatten,
         default,
         is_opt,

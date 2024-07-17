@@ -1,7 +1,7 @@
 use livre_extraction::{Extract, FromDictRef, MaybeArray, NoOp, Reference, TypedReference};
 use livre_objects::Stream;
 
-use super::{PageProperties, Variant};
+use super::{resources::Resources, PageProperties, Variant};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct ContentStream(pub Vec<u8>);
@@ -21,7 +21,7 @@ pub struct PageLeaf {
     pub parent: Reference,
     // #[livre(rename = "LastModified")]
     // pub last_modified: DateTime
-    // pub resources
+    pub resources: Resources,
     // pub crop_box: Option<Rectangle>,
     // pub bleed_box: Option<Rectangle>,
     // pub trim_box: Option<Rectangle>,

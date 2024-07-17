@@ -4,8 +4,9 @@ use std::{
 };
 
 use livre_document::Document;
-use livre_extraction::{extract, DbgStr, Extract};
-use livre_structure::{Catalogue, ContentStream, PageElement, PageLeaf, PageNode};
+use livre_extraction::{extract, DbgStr, Extract, Name, NoOp};
+use livre_objects::{Reference, Stream};
+use livre_structure::{Catalogue, PageElement, PageLeaf, PageNode};
 
 fn parse_page_kids(node: &PageNode, doc: &Document, input: &[u8]) -> Vec<PageLeaf> {
     let mut pages = Vec::new();
@@ -28,8 +29,23 @@ fn parse_page_kids(node: &PageNode, doc: &Document, input: &[u8]) -> Vec<PageLea
     pages
 }
 
+#[derive(Extract, Debug)]
+struct Font {
+    #[livre(from = Name)]
+    subtype: String,
+    #[livre(from = Name)]
+    base_font: String,
+    font_descriptor: Option<Reference>,
+}
+
+fn get_decoded(input: &[u8], doc: &Document, reference: Reference) -> String {
+    let (_, DbgStr(decoded)) =
+        extract(doc.get_referenced_bytes(reference, &input).unwrap()).unwrap();
+    decoded.to_string()
+}
+
 fn main() {
-    let file = File::open("tests/text.pdf").unwrap();
+    let file = File::open("tests/letter.pdf").unwrap();
     // let file = File::open("resource/ISO_32000-2-2020_sponsored.pdf").unwrap();
     let mut reader = BufReader::new(file);
 
@@ -45,16 +61,29 @@ fn main() {
     println!("{root:?}");
 
     let pages: PageNode = doc.parse_referenced(root.pages, &input);
-    println!("{pages:?}");
+    println!("P: {pages:?}");
 
     let pages = parse_page_kids(&pages, &doc, &input);
 
     for page in &pages {
-        // println!("{page:?}");
-        let &reference = page.contents.0.first().unwrap();
-        let ContentStream(content) = doc.parse_referenced(reference, &input);
-        let (_, DbgStr(decoded)) = extract(&content).unwrap();
-        println!("{}", &decoded);
+        println!("{page:?}");
+        // let &reference = page.contents.0.first().unwrap();
+        for (k, &reference) in page.resources.font.iter() {
+            let decoded_font = get_decoded(&input, &doc, reference);
+
+            let font: Font = doc.parse_referenced(reference.into(), &input);
+
+            println!("\nFont {k}:\n{decoded_font}{font:?}");
+            if let Some(decoded_descriptor) =
+                font.font_descriptor.map(|fd| get_decoded(&input, &doc, fd))
+            {
+                println!("{decoded_descriptor}");
+            }
+            // let &reference = page.resources;
+        }
+        // let ContentStream(content) = doc.parse_referenced(reference, &input);
+        // let (_, DbgStr(decoded)) = extract(&content).unwrap();
+        // println!("{}", &decoded);
     }
 
     // let page_raw = doc.get_referenced_bytes(pages.kids[0]).unwrap();
@@ -75,5 +104,25 @@ fn main() {
     //     println!("{line:?}");
     // }
 
+    // let font: Font = doc.parse_referenced(TypedReference::new(object, generation))
+
     // println!("{decoded}");
+    let (_, DbgStr(font)) = extract(
+        doc.get_referenced_bytes(Reference::new(20, 0), &input)
+            .unwrap(),
+    )
+    .unwrap();
+
+    println!("F4 Widths:\n{font}");
+
+    let (_, stream) = Stream::<NoOp>::extract(
+        doc.get_referenced_bytes(Reference::new(183, 0), &input)
+            .unwrap(),
+    )
+    .unwrap();
+
+    let decoded = stream.decode().unwrap();
+    let (_, DbgStr(decoded)) = extract(&decoded).unwrap();
+
+    println!("ToUnicode:\n{decoded}");
 }

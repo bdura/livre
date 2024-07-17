@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, Data, DataStruct, DeriveInput, Fields};
 
-use crate::{add_trait_bounds, utilities::attr::Attributes};
+use crate::{add_from_dict_ref_trait_bounds, utilities::attr::Attributes};
 
 use super::utilities::attr;
 
@@ -14,7 +14,7 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let name = input.ident;
 
     // Add a bound `T: Extract` to every type parameter T.
-    let generics = add_trait_bounds(input.generics);
+    let generics = add_from_dict_ref_trait_bounds(input.generics);
     let (_impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     // Generate an expression to sum up the heap size of each field.
@@ -50,20 +50,23 @@ fn generate_extraction(data: &Data) -> TokenStream {
 
                 let Attributes {
                     flatten,
+                    from,
                     field_str,
                     is_opt,
                     default,
                 } = attr::parse_attributes(f).unwrap();
 
-                let ty = if default {
-                    quote! {Option::<#ty>}
+                let from_ty = from.as_ref().unwrap_or(ty);
+
+                let from_ty = if default {
+                    quote! {Option::<#from_ty>}
                 } else {
-                    quote! {#ty}
+                    quote! {#from_ty}
                 };
 
                 let mut extraction = if flatten {
                     quote! {
-                        let #name = #ty::from_dict_ref(dict)?;
+                        let #name = #from_ty::from_dict_ref(dict)?;
                     }
                 } else {
                     let func = if is_opt {
@@ -73,13 +76,21 @@ fn generate_extraction(data: &Data) -> TokenStream {
                     };
 
                     quote! {
-                        let #name: #ty = dict.#func(#field_str)?;
+                        let #name: #from_ty = dict.#func(#field_str)?;
                     }
                 };
+
                 if default {
                     extraction = quote! {
                         #extraction
                         let #name = #name.unwrap_or_default();
+                    }
+                }
+
+                if from.is_some() {
+                    extraction = quote! {
+                        #extraction
+                        let #name: #ty = #name.into();
                     }
                 }
                 extraction

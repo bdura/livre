@@ -79,6 +79,13 @@ impl<T> From<TypedReference<T>> for Reference {
     }
 }
 
+impl<T> From<Reference> for TypedReference<T> {
+    fn from(value: Reference) -> Self {
+        let Reference { object, generation } = value;
+        Self::new(object, generation)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::NoOp;

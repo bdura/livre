@@ -10,4 +10,5 @@ members = [
     "livre-structure",
     "livre-document",
     "livre-text",
+    "livre-fonts",
 ]

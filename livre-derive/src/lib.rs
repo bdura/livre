@@ -16,12 +16,24 @@ pub fn derive_from_dict_ref(input: proc_macro::TokenStream) -> proc_macro::Token
 }
 
 // Add a bound `T: Extract` to every type parameter T.
-fn add_trait_bounds(mut generics: Generics) -> Generics {
+fn add_extract_trait_bounds(mut generics: Generics) -> Generics {
     for param in &mut generics.params {
         if let GenericParam::Type(ref mut type_param) = *param {
             type_param
                 .bounds
-                .push(parse_quote!(livre_parser::Extract<'input>));
+                .push(parse_quote!(livre_extraction::Extract<'input>));
+        }
+    }
+    generics
+}
+
+// Add a bound `T: FromDictRef` to every type parameter T.
+fn add_from_dict_ref_trait_bounds(mut generics: Generics) -> Generics {
+    for param in &mut generics.params {
+        if let GenericParam::Type(ref mut type_param) = *param {
+            type_param
+                .bounds
+                .push(parse_quote!(livre_extraction::FromDictRef<'input>));
         }
     }
     generics

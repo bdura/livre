@@ -7,6 +7,7 @@ pub trait Extract<'input>: Sized {
     fn extract(input: &'input [u8]) -> IResult<&'input [u8], Self>;
 }
 
+/// Parses the struct from a [`RawDict`], taking the needed values from it.
 pub trait FromDictRef<'input>: Sized {
     fn from_dict_ref(dict: &mut RawDict<'input>) -> Result<Self>;
 }
