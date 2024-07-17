@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, Data, DataStruct, DeriveInput, Fields};
 
-use crate::{add_trait_bounds, utilities::attr::Attributes};
+use crate::{add_from_dict_ref_trait_bounds, utilities::attr::Attributes};
 
 use super::utilities::attr;
 
@@ -14,7 +14,7 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let name = input.ident;
 
     // Add a bound `T: Extract` to every type parameter T.
-    let generics = add_trait_bounds(input.generics);
+    let generics = add_from_dict_ref_trait_bounds(input.generics);
     let (_impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     // Generate an expression to sum up the heap size of each field.

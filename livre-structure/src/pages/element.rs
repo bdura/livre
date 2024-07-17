@@ -15,8 +15,6 @@ impl Extract<'_> for PageElement {
 
         let Name(variant) = parse(dict.get("Type").unwrap().0).unwrap();
 
-        println!("{variant}");
-
         let element = if variant == "Pages" {
             let node = PageNode::from_dict(dict).unwrap();
             PageElement::Node(node)

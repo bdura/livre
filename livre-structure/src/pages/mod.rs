@@ -12,3 +12,5 @@ pub use variant::Variant;
 
 mod element;
 pub use element::PageElement;
+
+mod resources;
