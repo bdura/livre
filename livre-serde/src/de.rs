@@ -1,7 +1,6 @@
-use std::ops::{AddAssign, MulAssign, Neg};
-
-use livre_extraction::{Extract, Name};
+use livre_extraction::{Extract, HexBytes, Name, Reference};
 use livre_utilities::take_whitespace;
+use nom::combinator::recognize;
 use serde::de::{
     self, DeserializeSeed, EnumAccess, IntoDeserializer, MapAccess, SeqAccess, VariantAccess,
     Visitor,
@@ -23,11 +22,13 @@ impl<'de> Deserializer<'de> {
     // That way basic use cases are satisfied by something like
     // `serde_json::from_str(...)` while advanced use cases that require a
     // deserializer can make one with `serde_json::Deserializer::from_str(...)`.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(input: &'de str) -> Self {
         Deserializer {
             input: input.as_bytes(),
         }
     }
+
     pub fn from_bytes(input: &'de [u8]) -> Self {
         Deserializer { input }
     }
@@ -49,6 +50,28 @@ where
     } else {
         Err(Error::TrailingCharacters)
     }
+}
+
+pub fn from_bytes<'a, T>(s: &'a [u8]) -> Result<T>
+where
+    T: Deserialize<'a>,
+{
+    let mut deserializer = Deserializer::from_bytes(s);
+    let t = T::deserialize(&mut deserializer)?;
+    if deserializer.input.is_empty() {
+        Ok(t)
+    } else {
+        Err(Error::TrailingCharacters)
+    }
+}
+
+pub fn from_bytes_prefix<'a, T>(s: &'a [u8]) -> Result<(&'a [u8], T)>
+where
+    T: Deserialize<'a>,
+{
+    let mut deserializer = Deserializer::from_bytes(s);
+    let t = T::deserialize(&mut deserializer)?;
+    Ok((deserializer.input, t))
 }
 
 impl<'de> Deserializer<'de> {
@@ -122,8 +145,14 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             b'0'..=b'9' => self.deserialize_u64(visitor),
             b'-' => self.deserialize_i64(visitor),
             b'[' => self.deserialize_seq(visitor),
-            b'<' => self.deserialize_map(visitor),
-            _ => Err(Error::Syntax),
+            b'<' => {
+                if self.peek_n(2).is_ok_and(|peek| peek == b"<<") {
+                    self.deserialize_map(visitor)
+                } else {
+                    self.deserialize_byte_buf(visitor)
+                }
+            }
+            _ => self.deserialize_bytes(visitor),
         }
     }
 
@@ -166,13 +195,25 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         visitor.visit_string(s)
     }
 
-    deserialize_using_parse!(bytes);
+    // deserialize_using_parse!(bytes);
 
-    fn deserialize_byte_buf<V>(self, _visitor: V) -> Result<V::Value>
+    /// We use bytes as a catch-all mechanism for deserializing non-trivial types.
+    fn deserialize_bytes<V>(self, visitor: V) -> std::result::Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        unimplemented!()
+        let (input, reference) =
+            recognize(Reference::extract)(self.input).map_err(|_| Error::Syntax)?;
+        self.input = input;
+        visitor.visit_borrowed_bytes(reference)
+    }
+
+    fn deserialize_byte_buf<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        let HexBytes(bytes) = self.parse()?;
+        visitor.visit_byte_buf(bytes)
     }
 
     // An absent optional is represented as the JSON `null` and a present
@@ -363,9 +404,6 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     }
 }
 
-// In order to handle commas correctly when deserializing a JSON array or map,
-// we need to track whether we are on the first element or past the first
-// element.
 struct Accessor<'a, 'de: 'a> {
     de: &'a mut Deserializer<'de>,
 }
@@ -435,18 +473,20 @@ mod tests {
     fn test_struct() {
         #[derive(Deserialize, PartialEq, Debug)]
         #[serde(rename_all = "PascalCase")]
-        struct Test {
+        struct Test<'a> {
             int: u32,
             map: HashMap<String, i32>,
+            bytes: &'a [u8],
         }
 
-        let j = r#"<</Int 42 /Seq [1 2 3] /Map <</test 42 /test2 -12>>>>"#;
+        let j = "<</Int 42 /Seq [1 2 3 ] /Map <</test 42 /test2 -12>>\n\n/Bytes    0 10 R>>";
         let expected = Test {
             int: 42,
             map: vec![("test".to_string(), 42), ("test2".to_string(), -12)]
                 .into_iter()
                 .collect(),
+            bytes: b"0 10 R",
         };
-        assert_eq!(expected, from_str(j).unwrap());
+        assert_eq!(expected, dbg!(from_str(j)).unwrap());
     }
 }
