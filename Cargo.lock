@@ -254,6 +254,7 @@ dependencies = [
  "nom",
  "paste",
  "rstest 0.18.2",
+ "serde",
  "thiserror",
 ]
 

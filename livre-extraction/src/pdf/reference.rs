@@ -1,8 +1,9 @@
-use std::marker::PhantomData;
+use std::{fmt, marker::PhantomData};
 
 use nom::{bytes::complete::tag, sequence::tuple, IResult};
+use serde::Deserialize;
 
-use crate::{extract, Extract};
+use crate::{extract, parse, Extract};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct Reference {
@@ -10,10 +11,46 @@ pub struct Reference {
     pub generation: u16,
 }
 
+struct ReferenceVisitor;
+
+impl<'de> serde::de::Visitor<'de> for ReferenceVisitor {
+    type Value = Reference;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a PDF reference")
+    }
+
+    fn visit_bytes<E>(self, value: &[u8]) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        parse(value).map_err(E::custom)
+    }
+}
+
+impl<'de> Deserialize<'de> for Reference {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_bytes(ReferenceVisitor)
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct TypedReference<T> {
     pub reference: Reference,
     marker: PhantomData<T>,
+}
+
+impl<'de, T> Deserialize<'de> for TypedReference<T> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let reference = deserializer.deserialize_bytes(ReferenceVisitor)?;
+        Ok(reference.into())
+    }
 }
 
 // Manual implementation is needed: otherwise it's only derived when `T` is `Clone` and `Copy`.

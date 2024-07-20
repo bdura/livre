@@ -464,25 +464,26 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
+    use livre_extraction::TypedReference;
     use serde::Deserialize;
 
     #[test]
     fn test_struct() {
         #[derive(Deserialize, PartialEq, Debug)]
         #[serde(rename_all = "PascalCase")]
-        struct Test<'a> {
+        struct Test {
             int: u32,
             map: HashMap<String, i32>,
-            bytes: &'a [u8],
+            reference: TypedReference<i32>,
         }
 
-        let j = "<</Int 42 /Seq [1 2 3 ] /Map <</test 42 /test2 -12>>\n\n/Bytes    0 10 R>>";
+        let j = "<</Int 42 /Seq [1 2 3 ] /Map <</test 42 /test2 -12>>\n\n/Reference    0 10 R>>";
         let expected = Test {
             int: 42,
             map: vec![("test".to_string(), 42), ("test2".to_string(), -12)]
                 .into_iter()
                 .collect(),
-            bytes: b"0 10 R",
+            reference: TypedReference::new(0, 10),
         };
         assert_eq!(expected, dbg!(from_str(j)).unwrap());
     }
