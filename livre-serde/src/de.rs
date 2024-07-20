@@ -170,8 +170,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     deserialize_using_parse!(f32);
     deserialize_using_parse!(f64);
 
-    // Refer to the "Understanding deserializer lifetimes" page for information
-    // about the three deserialization flavors of strings in Serde.
+    // Deserialization of `str` is tricky because of string escaping.
+    // Useful reference for future use: <https://github.com/serde-rs/json/blob/master/src/de.rs#L1516>
     fn deserialize_str<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -179,6 +179,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         unimplemented!()
     }
 
+    // For now, we only deserialize to owned string.
     fn deserialize_string<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -192,8 +193,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         visitor.visit_string(s)
     }
 
-    // deserialize_using_parse!(bytes);
-
+    /// Deserialize bytes.
+    ///
     /// We use bytes as a catch-all mechanism for deserializing non-trivial types.
     fn deserialize_bytes<V>(self, visitor: V) -> std::result::Result<V::Value, Self::Error>
     where
@@ -213,14 +214,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         visitor.visit_byte_buf(bytes)
     }
 
-    // An absent optional is represented as the JSON `null` and a present
-    // optional is represented as just the contained value.
-    //
-    // As commented in `Serializer` implementation, this is a lossy
-    // representation. For example the values `Some(())` and `None` both
-    // serialize as just `null`. Unfortunately this is typically what people
-    // expect when working with JSON. Other formats are encouraged to behave
-    // more intelligently if possible.
+    // The PDF specification defines the `null` object, which may represent an
+    // absent optional.
     fn deserialize_option<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -286,12 +281,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         }
     }
 
-    // Tuples look just like sequences in JSON. Some formats may be able to
-    // represent tuples more efficiently.
-    //
-    // As indicated by the length parameter, the `Deserialize` implementation
-    // for a tuple in the Serde data model is required to know the length of the
-    // tuple before even looking at the input data.
+    // Tuples look just like sequences in PDFs.
     fn deserialize_tuple<V>(self, _len: usize, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -299,7 +289,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         self.deserialize_seq(visitor)
     }
 
-    // Tuple structs look just like sequences in JSON.
+    // Tuple structs look just like sequences in PDFs.
     fn deserialize_tuple_struct<V>(
         self,
         _name: &'static str,
@@ -334,7 +324,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         }
     }
 
-    // Structs look just like maps in PDF.
+    // Structs look just like maps in PDFs.
     //
     // Notice the `fields` parameter - a "struct" in the Serde data model means
     // that the `Deserialize` implementation is required to know what the fields
@@ -366,8 +356,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
     // An identifier in Serde is the type that identifies a field of a struct or
     // the variant of an enum. In PDFs, struct fields and enum variants are
-    // represented as strings. In other formats they may be represented as
-    // numeric indices.
+    // represented as strings.
     fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -411,7 +400,7 @@ impl<'a, 'de> Accessor<'a, 'de> {
     }
 }
 
-// `SeqAccess` is provided to the `Visitor` to give it the ability to iterate
+// `Accessor` is provided to the `Visitor` to give it the ability to iterate
 // through elements of the sequence.
 impl<'de, 'a> SeqAccess<'de> for Accessor<'a, 'de> {
     type Error = Error;
@@ -431,7 +420,7 @@ impl<'de, 'a> SeqAccess<'de> for Accessor<'a, 'de> {
     }
 }
 
-// `MapAccess` is provided to the `Visitor` to give it the ability to iterate
+// `Accessor` is provided to the `Visitor` to give it the ability to iterate
 // through entries of the map.
 impl<'de, 'a> MapAccess<'de> for Accessor<'a, 'de> {
     type Error = Error;
