@@ -1,4 +1,3 @@
-use std;
 use std::fmt::{self, Display};
 
 use livre_extraction::error::ExtractionError;
@@ -29,11 +28,8 @@ pub enum Error {
     ExpectedString,
     ExpectedNull,
     ExpectedArray,
-    // ExpectedArrayComma,
     ExpectedArrayEnd,
     ExpectedMap,
-    // ExpectedMapColon,
-    // ExpectedMapComma,
     ExpectedMapEnd,
     ExpectedEnum,
     TrailingCharacters,

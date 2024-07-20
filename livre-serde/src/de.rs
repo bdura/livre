@@ -1,10 +1,7 @@
 use livre_extraction::{Extract, HexBytes, Name, Reference};
 use livre_utilities::take_whitespace;
 use nom::combinator::recognize;
-use serde::de::{
-    self, DeserializeSeed, EnumAccess, IntoDeserializer, MapAccess, SeqAccess, VariantAccess,
-    Visitor,
-};
+use serde::de::{self, DeserializeSeed, MapAccess, SeqAccess, Visitor};
 use serde::Deserialize;
 
 use paste::paste;

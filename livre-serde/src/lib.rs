@@ -3,4 +3,4 @@ mod error;
 
 use error::{Error, Result};
 
-pub use de::Deserializer;
+pub use de::{from_bytes, from_bytes_prefix, from_str, Deserializer};
