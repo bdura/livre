@@ -44,8 +44,8 @@ pub enum Error {
     ExpectedEnum,
     #[error("detected trailing characters")]
     TrailingCharacters,
-    #[error("unknown error")]
-    Unknown,
+    // #[error("unknown error")]
+    // Unknown,
 }
 
 impl Error {
