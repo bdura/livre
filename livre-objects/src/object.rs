@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use livre_extraction::{Extract, RawDict};
+use livre_extraction::Extract;
 use livre_utilities::{recognize_number, take_whitespace};
 use nom::{
     branch::alt,
@@ -13,10 +13,8 @@ use nom::{
 use super::Stream;
 use crate::{HexBytes, Name, Reference};
 
-type ObjectMap<'input> = HashMap<String, Object<'input>>;
-
 #[derive(Debug, Clone, PartialEq)]
-pub enum Object<'input> {
+pub enum Object {
     Null,
     Boolean(bool),
     Integer(i32),
@@ -24,22 +22,22 @@ pub enum Object<'input> {
     LiteralString(String),
     HexString(HexBytes),
     Name(String),
-    Array(Vec<Object<'input>>),
-    Dictionary(HashMap<String, Object<'input>>),
-    Stream(Stream<'input, ObjectMap<'input>>),
+    Array(Vec<Object>),
+    Dictionary(HashMap<String, Object>),
+    Stream(Stream<HashMap<String, Object>>),
     Reference(Reference),
 }
 
-impl<'input> Object<'input> {
-    fn extract_stream_or_dict(input: &'input [u8]) -> IResult<&'input [u8], Self> {
+impl Object {
+    fn extract_stream_or_dict(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, dict) = RawDict::extract(input)?;
         let (input, _) = take_whitespace(input)?;
 
-        let res = peek(tag::<&[u8], &[u8], Error<&'input [u8]>>(b"stream"))(input);
+        let res = peek(tag::<&[u8], &[u8], Error<&[u8]>>(b"stream"))(input);
 
         if res.is_ok() {
             let (input, stream) =
-                Stream::<'input, ObjectMap<'input>>::extract_from_dict(input, dict)?;
+                Stream::<HashMap<String, Object>>::extract_from_dict(input, dict)?;
             let obj = Self::Stream(stream);
             Ok((input, obj))
         } else {
@@ -48,7 +46,7 @@ impl<'input> Object<'input> {
         }
     }
 
-    fn extract_numeric(input: &'input [u8]) -> IResult<&'input [u8], Self> {
+    fn extract_numeric(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, num) = recognize_number(input)?;
         if num.contains(&b'.') {
             let x: f32 = num
@@ -64,7 +62,7 @@ impl<'input> Object<'input> {
     }
 }
 
-impl<'input> Extract<'input> for Object<'input> {
+impl<'input> Extract<'input> for Object {
     fn extract(input: &'input [u8]) -> IResult<&'input [u8], Self> {
         alt((
             map(tag("null"), |_| Self::Null),

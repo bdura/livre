@@ -8,8 +8,6 @@ use thiserror::Error;
 pub enum FilterError {
     #[error("Filter decode error")]
     FilterDecode(#[from] std::io::Error),
-    // #[error("unknown error.")]
-    // Unknown,
 }
 
 pub type Result<T, E = FilterError> = std::result::Result<T, E>;

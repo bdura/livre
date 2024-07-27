@@ -265,6 +265,9 @@ dependencies = [
  "enum_dispatch",
  "flate2",
  "livre-extraction",
+ "livre-serde",
+ "rstest 0.21.0",
+ "serde",
  "thiserror",
 ]
 
@@ -288,9 +291,11 @@ dependencies = [
  "livre-data",
  "livre-extraction",
  "livre-filters",
+ "livre-serde",
  "livre-utilities",
  "nom",
  "rstest 0.21.0",
+ "serde",
  "thiserror",
 ]
 
