@@ -125,7 +125,6 @@ impl<T> From<Reference> for TypedReference<T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::NoOp;
 
     use super::*;
     use rstest::rstest;
@@ -141,7 +140,7 @@ mod tests {
     #[rstest]
     #[case(b"1 0 R", TypedReference::new(1, 0))]
     #[case(b"10 33 R", TypedReference::new(10, 33))]
-    fn noop_typed_reference(#[case] input: &[u8], #[case] expected: TypedReference<NoOp>) {
+    fn noop_typed_reference(#[case] input: &[u8], #[case] expected: TypedReference<()>) {
         let (_, reference) = extract(input).unwrap();
         assert_eq!(expected, reference);
     }

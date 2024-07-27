@@ -6,17 +6,14 @@ pub use primitives::map::Map;
 
 mod utilities;
 pub use utilities::{
-    Angles, Brackets, DbgStr, DoubleAngles, HexBytes, LitBytes, MaybeArray, NoOp, OptRef,
-    Parentheses, RawDict,
+    Angles, Brackets, DbgStr, DoubleAngles, HexBytes, LitBytes, MaybeArray, OptRef, Parentheses,
 };
 
 pub mod pdf;
 pub use pdf::{Indirect, Name, Reference, TypedReference};
 
 pub mod extraction;
-pub use extraction::{Extract, FromDict, FromDictRef};
-
-pub use livre_derive::{Extract, FromDictRef};
+pub use extraction::Extract;
 
 pub mod encoding;
 
@@ -25,10 +22,6 @@ pub use nom::IResult;
 
 pub fn extract<'input, T: Extract<'input>>(input: &'input [u8]) -> IResult<&'input [u8], T> {
     T::extract(input)
-}
-
-pub fn from_dict_ref<'input, T: FromDictRef<'input>>(dict: &mut RawDict<'input>) -> Result<T> {
-    T::from_dict_ref(dict)
 }
 
 pub fn parse<'input, T: Extract<'input>>(input: &'input [u8]) -> Result<T> {
