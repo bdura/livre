@@ -15,9 +15,8 @@ pub struct Name(pub String);
 impl Extract<'_> for Name {
     fn extract(input: &'_ [u8]) -> IResult<&'_ [u8], Self> {
         let (input, _) = tag("/")(input)?;
-        let (input, value) = take_till(|b| {
-            is_space_or_newline(b) || b == b'/' || b == b'<' || b == b'[' || b == b'('
-        })(input)?;
+        let (input, value) =
+            take_till(|b| is_space_or_newline(b) || b"/<>[](".contains(&b))(input)?;
         let (d, lines) = many0(parse_string_with_escapes(b'#', escaped_char))(value)?;
         assert!(d.is_empty());
 

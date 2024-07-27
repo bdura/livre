@@ -253,7 +253,7 @@ dependencies = [
  "livre-utilities",
  "nom",
  "paste",
- "rstest 0.18.2",
+ "rstest 0.21.0",
  "serde",
  "thiserror",
 ]
@@ -299,10 +299,12 @@ name = "livre-serde"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "indoc",
  "livre-extraction",
  "livre-utilities",
  "nom",
  "paste",
+ "rstest 0.21.0",
  "serde",
  "thiserror",
 ]

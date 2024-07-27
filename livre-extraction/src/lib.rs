@@ -7,6 +7,7 @@ pub use primitives::map::Map;
 mod utilities;
 pub use utilities::{
     Angles, Brackets, DbgStr, DoubleAngles, HexBytes, LitBytes, MaybeArray, OptRef, Parentheses,
+    RawValue,
 };
 
 pub mod pdf;
