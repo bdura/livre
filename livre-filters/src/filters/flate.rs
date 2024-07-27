@@ -16,22 +16,3 @@ impl Filtering for FlateDecode {
         Ok(buf)
     }
 }
-
-// pub enum FlateDecodeConfig {
-//     Normal,
-//     Predictor(PredictorConfig),
-// }
-
-// pub struct PredictorConfig {
-//     colors: u8,
-//     bits_per_components: Bpc,
-//     columns: u8,
-// }
-
-// pub enum Bpc {
-//     Bpc1,
-//     Bpc2,
-//     Bpc4,
-//     Bpc8,
-//     Bpc16,
-// }
