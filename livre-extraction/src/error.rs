@@ -13,7 +13,10 @@ pub enum ExtractionError {
 }
 
 impl ExtractionError {
-    pub fn custom<T>(msg: T) -> Self where T: Display {
+    pub fn custom<T>(msg: T) -> Self
+    where
+        T: Display,
+    {
         Self::Unknown(msg.to_string())
     }
 }
