@@ -281,8 +281,10 @@ dependencies = [
  "indoc",
  "livre-data",
  "livre-extraction",
+ "livre-serde",
  "nom",
  "rstest 0.21.0",
+ "serde",
 ]
 
 [[package]]

@@ -1,8 +1,10 @@
-use livre_extraction::{FromDictRef, Name, TypedReference};
+use livre_extraction::TypedReference;
+use serde::Deserialize;
 
 use crate::descriptors::FontDescriptor;
 
-#[derive(Debug, PartialEq, FromDictRef)]
+#[derive(Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct Widths {
     /// The first character code defined in the font’s `widths` array
     pub first_char: usize,
@@ -17,11 +19,11 @@ pub struct Widths {
     pub width: Vec<f32>,
 }
 
-#[derive(Debug, PartialEq, FromDictRef)]
+#[derive(Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct Type1FontDict {
-    #[livre(from = Name)]
     pub base_font: String,
-    #[livre(flatten)]
+    #[serde(flatten)]
     pub widths: Widths,
     /// A font descriptor describing the font’s metrics other than its glyph widths
     pub font_descriptor: TypedReference<FontDescriptor>,

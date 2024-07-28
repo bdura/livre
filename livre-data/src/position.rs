@@ -1,4 +1,4 @@
-use livre_extraction::{extract, Extract};
+use livre_extraction::Extract;
 use livre_serde::extract_deserialize;
 use serde::Deserialize;
 
@@ -29,6 +29,7 @@ impl Position {
 
 #[cfg(test)]
 mod tests {
+    use livre_extraction::extract;
     use rstest::rstest;
 
     use super::*;
