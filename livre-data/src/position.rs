@@ -1,15 +1,23 @@
 use livre_extraction::{extract, Extract};
+use livre_serde::extract_deserialize;
+use serde::Deserialize;
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy, Deserialize)]
+#[serde(from = "(f32, f32)")]
 pub struct Position {
     pub x: f32,
     pub y: f32,
 }
 
+impl From<(f32, f32)> for Position {
+    fn from((x, y): (f32, f32)) -> Self {
+        Self { x, y }
+    }
+}
+
 impl Extract<'_> for Position {
     fn extract(input: &'_ [u8]) -> nom::IResult<&'_ [u8], Self> {
-        let (input, (x, y)) = extract(input)?;
-        Ok((input, Position { x, y }))
+        extract_deserialize(input)
     }
 }
 
