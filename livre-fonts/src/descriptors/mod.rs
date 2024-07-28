@@ -1,7 +1,8 @@
 use livre_data::Rectangle;
-use livre_extraction::{Extract, FromDictRef, Name};
+use serde::Deserialize;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Deserialize)]
+#[serde(from="u32")]
 pub struct FontFlags {
     /// All glyphs have the same width (as opposed to proportional or
     /// variable-pitch fonts, which have different widths).
@@ -35,9 +36,8 @@ pub struct FontFlags {
     pub force_bold: bool,
 }
 
-impl Extract<'_> for FontFlags {
-    fn extract(input: &'_ [u8]) -> nom::IResult<&'_ [u8], Self> {
-        let (input, num) = u32::extract(input)?;
+impl From<u32> for FontFlags {
+    fn from(num: u32) -> Self {
 
         let fixed_pitch = num & 1 == 1;
         let serif = num >> 1 & 1 == 1;
@@ -49,7 +49,7 @@ impl Extract<'_> for FontFlags {
         let small_cap = num >> 17 & 1 == 1;
         let force_bold = num >> 18 & 1 == 1;
 
-        let flags = Self {
+        Self {
             fixed_pitch,
             serif,
             symbolic,
@@ -59,36 +59,34 @@ impl Extract<'_> for FontFlags {
             all_cap,
             small_cap,
             force_bold,
-        };
-
-        Ok((input, flags))
+        }
     }
 }
 
-#[derive(FromDictRef, Debug, PartialEq, Clone, Extract)]
+#[derive(Debug, PartialEq, Clone, Deserialize)]
+#[serde(rename_all="PascalCase")]
 pub struct FontDescriptor {
-    #[livre(from = Name)]
     pub font_name: String,
     pub font_family: Option<String>,
-    pub font_stretch: Option<Name>,
+    pub font_stretch: Option<String>,
     pub font_weight: Option<u16>,
     pub flags: FontFlags,
-    #[livre(rename = "FontBBox")]
+    #[serde(rename = "FontBBox")]
     pub font_bbox: Rectangle,
     pub italic_angle: f32,
     pub ascent: f32,
     pub descent: f32,
-    #[livre(default)]
+    #[serde(default)]
     pub leading: f32,
     pub cap_height: f32,
     pub x_height: Option<f32>,
     pub stem_v: f32,
     pub stem_h: f32,
-    #[livre(default)]
+    #[serde(default)]
     pub avg_width: f32,
-    #[livre(default)]
+    #[serde(default)]
     pub max_width: f32,
-    #[livre(default)]
+    #[serde(default)]
     pub missing_width: f32,
     // font_file
     // font_file2
@@ -99,7 +97,8 @@ pub struct FontDescriptor {
 #[cfg(test)]
 mod tests {
     use indoc::indoc;
-    use livre_extraction::{extract, FromDict, RawDict};
+
+    use livre_serde::extract_deserialize;
     use rstest::rstest;
 
     use super::*;
@@ -128,7 +127,7 @@ mod tests {
     #[case(b"2", FontFlags::from_bytes_repr(b"010000000"))]
     #[case(b"4294967295", FontFlags::from_bytes_repr(b"111111111"))]
     fn font_flags(#[case] input: &[u8], #[case] expected: FontFlags) {
-        let (_, flags) = extract(input).unwrap();
+        let (_, flags) = extract_deserialize(input).unwrap();
         assert_eq!(expected, flags)
     }
 
@@ -173,8 +172,7 @@ mod tests {
         }
     )]
     fn font_descriptor(#[case] input: &[u8], #[case] expected: FontDescriptor) {
-        let (_, dict) = RawDict::extract(input).unwrap();
-        let fd = FontDescriptor::from_dict(dict).unwrap();
+        let (_, fd) = extract_deserialize(input).unwrap();
         assert_eq!(expected, fd);
     }
 }
