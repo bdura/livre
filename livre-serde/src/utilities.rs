@@ -22,7 +22,7 @@ impl<T> From<_MaybeArray<T>> for MaybeArray<T> {
     }
 }
 
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Deserialize, Clone)]
 #[serde(from = "_MaybeArray<T>")]
 pub struct MaybeArray<T>(pub Vec<T>);
 

@@ -120,8 +120,6 @@ impl<'de> Deserializer<'de> {
     fn parse_with_error<T: Extract<'de>>(&mut self, error: Error) -> Result<T> {
         self.remove_whitespace();
 
-        dbg!(String::from_utf8_lossy(self.input));
-
         let (input, result) = T::extract(self.input).map_err(|_| error)?;
         self.input = input;
         Ok(result)
@@ -156,7 +154,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             b't' | b'f' => self.deserialize_bool(visitor),
             b'(' | b'/' => self.deserialize_string(visitor),
             b'-' | b'+' | b'.' | b'0'..=b'9' => {
-                if let Ok((input, reference)) = recognize(Reference::extract)(self.input) {
+                if let Ok((input, reference)) = Reference::recognize(self.input) {
                     self.input = input;
                     visitor.visit_borrowed_bytes(reference)
                 } else if let Ok((input, float)) = parse_real(self.input) {
@@ -640,6 +638,8 @@ mod tests {
     #[case(b"-.42", -0.42f32)]
     #[case(b"(Test)", "Test".to_string())]
     #[case(b"/Test", "Test".to_string())]
+    #[case(b"<0>", HexBytes([0].to_vec()))]
+    #[case(b"<00>", HexBytes([0].to_vec()))]
     fn primitives<'de, T: Deserialize<'de> + PartialEq + Debug>(
         #[case] input: &'de [u8],
         #[case] expected: T,
@@ -667,6 +667,21 @@ mod tests {
         boolean: bool,
     }
 
+    #[derive(Deserialize, Debug, PartialEq)]
+    #[serde(rename_all = "PascalCase")]
+    struct NestedTest {
+        int: u32,
+        test: Test,
+    }
+
+    #[derive(Deserialize, Debug, PartialEq)]
+    #[serde(rename_all = "PascalCase")]
+    struct FlattenedTest {
+        root: u32,
+        #[serde(flatten)]
+        test: Test,
+    }
+
     #[rstest]
     #[case(b"<< /Int 42/Float 42/Boolean true /Unknown [/Test]  >>", Test{ int: 42, float: 42.0, boolean: true })]
     #[case(
@@ -679,7 +694,36 @@ mod tests {
                     /Test
                 ]
             >>\
-        "}, Test{ int: 42, float: 42.0, boolean: true })]
+        "},
+        Test{ int: 42, float: 42.0, boolean: true }
+    )]
+    #[case(
+        indoc!{b"
+            <<
+                /Int 42
+                /Test <<
+                /Int 42
+                /Float 42
+                /Boolean true
+                /Unknown [
+                    /Test
+                ]
+                >>
+            >>\
+        "},
+        NestedTest{int: 42, test: Test{ int: 42, float: 42.0, boolean: true }}
+    )]
+    #[case(
+        indoc!{b"
+            <<
+                /Root 42
+                /Int 42
+                /Float 42
+                /Boolean true
+            >>\
+        "},
+        FlattenedTest{root: 42, test: Test{ int: 42, float: 42.0, boolean: true }}
+    )]
     fn structs<'de, T: Deserialize<'de> + PartialEq + Debug>(
         #[case] input: &'de [u8],
         #[case] expected: T,

@@ -241,10 +241,12 @@ dependencies = [
  "livre-filters",
  "livre-fonts",
  "livre-objects",
+ "livre-serde",
  "livre-structure",
  "livre-utilities",
  "nom",
  "rstest 0.21.0",
+ "serde",
 ]
 
 [[package]]

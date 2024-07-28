@@ -111,7 +111,9 @@ where
     // SAFETY: we know for a fact that `digits` contains digits only,
     // and are therefore both utf-8-encoded and parsable.
     let num = unsafe { std::str::from_utf8_unchecked(number) };
-    let n = num.parse().unwrap();
+    let n = num.parse().map_err(|_| {
+        nom::Err::Error(nom::error::Error::from_error_kind(input, ErrorKind::Digit))
+    })?;
 
     Ok((input, n))
 }
@@ -184,6 +186,8 @@ mod tests {
     #[case(b"01", 1)]
     #[case(b"10", 16)]
     #[case(b"1", 16)] // For hex numbers, missing zeros are appended
+    #[case(b"B", 0xB0)] // For hex numbers, missing zeros are appended
+    #[case(b"b0", 0xB0)] // For hex numbers, missing zeros are appended
     fn hex(#[case] input: &[u8], #[case] result: u8) {
         let (_, n) = parse_hexadecimal_bigram(input).unwrap();
         assert_eq!(n, result);

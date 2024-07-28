@@ -12,7 +12,9 @@ livre-filters = { path = "../livre-filters" }
 livre-data = { path = "../livre-data" }
 livre-objects = { path = "../livre-objects" }
 livre-structure = { path = "../livre-structure" }
+livre-serde = { path = "../livre-serde" }
 
+serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
 indoc = "2.0.4"

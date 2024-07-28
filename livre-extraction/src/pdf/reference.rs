@@ -1,6 +1,13 @@
 use std::{fmt, marker::PhantomData};
 
-use nom::{bytes::complete::tag, sequence::tuple, IResult};
+use livre_utilities::take_whitespace1;
+use nom::{
+    bytes::complete::tag,
+    character::complete::{digit0, digit1},
+    combinator::recognize,
+    sequence::tuple,
+    IResult,
+};
 use serde::Deserialize;
 
 use crate::{extract, parse, Extract};
@@ -84,11 +91,21 @@ impl<T> TypedReference<T> {
 }
 
 impl Extract<'_> for Reference {
-    fn extract(input: &'_ [u8]) -> IResult<&'_ [u8], Self> {
+    fn extract(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, (object, _, generation, _)) =
             tuple((usize::extract, tag(" "), u16::extract, tag(" R")))(input)?;
 
         Ok((input, Self { object, generation }))
+    }
+
+    fn recognize(input: &[u8]) -> IResult<&[u8], &[u8]> {
+        recognize(tuple((
+            digit1,
+            take_whitespace1,
+            digit1,
+            take_whitespace1,
+            tag(b"R"),
+        )))(input)
     }
 }
 

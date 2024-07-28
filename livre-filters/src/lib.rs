@@ -33,9 +33,11 @@ pub enum Filter {
 impl<T: Filtering> Filtering for Vec<T> {
     fn decode(&self, bytes: &[u8]) -> Result<Vec<u8>> {
         let mut cow = Cow::Borrowed(bytes);
+        dbg!(String::from_utf8_lossy(&cow));
         for decoder in self {
             let result = decoder.decode(cow.as_ref())?;
             cow = Cow::Owned(result);
+            dbg!(String::from_utf8_lossy(&cow));
         }
         Ok(cow.into_owned())
     }
