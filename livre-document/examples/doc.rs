@@ -4,9 +4,11 @@ use std::{
 };
 
 use livre_document::Document;
-use livre_extraction::{extract, DbgStr, Extract, Name, NoOp};
+use livre_extraction::{extract, DbgStr, Extract};
 use livre_objects::{Reference, Stream};
+use livre_serde::extract_deserialize;
 use livre_structure::{Catalogue, PageElement, PageLeaf, PageNode};
+use serde::Deserialize;
 
 fn parse_page_kids(node: &PageNode, doc: &Document, input: &[u8]) -> Vec<PageLeaf> {
     let mut pages = Vec::new();
@@ -29,13 +31,18 @@ fn parse_page_kids(node: &PageNode, doc: &Document, input: &[u8]) -> Vec<PageLea
     pages
 }
 
-#[derive(Extract, Debug)]
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 struct Font {
-    #[livre(from = Name)]
     subtype: String,
-    #[livre(from = Name)]
     base_font: String,
     font_descriptor: Option<Reference>,
+}
+
+impl Extract<'_> for Font {
+    fn extract(input: &'_ [u8]) -> nom::IResult<&'_ [u8], Self> {
+        extract_deserialize(input)
+    }
 }
 
 fn get_decoded(input: &[u8], doc: &Document, reference: Reference) -> String {
@@ -115,13 +122,18 @@ fn main() {
 
     println!("F4 Widths:\n{font}");
 
-    let (_, stream) = Stream::<NoOp>::extract(
+    let (
+        _,
+        Stream {
+            decoded,
+            structured: (),
+        },
+    ) = extract(
         doc.get_referenced_bytes(Reference::new(183, 0), &input)
             .unwrap(),
     )
     .unwrap();
 
-    let decoded = stream.decode().unwrap();
     let (_, DbgStr(decoded)) = extract(&decoded).unwrap();
 
     println!("ToUnicode:\n{decoded}");

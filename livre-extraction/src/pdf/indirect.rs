@@ -1,12 +1,9 @@
 use livre_utilities::{take_whitespace, take_whitespace1};
-use nom::{
-    bytes::complete::{tag, take_until},
-    sequence::separated_pair,
-};
+use nom::bytes::complete::{tag, take_until};
 
-use crate::Extract;
+use crate::{extract, Extract};
 
-use super::Reference;
+use super::{reference, Reference};
 
 const ENDOBJ_TAG: &[u8] = b"endobj";
 
@@ -21,8 +18,9 @@ where
     T: Extract<'input>,
 {
     fn extract(input: &'input [u8]) -> nom::IResult<&'input [u8], Self> {
-        let (input, (object, generation)) =
-            separated_pair(usize::extract, tag(" "), u16::extract)(input)?;
+        let (input, (object, generation)) = extract(input)?;
+
+        let reference = Reference { object, generation };
 
         let (input, _) = take_whitespace1(input)?;
         let (input, _) = tag(b"obj")(input)?;
@@ -32,8 +30,6 @@ where
         let (input, _) = tag(b"endobj")(input)?;
 
         let (_, inner) = T::extract(raw)?;
-
-        let reference = Reference { object, generation };
 
         let indirect = Self { reference, inner };
 
