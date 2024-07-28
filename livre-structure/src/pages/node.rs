@@ -1,21 +1,31 @@
-use livre_extraction::{Extract, FromDictRef, Reference, TypedReference};
+use livre_extraction::{Extract, Reference, TypedReference};
+use livre_serde::extract_deserialize;
+use serde::Deserialize;
 
 use crate::PageElement;
 
 use super::props::PageProperties;
 
-#[derive(Debug, PartialEq, Clone, FromDictRef, Extract)]
+#[derive(Debug, PartialEq, Clone, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct PageNode {
     pub parent: Option<Reference>,
     pub kids: Vec<TypedReference<PageElement>>,
-    #[livre(flatten)]
+    #[serde(flatten)]
     pub props: PageProperties,
+}
+
+impl Extract<'_> for PageNode {
+    fn extract(input: &'_ [u8]) -> nom::IResult<&'_ [u8], Self> {
+        extract_deserialize(input)
+    }
 }
 
 #[cfg(test)]
 mod tests {
 
     use indoc::indoc;
+    use livre_serde::extract_deserialize;
 
     use super::*;
 
@@ -30,7 +40,7 @@ mod tests {
             >>
         "};
 
-        let (_, node) = PageNode::extract(input).unwrap();
+        let (_, node) = extract_deserialize::<PageNode>(input).unwrap();
         assert_eq!(
             node.kids,
             vec![

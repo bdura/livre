@@ -1,23 +1,29 @@
-use livre_extraction::{Extract, FromDictRef, MaybeArray, NoOp, Reference, TypedReference};
+use livre_extraction::{extract, Extract, Reference, TypedReference};
 use livre_objects::Stream;
+use livre_serde::MaybeArray;
+use serde::Deserialize;
 
-use super::{resources::Resources, PageProperties, Variant};
+use super::{resources::Resources, PageProperties};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct ContentStream(pub Vec<u8>);
 
 impl Extract<'_> for ContentStream {
     fn extract(input: &'_ [u8]) -> nom::IResult<&'_ [u8], Self> {
-        let (_, stream) = Stream::<'_, NoOp>::extract(input)?;
-        let decoded = stream.decode().unwrap().into();
-        Ok((input, Self(decoded)))
+        let (
+            _,
+            Stream {
+                decoded,
+                structured: (),
+            },
+        ) = extract(input)?;
+        Ok((input, Self(decoded.0)))
     }
 }
 
-#[derive(Debug, PartialEq, Clone, FromDictRef, Extract)]
+#[derive(Debug, PartialEq, Clone, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct PageLeaf {
-    #[livre(rename = "Type")]
-    pub variant: Variant,
     pub parent: Reference,
     // #[livre(rename = "LastModified")]
     // pub last_modified: DateTime
@@ -27,9 +33,9 @@ pub struct PageLeaf {
     // pub trim_box: Option<Rectangle>,
     // pub art_box: Option<Rectangle>,
     // pub box_color_info
-    #[livre(flatten)]
+    #[serde(flatten)]
     pub props: PageProperties,
-    #[livre(default)]
+    #[serde(default)]
     pub contents: MaybeArray<TypedReference<ContentStream>>,
     // pub rotate: Option<u8>,
     // pub group: Option<...>
@@ -46,6 +52,8 @@ pub struct PageLeaf {
 mod tests {
 
     use indoc::indoc;
+    use livre_objects::Bytes;
+    use livre_serde::extract_deserialize;
     use rstest::rstest;
 
     use super::*;
@@ -112,8 +120,10 @@ mod tests {
         "},
         Reference::new(2, 0)
     )]
-    fn page(#[case] input: &[u8], #[case] parent: Reference) {
-        let (_, page) = PageLeaf::extract(input).unwrap();
-        assert_eq!(page.parent, parent);
+    fn page(#[case] input: &[u8], #[case] expected: Reference) {
+        let (_, PageLeaf { parent, .. }) = extract_deserialize(input)
+            .map_err(|e| e.map_input(Bytes::from))
+            .unwrap();
+        assert_eq!(expected, parent);
     }
 }

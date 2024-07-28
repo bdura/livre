@@ -14,7 +14,13 @@ pub fn extract_deserialize<'de, T>(input: &'de [u8]) -> IResult<&'de [u8], T>
 where
     T: Deserialize<'de>,
 {
-    from_bytes_prefix(input).map_err(|_| {
+    let res = from_bytes_prefix(input);
+
+    if let Err(err) = &res {
+        eprintln!("ERROR: {}", err);
+    }
+
+    res.map_err(|_| {
         nom::Err::Error(nom::error::Error::from_error_kind(
             input,
             nom::error::ErrorKind::Fail,

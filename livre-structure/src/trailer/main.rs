@@ -44,6 +44,7 @@ pub fn parse_stream(input: &[u8]) -> IResult<&[u8], Trailer> {
 mod tests {
     use indoc::indoc;
     use livre_extraction::TypedReference;
+    use livre_objects::Bytes;
 
     use super::*;
 
@@ -75,7 +76,9 @@ mod tests {
     fn xref_stream_trailer() {
         let input = include_bytes!("../../../tests/objects/trailer_xref_stream.bin");
 
-        let (_, direct) = parse_stream(input).unwrap();
+        let (_, direct) = parse_stream(input)
+            .map_err(|e| e.map_input(Bytes::from))
+            .unwrap();
         let (_, trailer) = Trailer::extract(input).unwrap();
 
         assert_eq!(direct, trailer);

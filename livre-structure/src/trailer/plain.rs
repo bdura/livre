@@ -1,4 +1,5 @@
-use livre_extraction::{extract, Extract};
+use livre_extraction::Extract;
+use livre_serde::extract_deserialize;
 use livre_utilities::take_whitespace1;
 use nom::{bytes::complete::tag, IResult};
 
@@ -11,7 +12,7 @@ impl Extract<'_> for PlainTrailer {
     fn extract(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, _) = tag(b"trailer")(input)?;
         let (input, _) = take_whitespace1(input)?;
-        let (input, dict) = extract(input)?;
+        let (input, dict) = extract_deserialize(input)?;
         let (input, _) = take_whitespace1(input)?;
 
         Ok((input, Self(dict)))

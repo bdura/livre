@@ -1,7 +1,8 @@
 use livre_data::Rectangle;
-use livre_extraction::{Extract, FromDictRef};
+use serde::Deserialize;
 
-#[derive(Debug, PartialEq, Clone, FromDictRef, Extract)]
+#[derive(Debug, PartialEq, Clone, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct PageProperties {
     // pub resource: Option<>
     /// A rectangle expressed in default user space units,
@@ -37,7 +38,7 @@ impl PageProperties {
 mod tests {
 
     use indoc::indoc;
-    use livre_extraction::RawDict;
+    use livre_serde::extract_deserialize;
     use rstest::rstest;
 
     use super::*;
@@ -105,9 +106,7 @@ mod tests {
         Rectangle::from_ll_ur(0.0, 0.0, 595.32, 841.92)
     )]
     fn page(#[case] input: &[u8], #[case] expected: Rectangle) {
-        let (_, mut raw_dict) = RawDict::extract(input).unwrap();
-        let (_, props) = PageProperties::extract(input).unwrap();
-        assert_eq!(props, PageProperties::from_dict_ref(&mut raw_dict).unwrap());
-        assert_eq!(props.media_box, Some(expected));
+        let (_, PageProperties { media_box, .. }) = extract_deserialize(input).unwrap();
+        assert_eq!(media_box, Some(expected));
     }
 }

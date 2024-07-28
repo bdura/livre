@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use livre_extraction::{Extract, FromDictRef};
+use livre_extraction::Extract;
 use livre_utilities::{space, take_whitespace};
 use nom::{
     multi::count,
@@ -8,8 +8,10 @@ use nom::{
 };
 
 use livre_objects::Stream;
+use serde::Deserialize;
 
-#[derive(FromDictRef)]
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 struct ObjectStreamConfig {
     n: usize,
     first: usize,
@@ -23,14 +25,13 @@ pub struct ObjectStream {
 
 impl<'input> Extract<'input> for ObjectStream {
     fn extract(input: &'input [u8]) -> nom::IResult<&'input [u8], Self> {
-        let (input, stream) = Stream::<'input, ObjectStreamConfig>::extract(input)?;
-
-        let decoded = stream.decode().unwrap();
-
-        let Stream {
-            structured: ObjectStreamConfig { n, first },
-            ..
-        } = stream;
+        let (
+            input,
+            Stream {
+                decoded,
+                structured: ObjectStreamConfig { n, first },
+            },
+        ) = Stream::<ObjectStreamConfig>::extract(input)?;
 
         let (_, refs) = count(
             tuple((
