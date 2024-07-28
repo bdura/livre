@@ -154,7 +154,6 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             b't' | b'f' => self.deserialize_bool(visitor),
             b'(' | b'/' => self.deserialize_string(visitor),
             b'-' | b'+' | b'.' | b'0'..=b'9' => {
-                dbg!(String::from_utf8_lossy(self.input));
                 if let Ok((input, reference)) = recognize(Reference::extract)(self.input) {
                     self.input = input;
                     visitor.visit_borrowed_bytes(reference)

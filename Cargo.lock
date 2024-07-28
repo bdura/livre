@@ -294,6 +294,7 @@ dependencies = [
  "livre-serde",
  "livre-utilities",
  "nom",
+ "paste",
  "rstest 0.21.0",
  "serde",
  "thiserror",

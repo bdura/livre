@@ -25,6 +25,6 @@ pub fn extract<'input, T: Extract<'input>>(input: &'input [u8]) -> IResult<&'inp
 }
 
 pub fn parse<'input, T: Extract<'input>>(input: &'input [u8]) -> Result<T> {
-    let (_, obj) = T::extract(input).map_err(|_| ExtractionError::Unknown)?;
+    let (_, obj) = T::extract(input).map_err(ExtractionError::custom)?;
     Ok(obj)
 }
