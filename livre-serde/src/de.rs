@@ -120,6 +120,8 @@ impl<'de> Deserializer<'de> {
     fn parse_with_error<T: Extract<'de>>(&mut self, error: Error) -> Result<T> {
         self.remove_whitespace();
 
+        dbg!(String::from_utf8_lossy(self.input));
+
         let (input, result) = T::extract(self.input).map_err(|_| error)?;
         self.input = input;
         Ok(result)
@@ -318,7 +320,11 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        visitor.visit_seq(TupleAccessor::new(self, len))
+        if self.peek()? == b'[' {
+            self.deserialize_seq(visitor)
+        } else {
+            visitor.visit_seq(TupleAccessor::new(self, len))
+        }
     }
 
     // Tuple structs look just like sequences in PDFs.
@@ -643,6 +649,7 @@ mod tests {
 
     #[rstest]
     #[case(b"[1 2   4]", vec![1, 2, 4])]
+    #[case(b"[1 2   4]", [1, 2, 4])]
     #[case(b"[ 1]", vec![1])]
     #[case(b"<< /Test 1>>", vec![("Test".to_string(), 1)].into_iter().collect::<HashMap<String, i32>>())]
     fn containers<'de, T: Deserialize<'de> + PartialEq + Debug>(

@@ -1,23 +1,28 @@
-use livre_extraction::{extract, Extract};
+use livre_extraction::Extract;
+use livre_serde::extract_deserialize;
+use serde::Deserialize;
 
 use crate::Position;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Deserialize)]
+#[serde(from = "[Position;2]")]
 pub struct Rectangle {
     pub lower_left: Position,
     pub upper_right: Position,
 }
 
+impl From<[Position; 2]> for Rectangle {
+    fn from([lower_left, upper_right]: [Position; 2]) -> Self {
+        Self {
+            lower_left,
+            upper_right,
+        }
+    }
+}
+
 impl Extract<'_> for Rectangle {
     fn extract(input: &'_ [u8]) -> nom::IResult<&'_ [u8], Self> {
-        let (input, [lower_left, upper_right]) = extract(input)?;
-        Ok((
-            input,
-            Self {
-                lower_left,
-                upper_right,
-            },
-        ))
+        extract_deserialize(input)
     }
 }
 
@@ -34,6 +39,7 @@ impl Rectangle {
 
 #[cfg(test)]
 mod tests {
+    use livre_serde::from_bytes;
     use rstest::rstest;
 
     use super::*;
@@ -42,7 +48,8 @@ mod tests {
     #[case(b"[ 0 0 10 10]", Rectangle::from_ll_ur(0.0, 0.0, 10.0, 10.0))]
     #[case(b"[ -3 2 10 10.5]", Rectangle::from_ll_ur(-3.0, 2.0, 10.0, 10.5))]
     fn rectangle(#[case] input: &[u8], #[case] expected: Rectangle) {
-        let (_, rectangle) = extract(input).unwrap();
-        assert_eq!(expected, rectangle);
+        assert_eq!(expected, from_bytes(input).unwrap());
+        // let (_, rectangle) = extract(input).unwrap();
+        // assert_eq!(expected, rectangle);
     }
 }

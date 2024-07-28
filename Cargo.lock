@@ -215,9 +215,11 @@ name = "livre-data"
 version = "0.1.0"
 dependencies = [
  "livre-extraction",
+ "livre-serde",
  "livre-utilities",
  "nom",
- "rstest 0.18.2",
+ "rstest 0.21.0",
+ "serde",
 ]
 
 [[package]]
@@ -324,9 +326,11 @@ dependencies = [
  "livre-extraction",
  "livre-filters",
  "livre-objects",
+ "livre-serde",
  "livre-utilities",
  "nom",
- "rstest 0.18.2",
+ "rstest 0.21.0",
+ "serde",
 ]
 
 [[package]]

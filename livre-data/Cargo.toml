@@ -8,6 +8,9 @@ nom = "7"
 
 livre-extraction = { path = "../livre-extraction" }
 livre-utilities = { path = "../livre-utilities" }
+livre-serde = { path = "../livre-serde" }
+
+serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
-rstest = "0.18.2"
+rstest = "0.21"
