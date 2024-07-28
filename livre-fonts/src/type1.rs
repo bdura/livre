@@ -16,7 +16,7 @@ pub struct Widths {
     /// `missing_width` from the FontDescriptor entry for this font shall be used. The
     /// glyph widths shall be measured in units in which 1000 units correspond to 1 unit
     /// in text space.
-    pub width: Vec<f32>,
+    pub widths: Vec<f32>,
 }
 
 #[derive(Debug, PartialEq, Deserialize)]
