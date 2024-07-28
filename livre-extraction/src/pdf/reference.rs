@@ -2,10 +2,7 @@ use std::{fmt, marker::PhantomData};
 
 use livre_utilities::take_whitespace1;
 use nom::{
-    bytes::complete::tag,
-    character::complete::{digit0, digit1},
-    combinator::recognize,
-    sequence::tuple,
+    bytes::complete::tag, character::complete::digit1, combinator::recognize, sequence::tuple,
     IResult,
 };
 use serde::Deserialize;

@@ -1,38 +1,28 @@
-use livre_extraction::{parse, Extract, FromDict, RawDict};
-use livre_objects::Name;
+use livre_extraction::Extract;
+use livre_serde::extract_deserialize;
+use serde::Deserialize;
 
 use crate::{PageLeaf, PageNode};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Deserialize)]
+#[serde(tag = "Type")]
 pub enum PageElement {
-    Node(PageNode),
-    Leaf(PageLeaf),
-}
-
-impl Extract<'_> for PageElement {
-    fn extract(input: &'_ [u8]) -> nom::IResult<&'_ [u8], Self> {
-        let (input, dict) = RawDict::extract(input)?;
-
-        let Name(variant) = parse(dict.get("Type").unwrap().0).unwrap();
-
-        let element = if variant == "Pages" {
-            let node = PageNode::from_dict(dict).unwrap();
-            PageElement::Node(node)
-        } else {
-            let leaf = PageLeaf::from_dict(dict).unwrap();
-            PageElement::Leaf(leaf)
-        };
-
-        Ok((input, element))
-    }
+    Pages(PageNode),
+    Page(PageLeaf),
 }
 
 impl PageElement {
     pub fn is_node(&self) -> bool {
-        matches!(self, PageElement::Node(_))
+        matches!(self, PageElement::Pages(_))
     }
     pub fn is_leaf(&self) -> bool {
-        matches!(self, PageElement::Leaf(_))
+        matches!(self, PageElement::Page(_))
+    }
+}
+
+impl Extract<'_> for PageElement {
+    fn extract(input: &'_ [u8]) -> nom::IResult<&'_ [u8], Self> {
+        extract_deserialize(input)
     }
 }
 
@@ -40,6 +30,8 @@ impl PageElement {
 mod tests {
 
     use indoc::indoc;
+    use livre_objects::Bytes;
+    use livre_serde::extract_deserialize;
     use rstest::rstest;
 
     use super::*;
@@ -78,7 +70,9 @@ mod tests {
         false
     )]
     fn page(#[case] input: &[u8], #[case] is_leaf: bool) {
-        let (_, page) = PageElement::extract(input).unwrap();
+        let (_, page) = extract_deserialize::<PageElement>(input)
+            .map_err(|e| e.map_input(Bytes::from))
+            .unwrap();
         assert_eq!(page.is_leaf(), is_leaf);
     }
 }

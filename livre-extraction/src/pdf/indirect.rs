@@ -3,7 +3,7 @@ use nom::bytes::complete::{tag, take_until};
 
 use crate::{extract, Extract};
 
-use super::{reference, Reference};
+use super::Reference;
 
 const ENDOBJ_TAG: &[u8] = b"endobj";
 

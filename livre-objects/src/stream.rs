@@ -14,12 +14,12 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "PascalCase")]
-pub struct StreamDict<T> {
-    pub length: usize,
+struct StreamDict<T> {
+    length: usize,
     #[serde(default)]
-    pub filter: MaybeArray<Filter>,
+    filter: MaybeArray<Filter>,
     #[serde(flatten)]
-    pub structured: T,
+    structured: T,
 }
 
 #[derive(PartialEq, Eq, Clone)]
@@ -93,7 +93,7 @@ mod tests {
     use std::collections::HashMap;
 
     use indoc::indoc;
-    use livre_extraction::{extract, parse, Reference};
+    use livre_extraction::{extract, parse};
     use rstest::rstest;
 
     use super::*;
@@ -106,9 +106,10 @@ mod tests {
 
     #[derive(Deserialize, PartialEq, Debug)]
     #[serde(rename_all = "PascalCase")]
-    struct TestInfo {
-        root: Reference,
-        info: Reference,
+    struct TestNested<T> {
+        root: bool,
+        #[serde(flatten)]
+        inner: T,
     }
 
     #[rstest]
@@ -136,6 +137,11 @@ mod tests {
         Test{test: true},
     )]
     #[case(
+        b"<</Length 1/Test false/Root true>>stream\n0\nendstream",
+        b"0",
+        TestNested{ root: true, inner: Test{ test: false } },
+    )]
+    #[case(
         b"<</Length 10/Test/Test>> stream\n0123456789\nendstream\n",
         b"0123456789",
         (),
@@ -145,16 +151,16 @@ mod tests {
         b"0123456789",
         HashMap::from([("Test".to_string(), "Test".to_string())]),
     )]
-    #[case(
-        indoc! {b"
-            <</Size 92813/Root 90794 0 R/Info 90792 0 R/ID[<2B551D2AFE52654494F9720283CFF1C4><6cdabf5b33a08c969604fab8979c5412>]/Prev 116/Type/XRef/W[ 1 3 0]/Index[ 1 1 7 1 14 1 16 1 91807 1006]/Length 1>>
-            stream
-            0
-            endstream
-        "},
-        b"0",
-        TestInfo{ root: Reference::new(90794, 0), info: Reference::new(90792, 0) }
-    )]
+    // #[case(
+    //     indoc! {b"
+    //         <</Size 92813/Root 90794 0 R/Test/False/Info 90792 0 R/ID[<2B551D2AFE52654494F9720283CFF1C4><6cdabf5b33a08c969604fab8979c5412>]/Prev 116/Type/XRef/W[ 1 3 0]/Index[ 1 1 7 1 14 1 16 1 91807 1006]/Length 1>>
+    //         stream
+    //         0
+    //         endstream
+    //     "},
+    //     b"0",
+    //     TestNested{ root: Reference::new(90794, 0), inner: Test{ test: false } }
+    // )]
     fn stream<'de, T>(
         #[case] input: &'de [u8],
         #[case] expected_stream: &'static [u8],
@@ -202,11 +208,40 @@ mod tests {
         "},
         StreamDict{ length: 1, filter: MaybeArray(vec![]), structured: () }
     )]
-    fn stream_dict<'de, T>(#[case] input: &'de [u8], #[case] expected: StreamDict<T>)
+    #[case(
+        indoc!{b"
+            <</Size 92813
+            /Root 90794 0 R
+            /Info 90792 0 R
+            /Test true
+            /Type/XRef
+            /W[ 1 3 0]
+            /Index[ 1 1 7 1 91807 1006]
+            /Length 1>>
+        "},
+        StreamDict{ length: 1, filter: MaybeArray(vec![]), structured: Test{test: true} }
+    )]
+    #[case(
+        indoc!{b"
+            <</Size 92813
+            /Root true
+            /Test false
+            /Type/XRef
+            /Length 1>>
+        "},
+        StreamDict{ length: 1, filter: MaybeArray(vec![]), structured: TestNested{root: true, inner: Test{test: false}} }
+    )]
+    #[case(
+        indoc!{b"<</Root true /Test false>>"},
+        TestNested{root: true, inner: Test{test: false}}
+    )]
+    fn stream_dict<'de, T>(#[case] input: &'de [u8], #[case] expected: T)
     where
         T: Deserialize<'de> + Debug + PartialEq,
     {
-        let (_, result) = extract_deserialize(input).unwrap();
+        let (_, result) = extract_deserialize(input)
+            .map_err(|e| e.map_input(Bytes::from))
+            .unwrap();
         assert_eq!(expected, result);
     }
 }

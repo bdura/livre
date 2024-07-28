@@ -1,7 +1,7 @@
-use livre_extraction::{Extract, FromDictRef};
-use livre_objects::Name;
+use serde::Deserialize;
 
-#[derive(Debug, Clone, PartialEq, FromDictRef, Extract)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct Info {
     pub title: Option<String>,
     pub author: Option<String>,
@@ -11,5 +11,5 @@ pub struct Info {
     pub producer: Option<String>,
     // pub creation_date: Option<String>,
     // pub mod_date: Option<String>,
-    pub trapped: Option<Name>,
+    pub trapped: Option<String>,
 }

@@ -1,7 +1,7 @@
-use livre_extraction::{Extract, FromDictRef};
-use livre_objects::Name;
+use serde::Deserialize;
 
-#[derive(Extract, FromDictRef)]
+#[derive(Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct FontDict {
-    pub sub_type: Name,
+    pub sub_type: String,
 }

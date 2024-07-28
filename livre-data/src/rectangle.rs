@@ -5,7 +5,7 @@ use serde::Deserialize;
 use crate::Position;
 
 #[derive(Debug, PartialEq, Clone, Deserialize)]
-#[serde(from = "[Position;2]")]
+#[serde(from = "[f32;4]")]
 pub struct Rectangle {
     pub lower_left: Position,
     pub upper_right: Position,
@@ -17,6 +17,12 @@ impl From<[Position; 2]> for Rectangle {
             lower_left,
             upper_right,
         }
+    }
+}
+
+impl From<[f32; 4]> for Rectangle {
+    fn from([llx, lly, urx, ury]: [f32; 4]) -> Self {
+        Self::from_ll_ur(llx, lly, urx, ury)
     }
 }
 

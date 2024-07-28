@@ -1,18 +1,28 @@
-use livre_extraction::{Extract, FromDictRef, TypedReference};
+use livre_extraction::{Extract, TypedReference};
+use livre_serde::extract_deserialize;
+use serde::Deserialize;
 
 use crate::PageNode;
 
-#[derive(Debug, PartialEq, FromDictRef, Extract, Clone)]
+#[derive(Debug, PartialEq, Deserialize, Clone)]
+#[serde(rename_all = "PascalCase")]
 pub struct Catalogue {
     // pub version: Option<Name>,
     // pub extensions
     pub pages: TypedReference<PageNode>,
 }
 
+impl Extract<'_> for Catalogue {
+    fn extract(input: &'_ [u8]) -> nom::IResult<&'_ [u8], Self> {
+        extract_deserialize(input)
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
     use indoc::indoc;
+    use livre_serde::extract_deserialize;
 
     use super::*;
 
@@ -26,7 +36,7 @@ mod tests {
             >>
         "};
 
-        let (_, catalogue) = Catalogue::extract(input).unwrap();
-        assert_eq!(catalogue.pages, TypedReference::new(2, 0));
+        let (_, Catalogue { pages }) = extract_deserialize(input).unwrap();
+        assert_eq!(pages, TypedReference::new(2, 0));
     }
 }

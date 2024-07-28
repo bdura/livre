@@ -17,11 +17,11 @@ fn parse_page_kids(node: &PageNode, doc: &Document, input: &[u8]) -> Vec<PageLea
         let element = doc.parse_referenced(kid, input);
 
         match element {
-            PageElement::Leaf(mut page) => {
+            PageElement::Page(mut page) => {
                 page.props.merge_with_parent(&node.props);
                 pages.push(page)
             }
-            PageElement::Node(mut new_node) => {
+            PageElement::Pages(mut new_node) => {
                 new_node.props.merge_with_parent(&node.props);
                 pages.extend(parse_page_kids(&new_node, doc, input))
             }

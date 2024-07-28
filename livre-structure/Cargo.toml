@@ -11,8 +11,13 @@ livre-utilities = { path = "../livre-utilities" }
 livre-filters = { path = "../livre-filters" }
 livre-data = { path = "../livre-data" }
 livre-objects = { path = "../livre-objects" }
+livre-serde = { path = "../livre-serde" }
+
+serde = { version = "1", features = ["derive"] }
+
+itertools = "0.13"
 
 
 [dev-dependencies]
-indoc = "2.0.4"
-rstest = "0.18.2"
+indoc = "2"
+rstest = "0.21"

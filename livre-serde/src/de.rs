@@ -60,6 +60,7 @@ where
 {
     let mut deserializer = Deserializer::from_bytes(s);
     let t = T::deserialize(&mut deserializer)?;
+    deserializer.remove_whitespace();
     if deserializer.input.is_empty() {
         Ok(t)
     } else {
@@ -669,6 +670,12 @@ mod tests {
 
     #[derive(Deserialize, Debug, PartialEq)]
     #[serde(rename_all = "PascalCase")]
+    struct Test2 {
+        b1: bool,
+    }
+
+    #[derive(Deserialize, Debug, PartialEq)]
+    #[serde(rename_all = "PascalCase")]
     struct NestedTest {
         int: u32,
         test: Test,
@@ -680,6 +687,16 @@ mod tests {
         root: u32,
         #[serde(flatten)]
         test: Test,
+    }
+
+    #[derive(Deserialize, Debug, PartialEq)]
+    #[serde(rename_all = "PascalCase")]
+    struct DoubleFlattenedTest {
+        root1: u32,
+        #[serde(flatten)]
+        test: FlattenedTest,
+        #[serde(flatten)]
+        test2: Test2,
     }
 
     #[rstest]
@@ -723,6 +740,19 @@ mod tests {
             >>\
         "},
         FlattenedTest{root: 42, test: Test{ int: 42, float: 42.0, boolean: true }}
+    )]
+    #[case(
+        indoc!{b"
+            <<
+                /Root1 18
+                /Root 42
+                /Int 42
+                /Float 42
+                /Boolean true
+                /B1 false
+            >>
+        "},
+        DoubleFlattenedTest{root1: 18, test: FlattenedTest{root: 42, test: Test{ int: 42, float: 42.0, boolean: true }}, test2: Test2{b1: false}}
     )]
     fn structs<'de, T: Deserialize<'de> + PartialEq + Debug>(
         #[case] input: &'de [u8],
