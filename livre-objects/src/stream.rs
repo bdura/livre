@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, ops::Deref};
 
 use livre_extraction::Extract;
 use livre_filters::{Filter, Filtering};
@@ -39,6 +39,14 @@ impl Debug for Bytes {
         f.debug_tuple("Bytes")
             .field(&String::from_utf8_lossy(&self.0))
             .finish()
+    }
+}
+
+impl Deref for Bytes {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
