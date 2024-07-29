@@ -9,3 +9,5 @@ mod data;
 mod objects;
 
 mod structure;
+
+mod text;

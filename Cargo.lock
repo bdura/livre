@@ -233,6 +233,7 @@ dependencies = [
  "flate2",
  "indoc",
  "itertools",
+ "nalgebra",
  "nom",
  "paste",
  "rstest 0.21.0",
