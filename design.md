@@ -20,7 +20,7 @@ Pros:
 Cons:
 
 - we may lose some type information that's only available if done "in order"
-- may become extremely memory-intensive
+- may become too memory-intensive
 
 Middle-ground: we parse object streams all at once. The rest is on-demand, and memoized.
 
