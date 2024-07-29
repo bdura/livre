@@ -1,15 +1,23 @@
-[workspace]
-resolver = "2"
-members = [
-    "livre-utilities",
-    "livre-filters",
-    "livre-extraction",
-    "livre-derive",
-    "livre-objects",
-    "livre-data",
-    "livre-structure",
-    "livre-document",
-    "livre-text",
-    "livre-fonts",
-    "livre-serde", "livre",
-]
+[package]
+name = "livre"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+nom = "7"
+serde = { version = "1", features = ["derive"] }
+
+flate2 = "1"
+
+enum_dispatch = "0.3"
+itertools = "0.13"
+
+thiserror = "1"
+
+paste = "1"
+
+nalgebra = "0.33"
+
+[dev-dependencies]
+rstest = "0.21"
+indoc = "2"
