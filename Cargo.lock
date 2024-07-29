@@ -226,6 +226,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "livre"
+version = "0.1.0"
+dependencies = [
+ "enum_dispatch",
+ "flate2",
+ "indoc",
+ "nom",
+ "paste",
+ "rstest 0.21.0",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "livre-data"
 version = "0.1.0"
 dependencies = [
