@@ -7,3 +7,5 @@ mod filters;
 mod data;
 
 mod objects;
+
+mod structure;
