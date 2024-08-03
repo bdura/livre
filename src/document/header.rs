@@ -1,6 +1,6 @@
 use nom::{bytes::complete::tag, IResult};
 
-use crate::parsers::{parse_comment, take_whitespace};
+use crate::parsers::{parse_comment, take_whitespace, Extract};
 
 /// Possible PDF versions.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -16,8 +16,8 @@ pub enum Version {
     Pdf20,
 }
 
-impl Version {
-    pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
+impl Extract<'_> for Version {
+    fn extract(input: &[u8]) -> IResult<&[u8], Self> {
         let (input, comment) = parse_comment(input)?;
 
         let (comment, _) = tag("PDF-")(comment)?;
@@ -46,9 +46,9 @@ pub struct Header {
     pub binary: bool,
 }
 
-impl Header {
-    pub fn parse(input: &[u8]) -> IResult<&[u8], Self> {
-        let (input, version) = Version::parse(input)?;
+impl Extract<'_> for Header {
+    fn extract(input: &[u8]) -> IResult<&[u8], Self> {
+        let (input, version) = Version::extract(input)?;
         let (input, _) = take_whitespace(input)?;
 
         if let Ok((input, comment)) = parse_comment(input) {
@@ -79,14 +79,14 @@ mod tests {
     #[case(b"%PDF-1.7\n", Version::Pdf17)]
     #[case(b"%PDF-2.0\n", Version::Pdf20)]
     fn version(#[case] input: &[u8], #[case] expected: Version) {
-        let (_, version) = Version::parse(input).unwrap();
+        let (_, version) = Version::extract(input).unwrap();
         assert_eq!(version, expected);
     }
 
     #[test]
     fn header_from_pdf() {
         let pdf_bytes = include_bytes!("../../tests/text.pdf");
-        let (_, header) = Header::parse(pdf_bytes).unwrap();
+        let (_, header) = Header::extract(pdf_bytes).unwrap();
         assert_eq!(
             header,
             Header {

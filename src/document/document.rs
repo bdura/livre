@@ -64,7 +64,7 @@ fn find_refs(input: &[u8], prev: usize) -> IResult<&[u8], (TrailerDict, XRefVec)
 
 impl<'input> Extract<'input> for Document {
     fn extract(input: &'input [u8]) -> IResult<&'input [u8], Self> {
-        let (_, header) = Header::parse(input)?;
+        let (_, header) = Header::extract(input)?;
 
         // Find last trailer
         let (_, StartXRef(startxref)) = StartXRef::find(&input[(input.len() - 50)..])?;
