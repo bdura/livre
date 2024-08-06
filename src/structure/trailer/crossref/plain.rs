@@ -1,5 +1,5 @@
-use crate::parsers::{Extract, Reference};
 use crate::parsers::{space, take_whitespace, take_whitespace1};
+use crate::parsers::{Extract, Reference};
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -50,14 +50,21 @@ impl CrossRef {
     /// Converts a [`CrossRef`] into a ([`Reference`], [`RefLocation`]) tuple.
     ///
     /// This is the first step towards building a [`Trailer`](crate::trailer::Trailer).
-    fn into_xref_entry(self, object: usize) -> (Reference, RefLocation) {
+    ///
+    /// NB: removes unused references.
+    fn into_xref_entry(self, object: usize) -> Option<(Reference, RefLocation)> {
         let Self {
-            offset, generation, ..
+            offset,
+            generation,
+            used,
         } = self;
 
-        let reference = Reference::new(object, generation);
-
-        (reference, RefLocation::Uncompressed(offset))
+        if !used {
+            None
+        } else {
+            let reference = Reference::new(object, generation);
+            Some((reference, RefLocation::Uncompressed(offset)))
+        }
     }
 }
 
@@ -73,7 +80,7 @@ fn parse_xref_section(input: &[u8]) -> IResult<&[u8], Vec<(Reference, RefLocatio
     let res = refs
         .into_iter()
         .enumerate()
-        .map(|(i, r)| r.into_xref_entry(start + i))
+        .flat_map(|(i, r)| r.into_xref_entry(start + i))
         .collect();
 
     Ok((input, res))
@@ -140,10 +147,9 @@ mod tests {
         let (input, PlainCrossRefs(refs)) = PlainCrossRefs::extract(input).unwrap();
 
         assert!(input.is_empty());
-        assert_eq!(refs.len(), 5);
+        assert_eq!(refs.len(), 4);
 
         let expected = vec![
-            (Reference::new(0, 65535), RefLocation::Uncompressed(0)),
             (Reference::new(3, 0), RefLocation::Uncompressed(25325)),
             (Reference::new(23, 2), RefLocation::Uncompressed(25518)),
             (Reference::new(24, 0), RefLocation::Uncompressed(25635)),
