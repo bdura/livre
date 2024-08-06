@@ -4,7 +4,7 @@ use serde::Deserialize;
 
 use super::Position;
 
-#[derive(Debug, PartialEq, Clone, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Copy, Deserialize)]
 #[serde(from = "[f32;4]")]
 pub struct Rectangle {
     pub lower_left: Position,

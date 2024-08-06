@@ -1,32 +1,49 @@
 use crate::data::Rectangle;
 use serde::Deserialize;
 
+use super::resources::Resources;
+
+/// Inheritable page properties. All values shall be inherited as-is,
+/// without merging.
+///
+/// Thus for instance the [Resources] dictionary for a page shall be
+/// found by searching the [PageLeaf](super::PageLeaf) object and then
+/// each [PageNode](super::PageNode) object encountered by following
+/// `Parent`` links up the pages tree from the Page towards the Catalog object.
+/// When the first Resources dictionary is found the search shall be stopped
+/// and that Resources dictionary shall be used in its entirety.
 #[derive(Debug, PartialEq, Clone, Deserialize)]
 #[serde(rename_all = "PascalCase")]
-pub struct PageProperties {
-    // pub resource: Option<>
+pub struct InheritablePageProperties {
+    /// A dictionary containing any resources required
+    /// by the page contents
+    #[serde(default)]
+    pub resources: Option<Resources>,
     /// A rectangle expressed in default user space units,
     /// that shall define the boundaries of the physical medium
     /// on which the page shall be displayed or printed
+    #[serde(default)]
     pub media_box: Option<Rectangle>,
     /// A rectangle, expressed in default user space units,
     /// that shall define the visible region of default user space.
     /// When the page is displayed or printed, its contents shall be
     /// clipped (cropped) to this rectangle
+    #[serde(default)]
     pub crop_box: Option<Rectangle>,
     /// The number of degrees by which the page shall be rotated clockwise
     /// when displayed or printed. The value shall be a multiple of 90.
     /// Default value: 0.
+    #[serde(default)]
     pub rotate: Option<i16>,
 }
 
-impl PageProperties {
-    pub fn merge_with_parent(&mut self, parent_props: &PageProperties) {
-        if let Some(media_box) = &parent_props.media_box {
-            self.media_box.get_or_insert(media_box.clone());
+impl InheritablePageProperties {
+    pub fn merge_with_parent(&mut self, parent_props: &InheritablePageProperties) {
+        if let Some(media_box) = parent_props.media_box {
+            self.media_box.get_or_insert(media_box);
         }
-        if let Some(crop_box) = &parent_props.crop_box {
-            self.crop_box.get_or_insert(crop_box.clone());
+        if let Some(crop_box) = parent_props.crop_box {
+            self.crop_box.get_or_insert(crop_box);
         }
         if let Some(rotate) = parent_props.rotate {
             self.rotate.get_or_insert(rotate);
@@ -106,7 +123,7 @@ mod tests {
         Rectangle::from_ll_ur(0.0, 0.0, 595.32, 841.92)
     )]
     fn page(#[case] input: &[u8], #[case] expected: Rectangle) {
-        let (_, PageProperties { media_box, .. }) = extract_deserialize(input).unwrap();
+        let (_, InheritablePageProperties { media_box, .. }) = extract_deserialize(input).unwrap();
         assert_eq!(media_box, Some(expected));
     }
 }

@@ -1,18 +1,18 @@
-use crate::parsers::{Extract, Reference, TypedReference};
+use crate::parsers::{Extract, TypedReference};
 use crate::serde::extract_deserialize;
 use serde::Deserialize;
 
 use super::PageElement;
 
-use super::props::PageProperties;
+use super::props::InheritablePageProperties;
 
 #[derive(Debug, PartialEq, Clone, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct PageNode {
-    pub parent: Option<Reference>,
+    pub parent: Option<TypedReference<PageElement>>,
     pub kids: Vec<TypedReference<PageElement>>,
     #[serde(flatten)]
-    pub props: PageProperties,
+    pub props: InheritablePageProperties,
 }
 
 impl Extract<'_> for PageNode {

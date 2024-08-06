@@ -8,10 +8,21 @@ use super::Info;
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct TrailerDict {
+    /// The total number of entries in the PDF file's cross-ref table,
+    /// as defined by the combination of the original section and all
+    /// update sections. Equivalently, this value shall be 1 greater
+    /// than the highest object number defined in the PDF file.
+    /// 
+    /// Any object in a cross-reference section whose number is greater than
+    /// this value shall be ignored and defined to be missing by a PDF reader.
     pub size: usize,
+    /// The byte offset from the beginning of the PDF file to the beginning
+    /// of the previous cross-reference stream.
     pub prev: Option<usize>,
+    ///  The [catalog dictionary](Catalogue) for the PDF file.
     pub root: TypedReference<Catalogue>,
     // pub encrypt: Encrypt,
+    /// The PDF file’s [information dictionary](Info).
     pub info: TypedReference<Info>,
     // #[livre(rename = "ID")]
     // TODO: change to HexString!

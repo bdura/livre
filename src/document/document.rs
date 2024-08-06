@@ -10,42 +10,37 @@ use crate::structure::{Catalogue, RefLocation, StartXRef, Trailer, TrailerDict, 
 use super::Header;
 
 #[derive(Debug, Clone)]
-pub struct Document {
+pub struct DocumentBuilder<'input> {
+    pub input: &'input [u8],
     pub header: Header,
     pub crossrefs: HashMap<Reference, RefLocation>,
     pub root: TypedReference<Catalogue>,
     pub startxref: usize,
 }
 
-impl Document {
+impl<'input> DocumentBuilder<'input> {
     pub fn get_location(&self, reference: impl Into<Reference>) -> Option<RefLocation> {
         let reference = reference.into();
         self.crossrefs.get(&reference).copied()
     }
-    pub fn get_referenced_bytes<'a>(
-        &self,
-        reference: impl Into<Reference>,
-        input: &'a [u8],
-    ) -> Option<&'a [u8]> {
+
+    pub fn get_referenced_bytes(&self, reference: impl Into<Reference>) -> Option<&[u8]> {
         let location = self.get_location(reference)?;
 
         match location {
             RefLocation::Uncompressed(loc) => {
-                let (_, Indirect { inner, .. }) = extract(&input[loc..]).unwrap();
+                let (_, Indirect { inner, .. }) = extract(&self.input[loc..]).unwrap();
                 Some(inner)
             }
             RefLocation::Compressed(_) => todo!(),
         }
     }
-    pub fn parse_referenced<'input, T>(
-        &self,
-        reference: TypedReference<T>,
-        input: &'input [u8],
-    ) -> T
+
+    pub fn parse_referenced<T>(&'input self, reference: impl Into<TypedReference<T>>) -> T
     where
         T: Extract<'input>,
     {
-        let raw = self.get_referenced_bytes(reference, input).unwrap();
+        let raw = self.get_referenced_bytes(reference.into()).unwrap();
         let (_, inner) = extract(raw).unwrap();
         inner
     }
@@ -62,7 +57,7 @@ fn find_refs(input: &[u8], prev: usize) -> IResult<&[u8], (TrailerDict, XRefVec)
     Ok((input, (dict, refs)))
 }
 
-impl<'input> Extract<'input> for Document {
+impl<'input> Extract<'input> for DocumentBuilder<'input> {
     fn extract(input: &'input [u8]) -> IResult<&'input [u8], Self> {
         let (_, header) = Header::extract(input)?;
 
@@ -71,7 +66,7 @@ impl<'input> Extract<'input> for Document {
         let (_, (TrailerDict { root, .. }, crossrefs)) = find_refs(input, startxref)?;
 
         let doc = Self {
-            // input,
+            input,
             header,
             root,
             startxref,

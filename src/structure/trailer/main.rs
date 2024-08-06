@@ -32,9 +32,14 @@ pub fn parse_plain(input: &[u8]) -> IResult<&[u8], Trailer> {
 }
 
 pub fn parse_stream(input: &[u8]) -> IResult<&[u8], Trailer> {
-    let (input, Indirect { inner, .. }) = extract(input)?;
+    let (
+        input,
+        Indirect {
+            inner: XRefStream { refs, dict },
+            ..
+        },
+    ) = extract(input)?;
 
-    let XRefStream { refs, dict } = inner;
     let trailer = Trailer { dict, refs };
 
     Ok((input, trailer))

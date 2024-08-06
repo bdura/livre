@@ -3,27 +3,25 @@ use std::{
     io::{prelude::*, BufReader},
 };
 
-use livre::document::Document;
-use livre::parsers::{extract, DbgStr, Extract};
 use livre::objects::{Reference, Stream};
+use livre::parsers::{extract, DbgStr, Extract};
 use livre::serde::extract_deserialize;
 use livre::structure::{Catalogue, PageElement, PageLeaf, PageNode};
+use livre::{document::DocumentBuilder, structure::Page};
 use serde::Deserialize;
 
-fn parse_page_kids(node: &PageNode, doc: &Document, input: &[u8]) -> Vec<PageLeaf> {
+fn parse_page_kids(node: &PageNode, doc: &DocumentBuilder) -> Vec<Page> {
     let mut pages = Vec::new();
 
     for &kid in &node.kids {
-        let element = doc.parse_referenced(kid, input);
-
-        match element {
+        match doc.parse_referenced(kid) {
             PageElement::Page(mut page) => {
                 page.props.merge_with_parent(&node.props);
-                pages.push(page)
+                pages.push(page.into())
             }
             PageElement::Pages(mut new_node) => {
                 new_node.props.merge_with_parent(&node.props);
-                pages.extend(parse_page_kids(&new_node, doc, input))
+                pages.extend(parse_page_kids(&new_node, doc))
             }
         }
     }
@@ -45,9 +43,8 @@ impl Extract<'_> for Font {
     }
 }
 
-fn get_decoded(input: &[u8], doc: &Document, reference: Reference) -> String {
-    let (_, DbgStr(decoded)) =
-        extract(doc.get_referenced_bytes(reference, &input).unwrap()).unwrap();
+fn get_decoded(doc: &DocumentBuilder, reference: Reference) -> String {
+    let (_, DbgStr(decoded)) = extract(doc.get_referenced_bytes(reference).unwrap()).unwrap();
     decoded.to_string()
 }
 
@@ -59,33 +56,31 @@ fn main() {
     let mut input: Vec<u8> = Vec::new();
     reader.read_to_end(&mut input).ok();
 
-    let (_, doc) = Document::extract(&input).unwrap();
+    let (_, doc) = DocumentBuilder::extract(&input).unwrap();
     for xref in &doc.crossrefs {
         println!("{:?}", xref);
     }
 
-    let root: Catalogue = doc.parse_referenced(doc.root, &input);
+    let root: Catalogue = doc.parse_referenced(doc.root);
     println!("{root:?}");
 
-    let pages: PageNode = doc.parse_referenced(root.pages, &input);
+    let pages: PageNode = doc.parse_referenced(root.pages);
     println!("P: {pages:?}");
 
-    let pages = parse_page_kids(&pages, &doc, &input);
+    let pages = parse_page_kids(&pages, &doc);
 
     for page in &pages {
         println!("{page:?}");
         // let &reference = page.contents.0.first().unwrap();
         for (k, &reference) in page.resources.font.iter() {
-            let decoded_font = get_decoded(&input, &doc, reference);
+            let decoded_font = get_decoded(&doc, reference);
 
-            let font: Font = doc.parse_referenced(reference.into(), &input);
+            let font: Font = doc.parse_referenced(reference);
 
             println!("\nFont {k}:\n{decoded_font}{font:?}");
-            if let Some(decoded_descriptor) =
-                font.font_descriptor.map(|fd| get_decoded(&input, &doc, fd))
-            {
-                println!("{decoded_descriptor}");
-            }
+            // if let Some(decoded_descriptor) = font.font_descriptor.map(|fd| get_decoded(&doc, fd)) {
+            //     println!("{decoded_descriptor}");
+            // }
             // let &reference = page.resources;
         }
         // let ContentStream(content) = doc.parse_referenced(reference, &input);
@@ -114,27 +109,27 @@ fn main() {
     // let font: Font = doc.parse_referenced(TypedReference::new(object, generation))
 
     // println!("{decoded}");
-    let (_, DbgStr(font)) = extract(
-        doc.get_referenced_bytes(Reference::new(20, 0), &input)
-            .unwrap(),
-    )
-    .unwrap();
+    // let (_, DbgStr(font)) = extract(
+    //     doc.get_referenced_bytes(Reference::new(20, 0), &input)
+    //         .unwrap(),
+    // )
+    // .unwrap();
 
-    println!("F4 Widths:\n{font}");
+    // println!("F4 Widths:\n{font}");
 
-    let (
-        _,
-        Stream {
-            decoded,
-            structured: (),
-        },
-    ) = extract(
-        doc.get_referenced_bytes(Reference::new(183, 0), &input)
-            .unwrap(),
-    )
-    .unwrap();
+    // let (
+    //     _,
+    //     Stream {
+    //         decoded,
+    //         structured: (),
+    //     },
+    // ) = extract(
+    //     doc.get_referenced_bytes(Reference::new(183, 0), &input)
+    //         .unwrap(),
+    // )
+    // .unwrap();
 
-    let (_, DbgStr(decoded)) = extract(&decoded).unwrap();
+    // let (_, DbgStr(decoded)) = extract(&decoded).unwrap();
 
-    println!("ToUnicode:\n{decoded}");
+    // println!("ToUnicode:\n{decoded}");
 }
