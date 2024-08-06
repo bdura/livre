@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use crate::data::Rectangle;
 use crate::objects::Stream;
 use crate::parsers::{extract, Extract, TypedReference};
@@ -8,8 +10,16 @@ use super::resources::Resources;
 use super::InheritablePageProperties;
 use super::PageNode;
 
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Default, Clone, PartialEq, Eq)]
 pub struct ContentStream(pub Vec<u8>);
+
+impl Debug for ContentStream {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("ContentStream")
+            .field(&String::from_utf8_lossy(&self.0))
+            .finish()
+    }
+}
 
 impl Extract<'_> for ContentStream {
     fn extract(input: &'_ [u8]) -> nom::IResult<&'_ [u8], Self> {
