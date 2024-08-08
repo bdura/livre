@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use crate::{data::Rectangle};
+use crate::data::Rectangle;
 
 
 
