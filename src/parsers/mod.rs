@@ -9,5 +9,5 @@ pub use utilities::{
 mod extraction;
 pub use extraction::{
     extract, parse, Angles, Brackets, DbgStr, DoubleAngles, Extract, HexBytes, Indirect, Name,
-    Parentheses, RawValue, Reference, TypedReference,
+    OptRef, Parentheses, RawValue, Reference, TypedReference,
 };
