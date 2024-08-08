@@ -1,8 +1,6 @@
 use serde::Deserialize;
 
-use crate::parsers::TypedReference;
-
-use super::FontDescriptor;
+use crate::parsers::OptRef;
 
 #[derive(Debug, PartialEq, Clone, Deserialize)]
 #[serde(rename_all = "PascalCase")]
@@ -17,7 +15,7 @@ pub struct Widths {
     /// `missing_width` from the FontDescriptor entry for this font shall be used. The
     /// glyph widths shall be measured in units in which 1000 units correspond to 1 unit
     /// in text space.
-    pub widths: Vec<f32>,
+    pub widths: OptRef<Vec<f32>>,
 }
 
 #[derive(Debug, PartialEq, Clone, Deserialize)]
@@ -26,6 +24,6 @@ pub struct Type1 {
     pub base_font: String,
     #[serde(flatten)]
     pub widths: Widths,
-    /// A font descriptor describing the font’s metrics other than its glyph widths
-    pub font_descriptor: TypedReference<FontDescriptor>,
+    // /// A font descriptor describing the font’s metrics other than its glyph widths
+    // pub font_descriptor: TypedReference<FontDescriptor>,
 }
