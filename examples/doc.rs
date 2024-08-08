@@ -3,12 +3,15 @@ use std::{
     io::{prelude::*, BufReader},
 };
 
-use livre::objects::Reference;
-use livre::parsers::{extract, DbgStr, Extract};
 use livre::structure::{Catalogue, PageElement, PageNode};
-use livre::{document::DocumentBuilder, structure::Page};
+use livre::{
+    fonts::Font,
+    objects::{Object, Reference},
+};
+use livre::{fonts::Type0, parsers::Extract};
+use livre::{structure::Document, structure::Page};
 
-fn parse_page_kids(node: &PageNode, doc: &DocumentBuilder) -> Vec<Page> {
+fn parse_page_kids(node: &PageNode, doc: &Document) -> Vec<Page> {
     let mut pages = Vec::new();
 
     for &kid in &node.kids {
@@ -35,7 +38,7 @@ fn main() {
     let mut input: Vec<u8> = Vec::new();
     reader.read_to_end(&mut input).ok();
 
-    let (_, doc) = DocumentBuilder::extract(&input).unwrap();
+    let (_, doc) = Document::extract(&input).unwrap();
     for xref in &doc.crossrefs {
         println!("{:?}", xref);
 
@@ -61,12 +64,39 @@ fn main() {
 
     let pages = parse_page_kids(&pages, &doc);
 
-    for (i, page) in pages.iter().enumerate() {
-        println!("# {i}\n{page:#?}");
+    // for (i, page) in pages.iter().enumerate() {
+    //     println!("# {i}\n{page:#?}");
 
-        let content = doc.parse_referenced(*page.contents.first().unwrap());
+    //     let content = doc.parse_referenced(*page.contents.first().unwrap());
 
-        println!("CONTENT:\n{content:#?}");
+    //     println!("CONTENT:\n{content:#?}");
+    // }
+
+    let page = pages.first().unwrap();
+
+    let fonts = &page.resources.font;
+
+    for (key, reference) in fonts {
+        let r: Reference = (*reference).into();
+        let object: Object = doc.parse_referenced(r);
+        // println!("{object:#?}");
+
+        let font: Font = doc.parse_referenced(r);
+        println!();
+        println!("{r:?}\n{font:?}\n{object:?}");
+
+        if let Font::Type0(Type0 {
+            mut descendant_fonts,
+            ..
+        }) = font
+        {
+            let descendant = descendant_fonts
+                .get_or_instantiate(&doc)
+                .first_mut()
+                .unwrap()
+                .get_or_instantiate(&doc);
+            println!("Desc: {:?}", descendant);
+        }
     }
 
     // let page_raw = doc.get_referenced_bytes(pages.kids[0]).unwrap();
@@ -80,14 +110,14 @@ fn main() {
     // let decoded = String::from_utf8_lossy(&decoded);
     // println!("{decoded}");
 
-    let content = doc.parse_referenced(*pages[0].contents.first().unwrap());
+    // let content = doc.parse_referenced(*pages[0].contents.first().unwrap());
 
-    for line in String::from_utf8_lossy(&content.0)
-        .split('\n')
-        .filter(|t| t.to_lowercase().contains("tj"))
-    {
-        println!("{line:?}");
-    }
+    // for line in String::from_utf8_lossy(&content.0)
+    //     .split('\n')
+    //     .filter(|t| t.to_lowercase().contains("tj"))
+    // {
+    //     println!("{line:?}");
+    // }
 
     // let font: Font = doc.parse_referenced(TypedReference::new(object, generation))
 
