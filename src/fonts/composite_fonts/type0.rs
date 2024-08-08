@@ -10,5 +10,5 @@ use crate::{
 pub struct Type0 {
     pub descendant_fonts: OptRef<Vec<OptRef<Object>>>,
     pub encoding: String,
-    pub to_unicode: Reference,
+    pub to_unicode: Option<Reference>,
 }

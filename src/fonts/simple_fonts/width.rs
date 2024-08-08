@@ -17,13 +17,3 @@ pub struct Widths {
     /// in text space.
     pub widths: OptRef<Vec<f32>>,
 }
-
-#[derive(Debug, PartialEq, Clone, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct Type1 {
-    pub base_font: String,
-    #[serde(flatten)]
-    pub widths: Widths,
-    // /// A font descriptor describing the font’s metrics other than its glyph widths
-    // pub font_descriptor: TypedReference<FontDescriptor>,
-}

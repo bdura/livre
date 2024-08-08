@@ -1,17 +1,15 @@
-use enum_dispatch::enum_dispatch;
-
 use serde::Deserialize;
 
 mod simple_fonts;
-use simple_fonts::Type1;
+use simple_fonts::SimpleFont;
 
 mod composite_fonts;
-pub use composite_fonts::{Type0, WElement};
+pub use composite_fonts::{CIDFontType, Type0, WElement};
 
 mod descriptors;
 pub use descriptors::{FontDescriptor, FontFlags};
 
-use crate::{data::Rectangle, objects::Object, parsers::Extract, serde::extract_deserialize};
+use crate::{data::Rectangle, parsers::Extract, serde::extract_deserialize};
 
 // #[enum_dispatch]
 pub trait FontBehavior {
@@ -24,18 +22,13 @@ pub trait FontBehavior {
 #[serde(tag = "Subtype", rename_all = "PascalCase")]
 pub enum Font {
     Type0(Type0),
-    Type1(Type1),
-    MMType1(Type1),
-    // Type3,
-    TrueType(Object),
-    CIDFontType0(Object),
-    #[serde(rename_all = "PascalCase")]
-    CIDFontType2 {
-        #[serde(rename = "DW", default)]
-        default_width: Option<u16>,
-        // #[serde(rename = "W", default)]
-        // widths: Option<OptRef<Vec>>>,
-    },
+    Type1(SimpleFont),
+    MMType1(SimpleFont),
+    TrueType(SimpleFont),
+    // TODO: add Type3 font dict
+    Type3,
+    CIDFontType0(CIDFontType),
+    CIDFontType2(CIDFontType),
 }
 
 impl Extract<'_> for Font {
