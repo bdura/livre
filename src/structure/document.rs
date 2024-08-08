@@ -10,15 +10,21 @@ use crate::structure::{Catalogue, RefLocation, StartXRef, Trailer, TrailerDict, 
 use super::Header;
 
 #[derive(Debug, Clone)]
-pub struct DocumentBuilder<'input> {
+pub struct Document<'input> {
+    /// Keep track of the input.
+    /// This may become a generic at some point to make it more *efficient*
+    /// (and support other reading mechanisms), we'll see.
     pub input: &'input [u8],
+    /// The document's header. Not used in practice.
     pub header: Header,
+    /// The crux of the document: a mapping between references and their
+    /// location within the input.
     pub crossrefs: HashMap<Reference, RefLocation>,
+    /// The top-level object representing the entire PDF document.
     pub root: TypedReference<Catalogue>,
-    pub startxref: usize,
 }
 
-impl<'input> DocumentBuilder<'input> {
+impl<'input> Document<'input> {
     pub fn get_location(&self, reference: impl Into<Reference>) -> Option<RefLocation> {
         let reference = reference.into();
         self.crossrefs.get(&reference).copied()
@@ -57,7 +63,7 @@ fn find_refs(input: &[u8], prev: usize) -> IResult<&[u8], (TrailerDict, XRefVec)
     Ok((input, (dict, refs)))
 }
 
-impl<'input> Extract<'input> for DocumentBuilder<'input> {
+impl<'input> Extract<'input> for Document<'input> {
     fn extract(input: &'input [u8]) -> IResult<&'input [u8], Self> {
         let (_, header) = Header::extract(input)?;
 
@@ -69,7 +75,6 @@ impl<'input> Extract<'input> for DocumentBuilder<'input> {
             input,
             header,
             root,
-            startxref,
             crossrefs: crossrefs.into_iter().rev().collect(),
         };
 

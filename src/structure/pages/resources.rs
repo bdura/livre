@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::objects::Reference;
+use crate::{fonts::Font, parsers::TypedReference};
 use serde::Deserialize;
 
 #[derive(Debug, PartialEq, Clone, Deserialize)]
@@ -11,7 +11,7 @@ pub struct Resources {
     // pub pattern: Option<&'i [u8]>,
     // pub shading: Option<&'i [u8]>,
     // pub x_object: Option<&'i [u8]>,
-    pub font: HashMap<String, Reference>,
+    pub font: HashMap<String, TypedReference<Font>>,
     // pub properties: Option<&'i [u8]>,
 }
 
@@ -31,7 +31,7 @@ mod tests {
             /ExtGState <</G3 3 0 R>>
             /Font <</F4 4 0 R>>>>
         "},
-        Resources { font: HashMap::from([("F4".into(), Reference::new(4, 0))]) }
+        Resources { font: HashMap::from([("F4".into(), TypedReference::new(4, 0))]) }
     )]
     fn resources(#[case] input: &[u8], #[case] expected: Resources) {
         let (_, resources) = extract_deserialize(input).unwrap();
