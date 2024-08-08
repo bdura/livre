@@ -11,4 +11,4 @@ mod pages;
 pub use pages::{ContentStream, PageElement, PageLeaf, PageNode, Page};
 
 mod dictionaries;
-pub use dictionaries::{Catalogue, FontDict, TrailerDict};
+pub use dictionaries::{Catalogue, TrailerDict};
