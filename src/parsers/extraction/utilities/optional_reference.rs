@@ -1,8 +1,12 @@
 use nom::{branch::alt, combinator::map, IResult};
+use serde::Deserialize;
+
+use crate::structure::Document;
 
 use super::super::{Extract, TypedReference};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Deserialize)]
+#[serde(untagged)]
 pub enum OptRef<T> {
     Val(T),
     Ref(TypedReference<T>),
@@ -27,6 +31,26 @@ impl<T> OptRef<T> {
 
     pub fn is_val(&self) -> bool {
         matches!(self, Self::Val(_))
+    }
+}
+
+impl<'a, T> OptRef<T>
+where
+    T: Extract<'a>,
+{
+    pub fn get_or_instantiate(&mut self, doc: &'a Document) -> &mut T {
+        match self {
+            Self::Val(val) => val,
+            Self::Ref(reference) => {
+                let obj = doc.parse_referenced(*reference);
+                *self = Self::Val(obj);
+
+                match self {
+                    Self::Val(val) => val,
+                    _ => unreachable!(),
+                }
+            }
+        }
     }
 }
 
