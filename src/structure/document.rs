@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::parsers::{extract, Extract, TypedReference};
 use nom::IResult;
 
-use crate::objects::{Indirect, Reference};
+use crate::objects::{Bytes, Indirect, Reference};
 
 use crate::structure::{Catalogue, RefLocation, StartXRef, Trailer, TrailerDict, XRefVec};
 
@@ -47,7 +47,7 @@ impl<'input> Document<'input> {
         T: Extract<'input>,
     {
         let raw = self.get_referenced_bytes(reference.into()).unwrap();
-        let (_, inner) = extract(raw).unwrap();
+        let (_, inner) = extract(raw).map_err(|e| e.map_input(Bytes::from)).unwrap();
         inner
     }
 }

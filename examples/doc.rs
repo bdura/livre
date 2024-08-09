@@ -56,13 +56,13 @@ fn main() {
         // }
     }
 
-    let root: Catalogue = doc.parse_referenced(doc.root);
+    let root = doc.parse_referenced(doc.root);
     println!("{root:?}");
 
     let pages: PageNode = doc.parse_referenced(root.pages);
     // println!("P: {pages:?}");
 
-    let pages = parse_page_kids(&pages, &doc);
+    let mut pages = parse_page_kids(&pages, &doc);
 
     // for (i, page) in pages.iter().enumerate() {
     //     println!("# {i}\n{page:#?}");
@@ -72,28 +72,32 @@ fn main() {
     //     println!("CONTENT:\n{content:#?}");
     // }
 
-    let page = pages.first().unwrap();
+    let mut page = pages.pop().unwrap();
 
     let fonts = &page.resources.font;
 
-    for (key, reference) in fonts {
-        let r: Reference = (*reference).into();
-        let object: Object = doc.parse_referenced(r);
-        // println!("{object:#?}");
-
-        let font: FontTransient = doc.parse_referenced(r);
+    for (key, reference) in fonts.clone() {
+        let font = page.get_font(key.clone(), &doc);
         println!();
-        println!("{r:?}\n{font:?}\n{object:?}");
+        println!("{key} -> {font:?}");
 
-        if let FontTransient::Type0(type0) = font {
-            let type0 = type0.build(&doc);
-            // let descendant = descendant_fonts
-            //     .get_or_instantiate(&doc)
-            //     .first_mut()
-            //     .unwrap()
-            //     .get_or_instantiate(&doc);
-            println!("Desc: {:?}", type0.descendant_font);
-        }
+        //let r: Reference = (*reference).into();
+        //let object: Object = doc.parse_referenced(r);
+        //// println!("{object:#?}");
+        //
+        //let font: FontTransient = doc.parse_referenced(r);
+        //println!();
+        //println!("{r:?}\n{font:?}\n{object:?}");
+        //
+        //if let FontTransient::Type0(type0) = font {
+        //    let type0 = type0.build(&doc);
+        //    // let descendant = descendant_fonts
+        //    //     .get_or_instantiate(&doc)
+        //    //     .first_mut()
+        //    //     .unwrap()
+        //    //     .get_or_instantiate(&doc);
+        //    println!("Desc: {:?}", type0.descendant_font);
+        //}
     }
 
     // let page_raw = doc.get_referenced_bytes(pages.kids[0]).unwrap();
