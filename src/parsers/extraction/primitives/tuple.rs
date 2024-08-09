@@ -1,6 +1,6 @@
 use nom::IResult;
 
-use super::take_whitespace1;
+use super::take_whitespace;
 use super::Extract;
 use paste::paste;
 
@@ -15,7 +15,7 @@ macro_rules! impl_tuple {
                 fn extract(input: &'input [u8]) -> IResult<&'input [u8], Self> {
                     let (input, [<$first:lower>]) = $first::extract(input)?;
                     $(
-                        let (input, _) = take_whitespace1(input)?;
+                        let (input, _) = take_whitespace(input)?;
                         let (input, [<$ty:lower>]) = $ty::extract(input)?;
                     )*
 
@@ -48,6 +48,7 @@ mod tests {
 
     #[rstest]
     #[case(b"(test) 23", ("test".to_string(), 23))]
+    #[case(b"(test)23", ("test".to_string(), 23))]
     #[case(b"(haha) -13", ("haha".to_string(), -13))]
     fn tuple2(#[case] input: &[u8], #[case] expected: (String, i16)) {
         let (_, result) = extract(input).unwrap();
