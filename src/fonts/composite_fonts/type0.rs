@@ -18,7 +18,7 @@ pub struct Type0Transient {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Type0 {
-    pub descendant_fonts: Vec<CIDFontType>,
+    pub descendant_font: CIDFontType,
     pub encoding: String,
     // TODO: modify object type
     pub to_unicode: Option<Object>,
@@ -34,16 +34,17 @@ impl Build for Type0Transient {
             to_unicode,
         } = self;
 
-        let descendant_fonts = descendant_fonts
+        let descendant_font = descendant_fonts
             .build(doc)
             .into_iter()
             .map(|i| i.build(doc).build(doc))
-            .collect();
+            .next()
+            .expect("DescendantFonts is a one-element array");
 
         let to_unicode = to_unicode.map(|e| doc.parse_referenced(e));
 
         Type0 {
-            descendant_fonts,
+            descendant_font,
             encoding,
             to_unicode,
         }

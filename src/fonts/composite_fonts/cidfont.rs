@@ -1,11 +1,10 @@
 use std::fmt;
 
-use nom::{branch::alt, combinator::map, multi::separated_list0};
+use nom::{branch::alt, combinator::map};
 use serde::Deserialize;
 
 use crate::{
-    objects::Bytes,
-    parsers::{extract, parse, take_whitespace, Brackets, Extract, OptRef},
+    parsers::{parse, Extract, OptRef},
     serde::extract_deserialize,
     structure::Build,
 };
@@ -36,19 +35,19 @@ impl Extract<'_> for WElement {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct WElements(pub Vec<WElement>);
+pub struct Widths(pub Vec<WElement>);
 
-impl Extract<'_> for WElements {
+impl Extract<'_> for Widths {
     fn extract(input: &'_ [u8]) -> nom::IResult<&'_ [u8], Self> {
         let (input, elements) = Vec::<WElement>::extract(input)?;
         Ok((input, Self(elements)))
     }
 }
 
-struct WElementsVisitor;
+struct WidthsVisitor;
 
-impl<'de> serde::de::Visitor<'de> for WElementsVisitor {
-    type Value = WElements;
+impl<'de> serde::de::Visitor<'de> for WidthsVisitor {
+    type Value = Widths;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         formatter.write_str("a PDF CID font widths array")
@@ -62,12 +61,12 @@ impl<'de> serde::de::Visitor<'de> for WElementsVisitor {
     }
 }
 
-impl<'de> Deserialize<'de> for WElements {
+impl<'de> Deserialize<'de> for Widths {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        deserializer.deserialize_bytes(WElementsVisitor)
+        deserializer.deserialize_bytes(WidthsVisitor)
     }
 }
 
@@ -92,11 +91,14 @@ impl WElement {
     }
 }
 
-fn find_width(cid: usize, w: &[WElement]) -> Option<u16> {
-    w.iter()
-        .map(|e| e.width(cid))
-        .find(Option::is_some)
-        .flatten()
+impl Widths {
+    pub fn width(&self, cid: usize) -> Option<u16> {
+        self.0
+            .iter()
+            .map(|e| e.width(cid))
+            .find(Option::is_some)
+            .flatten()
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Clone)]
@@ -106,7 +108,7 @@ pub struct CIDFontTypeTransient {
     #[serde(rename = "DW")]
     default_width: u16,
     #[serde(rename = "W")]
-    widths: Option<OptRef<WElements>>,
+    widths: Option<OptRef<Widths>>,
 }
 
 impl Default for CIDFontTypeTransient {
@@ -129,7 +131,17 @@ impl Extract<'_> for CIDFontTypeTransient {
 pub struct CIDFontType {
     base_font: String,
     default_width: u16,
-    widths: Option<WElements>,
+    widths: Option<Widths>,
+}
+
+impl CIDFontType {
+    pub fn width(&self, cid: usize) -> u16 {
+        if let Some(widths) = &self.widths {
+            widths.width(cid).unwrap_or(self.default_width)
+        } else {
+            self.default_width
+        }
+    }
 }
 
 impl Build for CIDFontTypeTransient {
@@ -180,8 +192,8 @@ mod tests {
     #[case(b"[0 [10] 0[10]]", vec![WElement::Individual(0, vec![10]), WElement::Individual(0, vec![10])])]
     #[case(b"0 10 10", WElement::Range(0, 10, 10))]
     #[case(b"[0 10 10 0 10 10]", vec![WElement::Range(0, 10, 10), WElement::Range(0, 10, 10)])]
-    #[case(b"[0 10 10 0 10 10]", WElements(vec![WElement::Range(0, 10, 10), WElement::Range(0, 10, 10)]))]
-    #[case(b"[0 10 10 0[10]]", WElements(vec![WElement::Range(0, 10, 10), WElement::Individual(0, vec![10])]))]
+    #[case(b"[0 10 10 0 10 10]", Widths(vec![WElement::Range(0, 10, 10), WElement::Range(0, 10, 10)]))]
+    #[case(b"[0 10 10 0[10]]", Widths(vec![WElement::Range(0, 10, 10), WElement::Individual(0, vec![10])]))]
     fn extraction<'de, T: Extract<'de> + PartialEq + Debug>(
         #[case] input: &'de [u8],
         #[case] expected: T,
@@ -190,8 +202,8 @@ mod tests {
     }
 
     #[rstest]
-    #[case(b"[0 10 10 0 10 10]", WElements(vec![WElement::Range(0, 10, 10), WElement::Range(0, 10, 10)]))]
-    #[case(b"[0 10 10 0[10]]", WElements(vec![WElement::Range(0, 10, 10), WElement::Individual(0, vec![10])]))]
+    #[case(b"[0 10 10 0 10 10]", Widths(vec![WElement::Range(0, 10, 10), WElement::Range(0, 10, 10)]))]
+    #[case(b"[0 10 10 0[10]]", Widths(vec![WElement::Range(0, 10, 10), WElement::Individual(0, vec![10])]))]
     fn deserialization<'de, T: Deserialize<'de> + PartialEq + Debug>(
         #[case] input: &'de [u8],
         #[case] expected: T,

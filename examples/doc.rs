@@ -3,12 +3,12 @@ use std::{
     io::{prelude::*, BufReader},
 };
 
+use livre::parsers::Extract;
 use livre::structure::{Build, Catalogue, PageElement, PageNode};
 use livre::{
     fonts::Font,
     objects::{Object, Reference},
 };
-use livre::{fonts::Type0Transient, parsers::Extract};
 use livre::{structure::Document, structure::Page};
 
 fn parse_page_kids(node: &PageNode, doc: &Document) -> Vec<Page> {
@@ -92,7 +92,7 @@ fn main() {
             //     .first_mut()
             //     .unwrap()
             //     .get_or_instantiate(&doc);
-            println!("Desc: {:?}", type0.descendant_fonts);
+            println!("Desc: {:?}", type0.descendant_font);
         }
     }
 
