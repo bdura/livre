@@ -1,6 +1,6 @@
 mod width;
 use serde::Deserialize;
-pub use width::Widths;
+pub use width::WidthsTransient;
 
 use crate::{objects::Reference, parsers::TypedReference};
 
@@ -11,7 +11,7 @@ use super::FontDescriptor;
 pub struct SimpleFont {
     pub base_font: String,
     #[serde(flatten)]
-    pub widths: Widths,
+    pub widths: WidthsTransient,
     /// A font descriptor describing the font’s metrics other than its glyph widths
     pub font_descriptor: TypedReference<FontDescriptor>,
     pub encoding: Option<String>,
