@@ -1,5 +1,10 @@
-use crate::parsers::{parse_real, take_whitespace, Extract, HexBytes, Name, Reference};
-use nom::combinator::recognize;
+use std::collections::HashMap;
+
+use crate::objects::Bytes;
+use crate::parsers::{
+    parse_real, take_whitespace, Brackets, Extract, HexBytes, Name, RawValue, Reference,
+};
+use nom::branch::alt;
 
 use serde::de::{
     self, DeserializeSeed, EnumAccess, IntoDeserializer, MapAccess, SeqAccess, VariantAccess,
@@ -15,12 +20,31 @@ pub struct Deserializer<'de> {
     // This string starts with the input data and characters are truncated off
     // the beginning as data is parsed.
     input: &'de [u8],
+    nested: Vec<&'de [u8]>,
 }
 
 impl<'de> Deserializer<'de> {
     pub fn new(input: &'de [u8]) -> Self {
-        Self { input }
+        Self {
+            input,
+            nested: Vec::new(),
+        }
     }
+
+    fn current(&mut self, input: &'de [u8]) {
+        self.input = input;
+    }
+
+    fn nest(&mut self) {
+        self.nested.push(self.input);
+    }
+
+    fn unnest(&mut self) {
+        if let Some(input) = self.nested.pop() {
+            self.input = input;
+        }
+    }
+
     // By convention, `Deserializer` constructors are named like `from_xyz`.
     // That way basic use cases are satisfied by something like
     // `serde_json::from_str(...)` while advanced use cases that require a
@@ -113,7 +137,9 @@ impl<'de> Deserializer<'de> {
     fn parse<T: Extract<'de>>(&mut self) -> Result<T> {
         self.remove_whitespace();
 
-        let (input, result) = T::extract(self.input).map_err(Error::custom)?;
+        let (input, result) = T::extract(self.input)
+            .map_err(|e| e.map_input(Bytes::from))
+            .map_err(Error::custom)?;
         self.input = input;
         Ok(result)
     }
@@ -228,10 +254,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         self.remove_whitespace();
 
-        let (input, reference) =
-            recognize(Reference::extract)(self.input).map_err(|_| Error::Syntax)?;
+        let (input, bytes) = alt((Reference::recognize, Brackets::recognize))(self.input)
+            .map_err(|_| Error::Syntax)?;
         self.input = input;
-        visitor.visit_borrowed_bytes(reference)
+        visitor.visit_borrowed_bytes(bytes)
     }
 
     fn deserialize_byte_buf<V>(self, visitor: V) -> Result<V::Value>
@@ -303,7 +329,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         // Parse the opening bracket of the sequence.
         if self.next()? == b'[' {
             // Give the visitor access to each element of the sequence.
-            let value = visitor.visit_seq(Accessor::new(self))?;
+            let value = visitor.visit_seq(SeqAccessor::new(self))?;
             // Parse the closing bracket of the sequence.
             if self.next()? == b']' {
                 Ok(value)
@@ -347,20 +373,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         self.remove_whitespace();
-
-        // Parse the opening brace of the map.
-        if self.next_n(2)? == b"<<" {
-            // Give the visitor access to each entry of the map.
-            let value = visitor.visit_map(Accessor::new(self))?;
-            // Parse the closing brace of the map.
-            if self.next_n(2)? == b">>" {
-                Ok(value)
-            } else {
-                Err(Error::ExpectedMapEnd)
-            }
-        } else {
-            Err(Error::ExpectedMap)
-        }
+        visitor.visit_map(MapAccessor::new(self))
     }
 
     // Structs look just like maps in PDFs.
@@ -446,11 +459,11 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     }
 }
 
-struct Accessor<'a, 'de: 'a> {
+struct SeqAccessor<'a, 'de: 'a> {
     de: &'a mut Deserializer<'de>,
 }
 
-impl<'a, 'de> Accessor<'a, 'de> {
+impl<'a, 'de> SeqAccessor<'a, 'de> {
     fn new(de: &'a mut Deserializer<'de>) -> Self {
         Self { de }
     }
@@ -458,7 +471,7 @@ impl<'a, 'de> Accessor<'a, 'de> {
 
 // `Accessor` is provided to the `Visitor` to give it the ability to iterate
 // through elements of the sequence.
-impl<'de, 'a> SeqAccess<'de> for Accessor<'a, 'de> {
+impl<'de, 'a> SeqAccess<'de> for SeqAccessor<'a, 'de> {
     type Error = Error;
 
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>>
@@ -476,31 +489,61 @@ impl<'de, 'a> SeqAccess<'de> for Accessor<'a, 'de> {
     }
 }
 
+struct MapAccessor<'a, 'de: 'a> {
+    de: &'a mut Deserializer<'de>,
+    map: Vec<(String, &'de [u8])>,
+    next: Option<&'de [u8]>,
+}
+
+impl<'a, 'de> MapAccessor<'a, 'de> {
+    fn new(de: &'a mut Deserializer<'de>) -> Self {
+        let map: HashMap<String, RawValue> = de.parse().unwrap();
+        de.nest();
+
+        Self {
+            de,
+            map: map
+                .into_iter()
+                .map(|(key, RawValue(value))| (key, value))
+                .collect(),
+            next: None,
+        }
+    }
+}
+
 // `Accessor` is provided to the `Visitor` to give it the ability to iterate
 // through entries of the map.
-impl<'de, 'a> MapAccess<'de> for Accessor<'a, 'de> {
+impl<'de, 'a> MapAccess<'de> for MapAccessor<'a, 'de> {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
     where
         K: DeserializeSeed<'de>,
     {
-        self.de.remove_whitespace();
-
-        // Check if there are no more entries.
-        if self.de.peek_n(2)? == b">>" {
-            return Ok(None);
+        if let Some((key, value)) = self.map.pop() {
+            self.next = Some(value);
+            seed.deserialize(key.into_deserializer()).map(Some)
+        } else {
+            Ok(None)
         }
-        // Deserialize a map key.
-        seed.deserialize(&mut *self.de).map(Some)
     }
 
     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
     where
         V: DeserializeSeed<'de>,
     {
-        self.de.remove_whitespace();
+        let value = self.next.take().unwrap();
+        self.de.current(value);
         seed.deserialize(&mut *self.de)
+    }
+}
+
+impl<'a, 'de: 'a> Drop for MapAccessor<'a, 'de>
+where
+    'de: 'a,
+{
+    fn drop(&mut self) {
+        self.de.unnest();
     }
 }
 
