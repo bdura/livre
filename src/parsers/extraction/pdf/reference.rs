@@ -149,6 +149,12 @@ impl<T> From<Reference> for TypedReference<T> {
     }
 }
 
+impl<T> From<&Reference> for TypedReference<T> {
+    fn from(value: &Reference) -> Self {
+        (*value).into()
+    }
+}
+
 #[cfg(test)]
 mod tests {
 

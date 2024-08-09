@@ -1,9 +1,12 @@
+use std::collections::HashMap;
 use std::fmt::Debug;
 
 use crate::data::Rectangle;
+use crate::fonts::Font;
 use crate::objects::Stream;
 use crate::parsers::{extract, Extract, TypedReference};
 use crate::serde::MaybeArray;
+use crate::structure::{Build, Document};
 use serde::Deserialize;
 
 use super::resources::Resources;
@@ -57,6 +60,7 @@ pub struct PageLeaf {
     // and more!
     pub user_unit: Option<f32>,
 }
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct Page {
     pub resources: Resources,
@@ -73,6 +77,8 @@ pub struct Page {
     // pub annots: Option<Vec<...annotation dict...>>
     // and more!
     pub user_unit: f32,
+    /// Cached fonts
+    pub fonts: HashMap<String, Font>,
 }
 
 impl From<PageLeaf> for Page {
@@ -96,7 +102,17 @@ impl From<PageLeaf> for Page {
             rotate,
             contents,
             user_unit: user_unit.unwrap_or(1.0),
+            fonts: HashMap::new(),
         }
+    }
+}
+
+impl Page {
+    pub fn get_font<'a>(&'a mut self, name: String, doc: &Document) -> &'a Font {
+        let &reference = self.resources.font.get(&name).unwrap();
+        self.fonts
+            .entry(name.into())
+            .or_insert_with(|| doc.parse_referenced(reference).build(doc))
     }
 }
 

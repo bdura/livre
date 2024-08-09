@@ -84,6 +84,7 @@ pub struct FontDescriptor {
     pub cap_height: f32,
     pub x_height: Option<f32>,
     pub stem_v: f32,
+    #[serde(default)]
     pub stem_h: f32,
     #[serde(default)]
     pub avg_width: f32,
