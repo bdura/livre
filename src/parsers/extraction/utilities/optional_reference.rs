@@ -1,7 +1,7 @@
 use nom::{branch::alt, combinator::map, IResult};
 use serde::Deserialize;
 
-use crate::structure::Document;
+use crate::structure::{Build, Document};
 
 use super::super::{Extract, TypedReference};
 
@@ -34,6 +34,15 @@ impl<T> OptRef<T> {
     }
 }
 
+impl<T> OptRef<T> {
+    pub fn unwrap(self) -> T {
+        match self {
+            Self::Val(val) => val,
+            Self::Ref(_) => panic!("tried to unwrap reference"),
+        }
+    }
+}
+
 impl<'a, T> OptRef<T>
 where
     T: Extract<'a>,
@@ -51,6 +60,18 @@ where
                 }
             }
         }
+    }
+}
+
+impl<T> Build for OptRef<T>
+where
+    T: for<'a> Extract<'a>,
+{
+    type Output = T;
+
+    fn build(mut self, doc: &Document) -> Self::Output {
+        self.get_or_instantiate(doc);
+        self.unwrap()
     }
 }
 
