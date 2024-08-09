@@ -1,6 +1,7 @@
 use serde::Deserialize;
 
 use crate::{
+    fonts::FontBehavior,
     objects::Object,
     parsers::{OptRef, TypedReference},
     structure::{Build, Document},
@@ -48,5 +49,11 @@ impl Build for Type0Transient {
             encoding,
             to_unicode,
         }
+    }
+}
+
+impl FontBehavior for Type0 {
+    fn width(&self, character: usize) -> u16 {
+        self.descendant_font.width(character.into())
     }
 }

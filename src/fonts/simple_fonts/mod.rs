@@ -5,7 +5,7 @@ pub use width::WidthsTransient;
 
 use crate::{objects::Reference, parsers::TypedReference, structure::Build};
 
-use super::FontDescriptor;
+use super::{FontBehavior, FontDescriptor};
 
 #[derive(Debug, PartialEq, Clone, Deserialize)]
 #[serde(rename_all = "PascalCase")]
@@ -50,5 +50,13 @@ impl Build for SimpleFontTransient {
             font_descriptor,
             encoding,
         }
+    }
+}
+
+impl FontBehavior for SimpleFont {
+    fn width(&self, character: usize) -> u16 {
+        self.widths
+            .width(character)
+            .unwrap_or(self.font_descriptor.missing_width as u16)
     }
 }

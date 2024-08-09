@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{fonts::Font, parsers::TypedReference};
+use crate::{fonts::FontTransient, parsers::TypedReference};
 use serde::Deserialize;
 
 #[derive(Debug, PartialEq, Clone, Deserialize)]
@@ -11,7 +11,7 @@ pub struct Resources {
     // pub pattern: Option<&'i [u8]>,
     // pub shading: Option<&'i [u8]>,
     // pub x_object: Option<&'i [u8]>,
-    pub font: HashMap<String, TypedReference<Font>>,
+    pub font: HashMap<String, TypedReference<FontTransient>>,
     // pub properties: Option<&'i [u8]>,
 }
 
