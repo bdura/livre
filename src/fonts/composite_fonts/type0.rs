@@ -1,14 +1,51 @@
 use serde::Deserialize;
 
 use crate::{
-    objects::{Object, Reference},
-    parsers::OptRef,
+    objects::Object,
+    parsers::{OptRef, TypedReference},
+    structure::{Build, Document},
 };
+
+use super::{cidfont::CIDFontType, CIDFontTypeTransient};
 
 #[derive(Debug, Deserialize, PartialEq, Clone)]
 #[serde(rename_all = "PascalCase")]
-pub struct Type0 {
-    pub descendant_fonts: OptRef<Vec<OptRef<Object>>>,
+pub struct Type0Transient {
+    pub descendant_fonts: OptRef<Vec<OptRef<CIDFontTypeTransient>>>,
     pub encoding: String,
-    pub to_unicode: Option<Reference>,
+    pub to_unicode: Option<TypedReference<Object>>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Type0 {
+    pub descendant_fonts: Vec<CIDFontType>,
+    pub encoding: String,
+    // TODO: modify object type
+    pub to_unicode: Option<Object>,
+}
+
+impl Build for Type0Transient {
+    type Output = Type0;
+
+    fn build(self, doc: &Document) -> Self::Output {
+        let Self {
+            descendant_fonts,
+            encoding,
+            to_unicode,
+        } = self;
+
+        let descendant_fonts = descendant_fonts
+            .build(doc)
+            .into_iter()
+            .map(|i| i.build(doc).build(doc))
+            .collect();
+
+        let to_unicode = to_unicode.map(|e| doc.parse_referenced(e));
+
+        Type0 {
+            descendant_fonts,
+            encoding,
+            to_unicode,
+        }
+    }
 }
