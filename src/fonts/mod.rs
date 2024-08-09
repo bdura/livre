@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 mod simple_fonts;
-use simple_fonts::SimpleFont;
+use simple_fonts::SimpleFontTransient;
 
 mod composite_fonts;
 pub use composite_fonts::{CIDFontTypeTransient, Type0Transient, WElement};
@@ -21,9 +21,9 @@ pub trait FontBehavior {
 #[serde(tag = "Subtype", rename_all = "PascalCase")]
 pub enum Font {
     Type0(Type0Transient),
-    Type1(SimpleFont),
-    MMType1(SimpleFont),
-    TrueType(SimpleFont),
+    Type1(SimpleFontTransient),
+    MMType1(SimpleFontTransient),
+    TrueType(SimpleFontTransient),
     // TODO: add Type3 font dict
     Type3,
     CIDFontType0(CIDFontTypeTransient),

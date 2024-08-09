@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use crate::data::Rectangle;
+use crate::{data::Rectangle, parsers::Extract, serde::extract_deserialize};
 
 
 
@@ -95,6 +95,12 @@ pub struct FontDescriptor {
     // font_file2
     // font_file3
     // char_set
+}
+
+impl Extract<'_> for FontDescriptor {
+    fn extract(input: &'_ [u8]) -> nom::IResult<&'_ [u8], Self> {
+        extract_deserialize(input)
+    }
 }
 
 #[cfg(test)]
