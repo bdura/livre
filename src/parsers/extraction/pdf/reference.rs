@@ -1,6 +1,6 @@
 use std::{fmt, marker::PhantomData};
 
-use crate::parsers::take_whitespace1;
+use crate::{parsers::take_whitespace1, structure::Build};
 use nom::{
     bytes::complete::tag, character::complete::digit1, combinator::recognize, sequence::tuple,
     IResult,
@@ -63,7 +63,19 @@ impl<T> Clone for TypedReference<T> {
         *self
     }
 }
+
 impl<T> Copy for TypedReference<T> {}
+
+impl<T> Build for TypedReference<T>
+where
+    T: for<'a> Extract<'a>,
+{
+    type Output = T;
+
+    fn build(self, doc: &crate::structure::Document) -> Self::Output {
+        doc.parse_referenced(self)
+    }
+}
 
 impl Reference {
     pub fn new(object: usize, generation: u16) -> Self {
