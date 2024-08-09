@@ -6,7 +6,7 @@ use std::{
 use livre::parsers::Extract;
 use livre::structure::{Build, Catalogue, PageElement, PageNode};
 use livre::{
-    fonts::Font,
+    fonts::FontTransient,
     objects::{Object, Reference},
 };
 use livre::{structure::Document, structure::Page};
@@ -81,11 +81,11 @@ fn main() {
         let object: Object = doc.parse_referenced(r);
         // println!("{object:#?}");
 
-        let font: Font = doc.parse_referenced(r);
+        let font: FontTransient = doc.parse_referenced(r);
         println!();
         println!("{r:?}\n{font:?}\n{object:?}");
 
-        if let Font::Type0(type0) = font {
+        if let FontTransient::Type0(type0) = font {
             let type0 = type0.build(&doc);
             // let descendant = descendant_fonts
             //     .get_or_instantiate(&doc)
