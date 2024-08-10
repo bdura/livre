@@ -4,7 +4,6 @@ pub mod error;
 use error::{ExtractionError, Result};
 
 pub mod primitives;
-pub use primitives::map::Map;
 
 mod utilities;
 pub use utilities::{

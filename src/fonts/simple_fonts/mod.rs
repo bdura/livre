@@ -54,9 +54,16 @@ impl Build for SimpleFontTransient {
 }
 
 impl FontBehavior for SimpleFont {
-    fn width(&self, character: usize) -> u16 {
-        self.widths
-            .width(character)
-            .unwrap_or(self.font_descriptor.missing_width as u16)
+    fn ascent(&self) -> f32 {
+        self.font_descriptor.ascent / 1000.0
     }
+
+    fn descent(&self) -> f32 {
+        self.font_descriptor.descent / 1000.0
+    }
+    // fn width(&self, character: usize) -> u16 {
+    //     self.widths
+    //         .width(character)
+    //         .unwrap_or(self.font_descriptor.missing_width as u16)
+    // }
 }

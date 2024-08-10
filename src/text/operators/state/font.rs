@@ -29,10 +29,11 @@ impl FontSize {
 }
 
 impl Operator for FontSize {
-    fn apply(self, obj: &mut TextState) {
-        let FontSize { font, size } = self;
-        obj.font = font;
-        obj.size = size;
+    fn apply(self, _: &mut TextState) {
+        // let FontSize { font, size } = self;
+        // obj.font = font;
+        // obj.size = size;
+        unreachable!("FontSize is only declared once.")
     }
 }
 

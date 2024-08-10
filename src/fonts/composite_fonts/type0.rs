@@ -53,7 +53,5 @@ impl Build for Type0Transient {
 }
 
 impl FontBehavior for Type0 {
-    fn width(&self, character: usize) -> u16 {
-        self.descendant_font.width(character.into())
-    }
+    // TODO: fix
 }

@@ -1,13 +1,14 @@
-use std::fmt::Debug;
+use std::{collections::HashMap, fmt::Debug};
 
 use crate::{
-    data::Rectangle,
+    data::{Position, Rectangle},
+    fonts::{Font, FontBehavior},
     parsers::{take_whitespace1, Extract},
+    structure::{BuiltPage, Page},
 };
 use nalgebra::Matrix3;
 use nom::{
     bytes::complete::{take, take_until},
-    sequence::terminated,
     IResult,
 };
 
@@ -23,37 +24,38 @@ pub struct TextElement {
 }
 
 #[derive(Debug)]
-pub struct TextState {
+pub struct TextState<'a> {
+    pub font: &'a Font,
+    pub size: f32,
     pub character_spacing: f32,
     pub word_spacing: f32,
     pub horizontal_scaling: f32,
     pub leading: f32,
-    pub font: String,
-    pub size: f32,
     pub mode: RenderMode,
     pub rise: f32,
     pub text_matrix: Matrix3<f32>,
     pub text_line_matrix: Matrix3<f32>,
-    // pub elements: Vec<TextElement>,
+    pub elements: Vec<TextElement>,
 }
 
-impl TextState {
-    pub fn new(font: String, size: f32) -> Self {
+impl<'a> TextState<'a> {
+    pub fn new(font: &'a Font, size: f32) -> Self {
         Self {
+            font,
+            size,
             character_spacing: 0.0,
             word_spacing: 0.0,
             horizontal_scaling: 1.0,
             leading: 0.0,
-            font,
-            size,
             mode: RenderMode::Fill,
             rise: 0.0,
             text_matrix: Matrix3::identity(),
             text_line_matrix: Matrix3::identity(),
+            elements: Vec::new(),
         }
     }
 
-    pub(crate) fn apply<O: Operator>(&mut self, op: O) {
+    pub fn apply<O: Operator>(&mut self, op: O) {
         op.apply(self)
     }
 
@@ -67,9 +69,10 @@ impl TextState {
         self.text_line_matrix = self.text_matrix;
     }
 
-    pub fn offset(&mut self, amount: f32) {
+    pub fn offset_tj(&mut self, amount: f32) {
+        let offset = -amount / 1000.0 * self.horizontal_scaling * self.size;
         // TODO: handle vertical/horizontal
-        let m = Matrix3::new(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, amount, 0.0, 1.0);
+        let m = Matrix3::new(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, offset, 0.0, 1.0);
         self.text_matrix = m * self.text_line_matrix;
         self.text_line_matrix = self.text_matrix;
     }
@@ -111,11 +114,47 @@ impl TextState {
     //     self.elements.push(element);
     // }
 
+    pub(crate) fn start_position(&self) -> Position {
+        Position::new(
+            self.text_matrix[(2, 0)],
+            self.text_matrix[(2, 1)] + self.font.descent() * self.size,
+        )
+    }
+
+    pub(crate) fn end_position(&self) -> Position {
+        Position::new(
+            self.text_matrix[(2, 0)],
+            self.text_matrix[(2, 1)] + self.font.ascent() * self.size,
+        )
+    }
+
     /// Tj operator
-    pub(crate) fn show_text(&mut self, text: String) {
-        // TODO: create text element, add
-        eprintln!("Trying to show `{text}`");
-        todo!()
+    pub(crate) fn show_text(&mut self, input: Vec<u8>) {
+        // TODO: create text element
+
+        let mut text = String::new();
+
+        let start_position = self.start_position();
+
+        for (char, width, is_space) in self.font.process(&input) {
+            text.push(char);
+
+            let mut tx = width * self.size + self.character_spacing;
+
+            if is_space {
+                tx += self.word_spacing;
+            }
+
+            self.translate(tx * self.horizontal_scaling, 0.0);
+        }
+
+        self.elements.push(TextElement {
+            text,
+            bounding_box: Rectangle {
+                lower_left: start_position,
+                upper_right: self.end_position(),
+            },
+        })
     }
 
     pub(crate) fn set_character_spacing(&mut self, spacing: f32) {
@@ -140,7 +179,7 @@ impl<'a> Iterator for ObjectContent<'a> {
     type Item = Op;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some((input, line)) = take_line(self.0).ok() {
+        while let Ok((input, line)) = take_line(self.0) {
             self.0 = input;
 
             if let Ok((_, op)) = Op::extract(line) {
@@ -154,16 +193,23 @@ impl<'a> Iterator for ObjectContent<'a> {
 #[derive(Debug)]
 pub struct TextObject<'a> {
     pub content: ObjectContent<'a>,
-    pub state: TextState,
+    pub state: TextState<'a>,
 }
 
 pub struct TextObjectIterator<'a> {
     input: &'a [u8],
+    fonts: &'a HashMap<String, Font>,
+}
+
+impl<'a> From<&'a BuiltPage> for TextObjectIterator<'a> {
+    fn from(page: &'a BuiltPage) -> Self {
+        TextObjectIterator::new(&page.content, &page.fonts)
+    }
 }
 
 impl<'a> TextObjectIterator<'a> {
-    pub fn new(input: &'a [u8]) -> Self {
-        Self { input }
+    pub fn new(input: &'a [u8], fonts: &'a HashMap<String, Font>) -> Self {
+        Self { input, fonts }
     }
 }
 
@@ -179,6 +225,7 @@ impl<'a> Iterator for TextObjectIterator<'a> {
         let op = content.next()?;
 
         if let Op::FontSize(FontSize { font, size }) = op {
+            let font = self.fonts.get(&font).unwrap();
             Some(TextObject {
                 content,
                 state: TextState::new(font, size),

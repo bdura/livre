@@ -3,12 +3,15 @@ use std::{
     io::{prelude::*, BufReader},
 };
 
-use livre::structure::{Document, Page};
 use livre::{
     fonts::FontBehavior,
     structure::{Build, BuiltPage, PageElement, PageNode},
 };
 use livre::{parsers::Extract, text::TextObjectIterator};
+use livre::{
+    structure::{Document, Page},
+    text::TextObject,
+};
 
 fn parse_page_kids(node: &PageNode, doc: &Document) -> Vec<BuiltPage> {
     let mut pages = Vec::new();
@@ -79,12 +82,6 @@ fn main() {
 
     println!();
     println!("F5 -> {f5:?}");
-    println!();
-    println!("{}", f5.width(0o340));
-    println!("{}", f5.width(b' ' as usize));
-    println!("{}", f5.width(b'i' as usize));
-    println!("{}", f5.width(b'A' as usize));
-    println!("{}", f5.width(b'-' as usize));
 
     for line in page
         .content
@@ -96,11 +93,20 @@ fn main() {
         println!("{}", String::from_utf8_lossy(line));
     }
 
-    for (i, text_object) in TextObjectIterator::new(&page.content).enumerate() {
-        println!();
-        println!("# {i}\n{text_object:?}");
-        for operator in text_object.content {
-            println!("- OP: {operator:?}");
+    for TextObject { content, mut state } in TextObjectIterator::from(&page) {
+        for operator in content {
+            state.apply(operator);
+        }
+
+        for element in state.elements {
+            println!(
+                "{:?},{},{},{},{}",
+                element.text,
+                element.bounding_box.lower_left.x,
+                element.bounding_box.lower_left.y,
+                element.bounding_box.upper_right.x,
+                element.bounding_box.upper_right.y
+            );
         }
     }
 }
