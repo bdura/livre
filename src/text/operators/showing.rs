@@ -1,5 +1,6 @@
 use crate::parsers::take_whitespace1;
 use crate::parsers::{extract, Brackets, Extract};
+use crate::text::TextState;
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -8,6 +9,8 @@ use nom::{
     sequence::{preceded, tuple},
     IResult,
 };
+
+use super::Operator;
 
 /// `Tj` operator: show a text string.
 #[derive(Debug, PartialEq, Clone)]
@@ -18,6 +21,13 @@ impl Extract<'_> for ShowTj {
         let (input, text) = extract_text(input)?;
         let (input, _) = tuple((take_whitespace1, tag(b"Tj")))(input)?;
         Ok((input, Self(text)))
+    }
+}
+
+impl Operator for ShowTj {
+    fn apply(self, obj: &mut TextState) {
+        let Self(text) = self;
+        obj.show_text(text)
     }
 }
 
@@ -40,6 +50,14 @@ impl Extract<'_> for ShowApostrophe {
     }
 }
 
+impl Operator for ShowApostrophe {
+    fn apply(self, obj: &mut TextState) {
+        let Self(text) = self;
+        obj.next_line();
+        obj.show_text(text);
+    }
+}
+
 /// `"` operator: move to the next line and show a text string, using aw as the word
 /// spacing and ac as the character spacing (setting the corresponding
 /// parameters in the text state). aw and ac shall be numbers expressed in
@@ -56,6 +74,21 @@ pub struct ShowQuote {
     pub text: String,
     pub character_spacing: f32,
     pub word_spacing: f32,
+}
+
+impl Operator for ShowQuote {
+    fn apply(self, obj: &mut TextState) {
+        let Self {
+            text,
+            character_spacing,
+            word_spacing,
+        } = self;
+
+        obj.set_character_spacing(character_spacing);
+        obj.set_word_spacing(word_spacing);
+        obj.next_line();
+        obj.show_text(text);
+    }
 }
 
 impl Extract<'_> for ShowQuote {
@@ -90,8 +123,26 @@ impl Extract<'_> for ArrayElement {
     }
 }
 
+impl Operator for ArrayElement {
+    fn apply(self, obj: &mut TextState) {
+        match self {
+            Self::Positioning(amount) => obj.offset(amount),
+            Self::Text(text) => obj.show_text(text),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct ShowTJ(pub Vec<ArrayElement>);
+
+impl Operator for ShowTJ {
+    fn apply(self, obj: &mut TextState) {
+        let Self(ops) = self;
+        for op in ops {
+            obj.apply(op)
+        }
+    }
+}
 
 impl Extract<'_> for ShowTJ {
     fn extract(input: &'_ [u8]) -> nom::IResult<&'_ [u8], Self> {

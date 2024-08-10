@@ -1,7 +1,20 @@
-use crate::data::Rectangle;
-use nalgebra::Matrix3;
+use std::fmt::Debug;
 
-use super::{operators::RenderMode, Operator};
+use crate::{
+    data::Rectangle,
+    parsers::{take_whitespace1, Extract},
+};
+use nalgebra::Matrix3;
+use nom::{
+    bytes::complete::{take, take_until},
+    sequence::terminated,
+    IResult,
+};
+
+use super::{
+    operators::{FontSize, RenderMode},
+    Op, Operator,
+};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct TextElement {
@@ -9,6 +22,7 @@ pub struct TextElement {
     pub bounding_box: Rectangle,
 }
 
+#[derive(Debug)]
 pub struct TextState {
     pub character_spacing: f32,
     pub word_spacing: f32,
@@ -53,6 +67,13 @@ impl TextState {
         self.text_line_matrix = self.text_matrix;
     }
 
+    pub fn offset(&mut self, amount: f32) {
+        // TODO: handle vertical/horizontal
+        let m = Matrix3::new(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, amount, 0.0, 1.0);
+        self.text_matrix = m * self.text_line_matrix;
+        self.text_line_matrix = self.text_matrix;
+    }
+
     /// `TL` operator
     pub fn set_leading(&mut self, leading: f32) {
         self.leading = leading;
@@ -90,9 +111,83 @@ impl TextState {
     //     self.elements.push(element);
     // }
 
-    // /// Tj operator
-    // pub(crate) fn show_text(&mut self, text: String) {
-    //     // TODO: create text element, add
-    //     todo!()
-    // }
+    /// Tj operator
+    pub(crate) fn show_text(&mut self, text: String) {
+        // TODO: create text element, add
+        eprintln!("Trying to show `{text}`");
+        todo!()
+    }
+
+    pub(crate) fn set_character_spacing(&mut self, spacing: f32) {
+        self.character_spacing = spacing;
+    }
+    pub(crate) fn set_word_spacing(&mut self, spacing: f32) {
+        self.word_spacing = spacing;
+    }
 }
+
+pub struct ObjectContent<'a>(&'a [u8]);
+
+impl<'a> Debug for ObjectContent<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("ObjectContent")
+            .field(&String::from_utf8_lossy(self.0))
+            .finish()
+    }
+}
+
+impl<'a> Iterator for ObjectContent<'a> {
+    type Item = Op;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let (input, operator) = terminated(Op::extract, take_whitespace1)(self.0).ok()?;
+        self.0 = input;
+        Some(operator)
+    }
+}
+
+#[derive(Debug)]
+pub struct TextObject<'a> {
+    pub content: ObjectContent<'a>,
+    pub state: TextState,
+}
+
+pub struct TextObjectIterator<'a> {
+    input: &'a [u8],
+}
+
+impl<'a> TextObjectIterator<'a> {
+    pub fn new(input: &'a [u8]) -> Self {
+        Self { input }
+    }
+}
+
+impl<'a> Iterator for TextObjectIterator<'a> {
+    type Item = TextObject<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let (input, content) = find_next_object(self.input).ok()?;
+        self.input = input;
+
+        let mut content = ObjectContent(content);
+
+        let font = content.next()?;
+
+        if let Op::FontSize(FontSize { font, size }) = font {
+            Some(TextObject {
+                content,
+                state: TextState::new(font, size),
+            })
+        } else {
+            panic!("Text object should define font & size before anything else.");
+        }
+    }
+}
+
+fn find_next_object(input: &[u8]) -> IResult<&[u8], &[u8]> {
+    let (input, _) = take_until("BT")(input)?;
+    let (input, _) = take(2usize)(input)?;
+    let (input, _) = take_whitespace1(input)?;
+    take_until("ET")(input)
+}
+

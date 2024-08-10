@@ -3,12 +3,12 @@ use std::{
     io::{prelude::*, BufReader},
 };
 
-use livre::parsers::Extract;
 use livre::structure::{Document, Page};
 use livre::{
     fonts::FontBehavior,
     structure::{Build, BuiltPage, PageElement, PageNode},
 };
+use livre::{parsers::Extract, text::TextObjectIterator};
 
 fn parse_page_kids(node: &PageNode, doc: &Document) -> Vec<BuiltPage> {
     let mut pages = Vec::new();
@@ -94,5 +94,13 @@ fn main() {
         .filter(|b| b.contains(&0o340))
     {
         println!("{}", String::from_utf8_lossy(line));
+    }
+
+    for (i, text_object) in TextObjectIterator::new(&page.content).enumerate() {
+        println!();
+        println!("# {i}\n{text_object:?}");
+        for operator in text_object.content {
+            println!("- OP: {operator:?}");
+        }
     }
 }
