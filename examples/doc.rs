@@ -59,26 +59,32 @@ fn main() {
         .split('\n')
         .map(|t| t.strip_suffix('\r').unwrap_or(t));
 
-    // let iter = content
-    //     .split(|&b| b == b'\n')
-    //     .map(|b| b.strip_suffix(b"\r").unwrap_or(b));
+    for line in iter {
+        if filter && line == "BT" {
+            filter = false;
+        }
 
-    // for line in iter.clone() {
-    //     if filter && line == "BT" {
-    //         filter = false;
-    //     }
+        if !filter {
+            println!("{line}");
+        }
 
-    //     if !filter {
-    //         println!("{line}");
-    //     }
+        if !filter && line == "ET" {
+            filter = true;
+            println!();
+        }
+    }
 
-    //     if !filter && line == "ET" {
-    //         filter = true;
-    //         println!();
+    // for (i, TextObject { content, mut state }) in TextObjectIterator::from(&page).enumerate() {
+    //     println!();
+    //     println!("# {i}");
+    //     for operator in content {
+    //         println!("- OP {operator:?}");
+    //         state.apply(operator);
     //     }
     // }
 
-    // let f5 = page.fonts.get("F5").unwrap();
+    let font_name = "F7";
+    println!("{font_name} -> {:?}", page.fonts.get(font_name).unwrap());
 
     // println!();
     // println!("F5 -> {f5:?}");
@@ -93,22 +99,31 @@ fn main() {
     //     println!("{}", String::from_utf8_lossy(line));
     // }
 
-    println!("group,text,llx,lly,urx,ury");
+    print_page_elements(&page);
+}
 
-    for (i, TextObject { content, mut state }) in TextObjectIterator::from(&page).enumerate() {
+fn print_page_elements(page: &BuiltPage) {
+    let mut file = File::create("./letter.csv").unwrap();
+
+    writeln!(file, "group,text,font,llx,lly,urx,ury").unwrap();
+
+    for (i, TextObject { content, mut state }) in TextObjectIterator::from(page).enumerate() {
         for operator in content {
             state.apply(operator);
         }
 
         for element in state.elements {
-            println!(
-                "{i},{:?},{},{},{},{}",
+            writeln!(
+                file,
+                r#"{i},"{}","{}",{},{},{},{}"#,
                 element.char,
+                state.font.name(),
                 element.bounding_box.lower_left.x,
                 element.bounding_box.lower_left.y,
                 element.bounding_box.upper_right.x,
                 element.bounding_box.upper_right.y
-            );
+            )
+            .unwrap();
         }
     }
 }

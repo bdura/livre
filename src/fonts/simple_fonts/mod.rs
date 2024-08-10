@@ -53,6 +53,16 @@ impl Build for SimpleFontTransient {
     }
 }
 
+impl SimpleFont {
+    fn width(&self, code: u8) -> f32 {
+        self.widths
+            .width(code as usize)
+            .map(f32::from)
+            .unwrap_or(self.font_descriptor.missing_width)
+            / 1000.0
+    }
+}
+
 impl FontBehavior for SimpleFont {
     fn ascent(&self) -> f32 {
         self.font_descriptor.ascent / 1000.0
@@ -61,9 +71,16 @@ impl FontBehavior for SimpleFont {
     fn descent(&self) -> f32 {
         self.font_descriptor.descent / 1000.0
     }
-    // fn width(&self, character: usize) -> u16 {
-    //     self.widths
-    //         .width(character)
-    //         .unwrap_or(self.font_descriptor.missing_width as u16)
-    // }
+
+    fn process(&self, input: &[u8]) -> Vec<(char, f32, bool)> {
+        input
+            .iter()
+            .copied()
+            .map(|c| (c as char, self.width(c), c == b' '))
+            .collect()
+    }
+
+    fn name(&self) -> &str {
+        &self.font_descriptor.font_name
+    }
 }

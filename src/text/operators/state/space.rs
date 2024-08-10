@@ -6,7 +6,7 @@ use nom::{
     sequence::{terminated, tuple},
 };
 
-use super::super::super::operators::{ElementsExtract, Operator};
+use super::super::super::operators::Operator;
 
 macro_rules! space_element {
     (
@@ -24,14 +24,6 @@ macro_rules! space_element {
                 let (input, space) =
                     terminated(extract, tuple((take_whitespace1, tag($tag))))(input)?;
                 Ok((input, Self(space)))
-            }
-        }
-
-        impl ElementsExtract for $name {
-            fn extract_from_elements(elements: &[&[u8]]) -> Self {
-                assert_eq!(elements.len(), 1);
-                let (_, inner) = extract(elements[0]).expect("Should match");
-                Self(inner)
             }
         }
     };
@@ -62,14 +54,6 @@ impl Extract<'_> for HorizontalScale {
         let (input, scale) = f32::extract(input)?;
         let (input, _) = tuple((take_whitespace1, tag("Tz")))(input)?;
         Ok((input, Self(scale / 100.0)))
-    }
-}
-
-impl ElementsExtract for HorizontalScale {
-    fn extract_from_elements(elements: &[&[u8]]) -> Self {
-        assert_eq!(elements.len(), 1);
-        let (_, inner) = f32::extract(elements[0]).expect("Should match");
-        Self(inner / 100.0)
     }
 }
 

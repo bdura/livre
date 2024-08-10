@@ -28,6 +28,9 @@ pub trait FontBehavior {
     fn descent(&self) -> f32 {
         0.0
     }
+    fn name(&self) -> &str {
+        "undefined"
+    }
 }
 
 #[derive(Debug, PartialEq, Deserialize, Clone)]

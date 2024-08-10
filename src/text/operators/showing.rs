@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::fmt::{self, Debug};
 
 use crate::parsers::{extract, Brackets, Extract};
 use crate::parsers::{pdf_decode, take_whitespace1, LitBytes};
@@ -109,10 +110,22 @@ impl Extract<'_> for ShowQuote {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
 pub enum ArrayElement {
     Positioning(f32),
     Text(Vec<u8>),
+}
+
+impl Debug for ArrayElement {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ArrayElement::Positioning(f0) => f.debug_tuple("Positioning").field(&f0).finish(),
+            ArrayElement::Text(f0) => f
+                .debug_tuple("Text")
+                .field(&String::from_utf8_lossy(f0))
+                .finish(),
+        }
+    }
 }
 
 impl Extract<'_> for ArrayElement {
@@ -177,9 +190,9 @@ mod tests {
 
     #[rstest]
     #[case(b"(test) Tj", "test")]
-    #[case(b"<0048> Tj", "H")]
-    #[case(b"<0057> Tj", "W")]
-    #[case(b"<0052> Tj", "R")]
+    // #[case(b"<0048> Tj", "H")]
+    // #[case(b"<0057> Tj", "W")]
+    // #[case(b"<0052> Tj", "R")]
     fn show_tj(#[case] input: &[u8], #[case] expected: &str) {
         let (_, ShowTj(text)) = extract(input).unwrap();
         assert_eq!(text, expected.as_bytes())

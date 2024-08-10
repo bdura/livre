@@ -9,6 +9,9 @@ pub use position::{MoveNextLine, MoveTD, MoveTd, TextMatrix};
 mod showing;
 pub use showing::{ShowApostrophe, ShowQuote, ShowTJ, ShowTj};
 
+mod other;
+pub use other::{Gs, LowercaseG, LowercaseRG, UppercaseG, UppercaseRG};
+
 use crate::parsers::Extract;
 
 use super::TextState;
@@ -18,14 +21,8 @@ pub trait Operator {
     fn apply(self, obj: &mut TextState);
 }
 
-trait ElementsExtract {
-    /// It's more efficient to use a slice of slices:
-    /// we can clear the underlying `Vec` and re-use it.
-    fn extract_from_elements(elements: &[&[u8]]) -> Self;
-}
-
 #[enum_dispatch(Operator)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Op {
     CharSpace,
     WordSpace,
@@ -42,6 +39,11 @@ pub enum Op {
     ShowQuote,
     ShowTJ,
     ShowTj,
+    UppercaseG,
+    LowercaseG,
+    Gs,
+    LowercaseRG,
+    UppercaseRG,
 }
 
 impl Extract<'_> for Op {
@@ -62,8 +64,30 @@ impl Extract<'_> for Op {
             map(ShowQuote::extract, Self::ShowQuote),
             map(ShowTJ::extract, Self::ShowTJ),
             map(ShowTj::extract, Self::ShowTj),
+            map(UppercaseG::extract, Self::UppercaseG),
+            map(LowercaseG::extract, Self::LowercaseG),
+            map(Gs::extract, Self::Gs),
+            map(LowercaseRG::extract, Self::LowercaseRG),
+            map(UppercaseRG::extract, Self::UppercaseRG),
         ))(input)
     }
 }
 
-mod parsing;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::rstest;
+
+    use crate::parsers::parse;
+
+    #[rstest]
+    #[case(b"1.0 1.0 1 RG", UppercaseRG)]
+    #[case(b"1.0 1.0 1 rg", LowercaseRG)]
+    #[case(b"1.0 g", LowercaseG)]
+    #[case(b"/Test gs", Gs)]
+    fn op(#[case] input: &[u8], #[case] expected: impl Into<Op>) {
+        let result = parse(input).unwrap();
+        let expected = expected.into();
+        assert_eq!(expected, result);
+    }
+}

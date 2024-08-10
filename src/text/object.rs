@@ -3,8 +3,9 @@ use std::{collections::HashMap, fmt::Debug};
 use crate::{
     data::{Position, Rectangle},
     fonts::{Font, FontBehavior},
-    parsers::{take_whitespace1, Extract},
-    structure::{BuiltPage, Page},
+    objects::Bytes,
+    parsers::{extract, take_whitespace, take_whitespace1},
+    structure::BuiltPage,
 };
 use nalgebra::Matrix3;
 use nom::{
@@ -70,7 +71,7 @@ impl<'a> TextState<'a> {
     }
 
     pub fn offset_tj(&mut self, amount: f32) {
-        let offset = amount / 1000.0 * self.horizontal_scaling * self.size;
+        let offset = -amount * self.horizontal_scaling * self.size;
         // TODO: handle vertical/horizontal
         let m = Matrix3::new(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, offset, 0.0, 1.0);
         self.text_matrix = m * self.text_line_matrix;
@@ -175,14 +176,10 @@ impl<'a> Iterator for ObjectContent<'a> {
     type Item = Op;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Ok((input, line)) = take_line(self.0) {
-            self.0 = input;
-
-            if let Ok((_, op)) = Op::extract(line) {
-                return Some(op);
-            }
-        }
-        None
+        let (input, _) = take_whitespace(self.0).ok()?;
+        let (input, op) = extract(input).map_err(|e| e.map_input(Bytes::from)).ok()?;
+        self.0 = input;
+        Some(op)
     }
 }
 
