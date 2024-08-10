@@ -140,9 +140,14 @@ impl<'a> Iterator for ObjectContent<'a> {
     type Item = Op;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (input, operator) = terminated(Op::extract, take_whitespace1)(self.0).ok()?;
-        self.0 = input;
-        Some(operator)
+        while let Some((input, line)) = take_line(self.0).ok() {
+            self.0 = input;
+
+            if let Ok((_, op)) = Op::extract(line) {
+                return Some(op);
+            }
+        }
+        None
     }
 }
 
@@ -171,9 +176,9 @@ impl<'a> Iterator for TextObjectIterator<'a> {
 
         let mut content = ObjectContent(content);
 
-        let font = content.next()?;
+        let op = content.next()?;
 
-        if let Op::FontSize(FontSize { font, size }) = font {
+        if let Op::FontSize(FontSize { font, size }) = op {
             Some(TextObject {
                 content,
                 state: TextState::new(font, size),
@@ -191,3 +196,11 @@ fn find_next_object(input: &[u8]) -> IResult<&[u8], &[u8]> {
     take_until("ET")(input)
 }
 
+fn take_line(input: &[u8]) -> IResult<&[u8], &[u8]> {
+    let (input, line) = take_until("\n")(input)?;
+    let (input, _) = take(1usize)(input)?;
+
+    let line = line.strip_suffix(b"\r").unwrap_or(line);
+
+    Ok((input, line))
+}
