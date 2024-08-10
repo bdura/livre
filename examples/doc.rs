@@ -3,21 +3,21 @@ use std::{
     io::{prelude::*, BufReader},
 };
 
+use livre::parsers::Extract;
+use livre::structure::{Document, Page};
 use livre::{
     fonts::FontBehavior,
-    structure::{PageElement, PageNode},
+    structure::{Build, BuiltPage, PageElement, PageNode},
 };
-use livre::{parsers::Extract, structure::ContentStream};
-use livre::{structure::Document, structure::Page};
 
-fn parse_page_kids(node: &PageNode, doc: &Document) -> Vec<Page> {
+fn parse_page_kids(node: &PageNode, doc: &Document) -> Vec<BuiltPage> {
     let mut pages = Vec::new();
 
     for &kid in &node.kids {
         match doc.parse_referenced(kid) {
             PageElement::Page(mut page) => {
                 page.props.merge_with_parent(&node.props);
-                pages.push(page.into())
+                pages.push(Page::from(page).build(doc))
             }
             PageElement::Pages(mut new_node) => {
                 new_node.props.merge_with_parent(&node.props);
@@ -46,12 +46,9 @@ fn main() {
 
     let mut pages = parse_page_kids(&pages, &doc);
 
-    let mut page = pages.pop().unwrap();
+    let page = pages.pop().unwrap();
 
-    let content_ref = page.contents.pop().unwrap();
-    let ContentStream(content) = doc.parse_referenced(content_ref);
-
-    let decoded = String::from_utf8_lossy(&content);
+    let decoded = String::from_utf8_lossy(&page.content);
 
     let mut filter = true;
 
@@ -78,7 +75,7 @@ fn main() {
         }
     }
 
-    let f5 = page.get_font("F5".to_string(), &doc);
+    let f5 = page.fonts.get("F5").unwrap();
 
     println!();
     println!("F5 -> {f5:?}");
@@ -89,7 +86,8 @@ fn main() {
     println!("{}", f5.width(b'A' as usize));
     println!("{}", f5.width(b'-' as usize));
 
-    for line in content
+    for line in page
+        .content
         .split(|&b| b == b'\n')
         .map(|b| b.strip_suffix(b"\r").unwrap_or(b))
         .filter(|b| b.ends_with(b"TJ"))

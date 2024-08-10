@@ -8,7 +8,7 @@ mod object_stream;
 pub use object_stream::ObjectStream;
 
 mod pages;
-pub use pages::{ContentStream, Page, PageElement, PageLeaf, PageNode};
+pub use pages::{BuiltPage, ContentStream, Page, PageElement, PageLeaf, PageNode};
 
 mod dictionaries;
 pub use dictionaries::{Catalogue, TrailerDict};

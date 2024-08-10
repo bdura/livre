@@ -107,12 +107,46 @@ impl From<PageLeaf> for Page {
     }
 }
 
-impl Page {
-    pub fn get_font<'a>(&'a mut self, name: String, doc: &Document) -> &'a Font {
-        let &reference = self.resources.font.get(&name).unwrap();
-        self.fonts
-            .entry(name.into())
-            .or_insert_with(|| doc.parse_referenced(reference).build(doc))
+#[derive(Debug, PartialEq, Clone)]
+pub struct BuiltPage {
+    pub media_box: Rectangle,
+    pub rotate: i16,
+    pub content: Vec<u8>,
+    pub user_unit: f32,
+    pub fonts: HashMap<String, Font>,
+}
+
+impl Build for Page {
+    type Output = BuiltPage;
+
+    fn build(self, doc: &Document) -> Self::Output {
+        let Self {
+            resources: Resources { font },
+            media_box,
+            rotate,
+            contents,
+            user_unit,
+            ..
+        } = self;
+
+        let content = contents
+            .into_iter()
+            .map(|r| doc.parse_referenced(r))
+            .flat_map(|ContentStream(d)| d)
+            .collect();
+
+        let fonts = font
+            .into_iter()
+            .map(|(key, reference)| (key, doc.parse_referenced(reference).build(doc)))
+            .collect();
+
+        BuiltPage {
+            media_box,
+            rotate,
+            content,
+            user_unit,
+            fonts,
+        }
     }
 }
 
