@@ -43,7 +43,7 @@ fn main() {
     let (_, doc) = Document::extract(&input).unwrap();
 
     let root = doc.parse_referenced(doc.root);
-    println!("{root:?}");
+    // println!("{root:?}");
 
     let pages: PageNode = doc.parse_referenced(root.pages);
 
@@ -63,45 +63,47 @@ fn main() {
     //     .split(|&b| b == b'\n')
     //     .map(|b| b.strip_suffix(b"\r").unwrap_or(b));
 
-    for line in iter.clone() {
-        if filter && line == "BT" {
-            filter = false;
-        }
+    // for line in iter.clone() {
+    //     if filter && line == "BT" {
+    //         filter = false;
+    //     }
 
-        if !filter {
-            println!("{line}");
-        }
+    //     if !filter {
+    //         println!("{line}");
+    //     }
 
-        if !filter && line == "ET" {
-            filter = true;
-            println!();
-        }
-    }
+    //     if !filter && line == "ET" {
+    //         filter = true;
+    //         println!();
+    //     }
+    // }
 
-    let f5 = page.fonts.get("F5").unwrap();
+    // let f5 = page.fonts.get("F5").unwrap();
 
-    println!();
-    println!("F5 -> {f5:?}");
+    // println!();
+    // println!("F5 -> {f5:?}");
 
-    for line in page
-        .content
-        .split(|&b| b == b'\n')
-        .map(|b| b.strip_suffix(b"\r").unwrap_or(b))
-        .filter(|b| b.ends_with(b"TJ"))
-        .filter(|b| b.contains(&0o340))
-    {
-        println!("{}", String::from_utf8_lossy(line));
-    }
+    // for line in page
+    //     .content
+    //     .split(|&b| b == b'\n')
+    //     .map(|b| b.strip_suffix(b"\r").unwrap_or(b))
+    //     .filter(|b| b.ends_with(b"TJ"))
+    //     .filter(|b| b.contains(&0o340))
+    // {
+    //     println!("{}", String::from_utf8_lossy(line));
+    // }
 
-    for TextObject { content, mut state } in TextObjectIterator::from(&page) {
+    println!("group,text,llx,lly,urx,ury");
+
+    for (i, TextObject { content, mut state }) in TextObjectIterator::from(&page).enumerate() {
         for operator in content {
             state.apply(operator);
         }
 
         for element in state.elements {
             println!(
-                "{:?},{},{},{},{}",
-                element.text,
+                "{i},{:?},{},{},{},{}",
+                element.char,
                 element.bounding_box.lower_left.x,
                 element.bounding_box.lower_left.y,
                 element.bounding_box.upper_right.x,

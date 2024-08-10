@@ -19,7 +19,7 @@ use super::{
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct TextElement {
-    pub text: String,
+    pub char: char,
     pub bounding_box: Rectangle,
 }
 
@@ -70,7 +70,7 @@ impl<'a> TextState<'a> {
     }
 
     pub fn offset_tj(&mut self, amount: f32) {
-        let offset = -amount / 1000.0 * self.horizontal_scaling * self.size;
+        let offset = amount / 1000.0 * self.horizontal_scaling * self.size;
         // TODO: handle vertical/horizontal
         let m = Matrix3::new(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, offset, 0.0, 1.0);
         self.text_matrix = m * self.text_line_matrix;
@@ -132,12 +132,8 @@ impl<'a> TextState<'a> {
     pub(crate) fn show_text(&mut self, input: Vec<u8>) {
         // TODO: create text element
 
-        let mut text = String::new();
-
-        let start_position = self.start_position();
-
         for (char, width, is_space) in self.font.process(&input) {
-            text.push(char);
+            let start_position = self.start_position();
 
             let mut tx = width * self.size + self.character_spacing;
 
@@ -146,15 +142,15 @@ impl<'a> TextState<'a> {
             }
 
             self.translate(tx * self.horizontal_scaling, 0.0);
-        }
 
-        self.elements.push(TextElement {
-            text,
-            bounding_box: Rectangle {
-                lower_left: start_position,
-                upper_right: self.end_position(),
-            },
-        })
+            self.elements.push(TextElement {
+                char,
+                bounding_box: Rectangle {
+                    lower_left: start_position,
+                    upper_right: self.end_position(),
+                },
+            })
+        }
     }
 
     pub(crate) fn set_character_spacing(&mut self, spacing: f32) {
