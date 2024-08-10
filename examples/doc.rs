@@ -3,12 +3,11 @@ use std::{
     io::{prelude::*, BufReader},
 };
 
-use livre::parsers::Extract;
-use livre::structure::{Build, Catalogue, PageElement, PageNode};
 use livre::{
-    fonts::FontTransient,
-    objects::{Object, Reference},
+    fonts::FontBehavior,
+    structure::{PageElement, PageNode},
 };
+use livre::{parsers::Extract, structure::ContentStream};
 use livre::{structure::Document, structure::Page};
 
 fn parse_page_kids(node: &PageNode, doc: &Document) -> Vec<Page> {
@@ -39,111 +38,63 @@ fn main() {
     reader.read_to_end(&mut input).ok();
 
     let (_, doc) = Document::extract(&input).unwrap();
-    for xref in &doc.crossrefs {
-        println!("{:?}", xref);
-
-        // let object: Object = doc.parse_referenced(*xref.0);
-        // println!("{object:?}");
-        // println!();
-
-        // if let RefLocation::Uncompressed(loc) = *xref.1 {
-        //     let bytes = &input[loc..];
-
-        //     println!(
-        //         "Obj: {:?}",
-        //         String::from_utf8_lossy(&bytes[..bytes.len().min(100)])
-        //     );
-        // }
-    }
 
     let root = doc.parse_referenced(doc.root);
     println!("{root:?}");
 
     let pages: PageNode = doc.parse_referenced(root.pages);
-    // println!("P: {pages:?}");
 
     let mut pages = parse_page_kids(&pages, &doc);
 
-    // for (i, page) in pages.iter().enumerate() {
-    //     println!("# {i}\n{page:#?}");
-
-    //     let content = doc.parse_referenced(*page.contents.first().unwrap());
-
-    //     println!("CONTENT:\n{content:#?}");
-    // }
-
     let mut page = pages.pop().unwrap();
 
-    let fonts = &page.resources.font;
+    let content_ref = page.contents.pop().unwrap();
+    let ContentStream(content) = doc.parse_referenced(content_ref);
 
-    for (key, reference) in fonts.clone() {
-        let font = page.get_font(key.clone(), &doc);
-        println!();
-        println!("{key} -> {font:?}");
+    let decoded = String::from_utf8_lossy(&content);
 
-        //let r: Reference = (*reference).into();
-        //let object: Object = doc.parse_referenced(r);
-        //// println!("{object:#?}");
-        //
-        //let font: FontTransient = doc.parse_referenced(r);
-        //println!();
-        //println!("{r:?}\n{font:?}\n{object:?}");
-        //
-        //if let FontTransient::Type0(type0) = font {
-        //    let type0 = type0.build(&doc);
-        //    // let descendant = descendant_fonts
-        //    //     .get_or_instantiate(&doc)
-        //    //     .first_mut()
-        //    //     .unwrap()
-        //    //     .get_or_instantiate(&doc);
-        //    println!("Desc: {:?}", type0.descendant_font);
-        //}
+    let mut filter = true;
+
+    let iter = decoded
+        .split('\n')
+        .map(|t| t.strip_suffix('\r').unwrap_or(t));
+
+    // let iter = content
+    //     .split(|&b| b == b'\n')
+    //     .map(|b| b.strip_suffix(b"\r").unwrap_or(b));
+
+    for line in iter.clone() {
+        if filter && line == "BT" {
+            filter = false;
+        }
+
+        if !filter {
+            println!("{line}");
+        }
+
+        if !filter && line == "ET" {
+            filter = true;
+            println!();
+        }
     }
 
-    // let page_raw = doc.get_referenced_bytes(pages.kids[0]).unwrap();
-    // // let (_, IntoString(page)) = extract(page_raw).unwrap();
-    // let (_, page) = extract::<PageLeaf>(page_raw).unwrap();
+    let f5 = page.get_font("F5".to_string(), &doc);
 
-    // let content_raw = doc.get_referenced_bytes(page.contents.0[0]).unwrap();
-    // // let (_, IntoString(content)) = extract(content_raw).unwrap();
-    // let (_, content) = extract::<Stream<'_, NoOp>>(content_raw).unwrap();
-    // let decoded = content.decode().unwrap();
-    // let decoded = String::from_utf8_lossy(&decoded);
-    // println!("{decoded}");
+    println!();
+    println!("F5 -> {f5:?}");
+    println!();
+    println!("{}", f5.width(0o340));
+    println!("{}", f5.width(b' ' as usize));
+    println!("{}", f5.width(b'i' as usize));
+    println!("{}", f5.width(b'A' as usize));
+    println!("{}", f5.width(b'-' as usize));
 
-    // let content = doc.parse_referenced(*pages[0].contents.first().unwrap());
-
-    // for line in String::from_utf8_lossy(&content.0)
-    //     .split('\n')
-    //     .filter(|t| t.to_lowercase().contains("tj"))
-    // {
-    //     println!("{line:?}");
-    // }
-
-    // let font: Font = doc.parse_referenced(TypedReference::new(object, generation))
-
-    // println!("{decoded}");
-    // let (_, DbgStr(font)) = extract(
-    //     doc.get_referenced_bytes(Reference::new(20, 0), &input)
-    //         .unwrap(),
-    // )
-    // .unwrap();
-
-    // println!("F4 Widths:\n{font}");
-
-    // let (
-    //     _,
-    //     Stream {
-    //         decoded,
-    //         structured: (),
-    //     },
-    // ) = extract(
-    //     doc.get_referenced_bytes(Reference::new(183, 0), &input)
-    //         .unwrap(),
-    // )
-    // .unwrap();
-
-    // let (_, DbgStr(decoded)) = extract(&decoded).unwrap();
-
-    // println!("ToUnicode:\n{decoded}");
+    for line in content
+        .split(|&b| b == b'\n')
+        .map(|b| b.strip_suffix(b"\r").unwrap_or(b))
+        .filter(|b| b.ends_with(b"TJ"))
+        .filter(|b| b.contains(&0o340))
+    {
+        println!("{}", String::from_utf8_lossy(line));
+    }
 }
