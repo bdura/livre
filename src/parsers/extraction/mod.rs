@@ -7,7 +7,8 @@ pub mod primitives;
 
 mod utilities;
 pub use utilities::{
-    Angles, Brackets, DbgStr, DoubleAngles, HexBytes, LitBytes, OptRef, Parentheses, RawValue,
+    Angles, Brackets, DbgStr, DoubleAngles, HexBytes, HexU16, LitBytes, OptRef, Parentheses,
+    RawValue,
 };
 
 pub mod pdf;

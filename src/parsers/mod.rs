@@ -9,5 +9,6 @@ pub use utilities::{
 mod extraction;
 pub use extraction::{
     encoding::pdf_decode, extract, parse, Angles, Brackets, DbgStr, DoubleAngles, Extract,
-    HexBytes, Indirect, LitBytes, Name, OptRef, Parentheses, RawValue, Reference, TypedReference,
+    HexBytes, HexU16, Indirect, LitBytes, Name, OptRef, Parentheses, RawValue, Reference,
+    TypedReference,
 };

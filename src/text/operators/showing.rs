@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::fmt::{self, Debug};
 
 use crate::objects::HexBytes;
-use crate::parsers::{extract, Brackets, Extract};
+use crate::parsers::{extract, Brackets, Extract, HexU16};
 use crate::parsers::{pdf_decode, take_whitespace1, LitBytes};
 use crate::text::TextState;
 use itertools::Itertools;
@@ -216,12 +216,8 @@ fn extract_lit(input: &[u8]) -> IResult<&[u8], Vec<u8>> {
 }
 
 fn extract_hex(input: &[u8]) -> IResult<&[u8], Vec<u16>> {
-    let (input, HexBytes(bytes)) = extract(input)?;
-    let utf16: Vec<u16> = bytes
-        .chunks_exact(2)
-        .map(|b| u16::from_be_bytes([b[0], b[1]]))
-        .collect();
-    Ok((input, utf16))
+    let (input, HexU16(vec)) = extract(input)?;
+    Ok((input, vec))
 }
 
 #[cfg(test)]
