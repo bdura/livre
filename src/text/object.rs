@@ -262,22 +262,21 @@ mod tests {
     #[rstest]
     #[case(
         indoc!{b"
+            BT
+            /F1
             1 0 0 1 9.84 612.34 Tm
             0.2 g
             0.2 G
             [(9)-6(4)-6(0)7(1)-6(0)7( )-2(CRET)-3(EIL)8( )-2(Ce)4(d)-6(e)4(x)] TJ
+            ET
         "},
-        vec![
-            TextMatrix{ a: 1.0, b: 0.0, c: 0.0, d: 1.0, e: 9.84, f: 603.34}.into(),
-            LowercaseG.into(),
-            UppercaseG.into(),
-            ShowTJ(vec![]).into()
-        ],
     )]
-    fn op_iterator(#[case] input: &[u8], #[case] expected: Vec<Op>) {
-        let obj = ObjectContent(input);
-        let operators: Vec<Op> = obj.collect();
+    fn text_object(#[case] input: &[u8]) {
+        let (_, object) = find_next_object(input).unwrap();
 
-        assert_eq!(operators, expected);
+        assert!(object.starts_with(b"/F1"));
+        assert!(object.ends_with(b"] TJ\n"));
+
+        assert_eq!(object, &input[3..(input.len() - 3)]);
     }
 }
