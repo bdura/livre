@@ -1,11 +1,10 @@
 use std::borrow::Cow;
 use std::fmt::{self, Debug};
 
-use crate::objects::HexBytes;
 use crate::parsers::{extract, Brackets, Extract, HexU16};
 use crate::parsers::{pdf_decode, take_whitespace1, LitBytes};
 use crate::text::TextState;
-use itertools::Itertools;
+
 use nom::{
     branch::alt,
     bytes::complete::tag,

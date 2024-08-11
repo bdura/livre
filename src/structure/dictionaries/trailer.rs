@@ -12,7 +12,7 @@ pub struct TrailerDict {
     /// as defined by the combination of the original section and all
     /// update sections. Equivalently, this value shall be 1 greater
     /// than the highest object number defined in the PDF file.
-    /// 
+    ///
     /// Any object in a cross-reference section whose number is greater than
     /// this value shall be ignored and defined to be missing by a PDF reader.
     pub size: usize,
@@ -34,14 +34,14 @@ mod tests {
 
     use std::fmt::Debug;
 
-    use indoc::indoc;
     use crate::serde::{from_bytes, MaybeArray};
+    use indoc::indoc;
     use rstest::rstest;
 
     use super::*;
 
     #[derive(Debug, PartialEq, Deserialize)]
-    #[serde(rename_all="PascalCase")]
+    #[serde(rename_all = "PascalCase")]
     struct Wrapper<T> {
         #[serde(default)]
         filter: MaybeArray<()>,
@@ -50,7 +50,7 @@ mod tests {
     }
 
     #[derive(Debug, PartialEq, Deserialize)]
-    #[serde(rename_all="PascalCase")]
+    #[serde(rename_all = "PascalCase")]
     struct Wrapped<T> {
         length: usize,
         #[serde(flatten)]

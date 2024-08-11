@@ -1,20 +1,16 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
-use crate::parsers::{extract, space, take_whitespace, HexU16};
-use crate::parsers::{Extract, OptRef};
+use crate::parsers::Extract;
+use crate::parsers::{extract, take_whitespace, HexU16};
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take, take_until};
-use nom::combinator::{map, verify};
-use nom::multi::{many0, separated_list0};
+use nom::combinator::map;
+use nom::multi::separated_list0;
 use nom::sequence::preceded;
 use nom::IResult;
-use nom::{
-    multi::count,
-    sequence::{terminated, tuple},
-};
-use serde::Deserialize;
+use nom::{multi::count, sequence::tuple};
 
-use crate::objects::{Object, Stream};
+use crate::objects::Stream;
 
 // #[derive(Debug, Deserialize)]
 // #[serde(untagged)]
@@ -23,11 +19,11 @@ use crate::objects::{Object, Stream};
 //     Stream(OptRef<CMap>),
 // }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-struct CMapConfig {
-    use_c_map: Option<Object>,
-}
+// #[derive(Debug, Deserialize)]
+// #[serde(rename_all = "PascalCase")]
+// struct CMapConfig {
+//     use_c_map: Option<Object>,
+// }
 
 #[derive(Debug)]
 pub struct CMap<I>(pub I);
@@ -41,7 +37,7 @@ where
             input,
             Stream {
                 decoded,
-                structured: CMapConfig { use_c_map },
+                structured: (),
             },
         ) = Stream::extract(input)?;
 

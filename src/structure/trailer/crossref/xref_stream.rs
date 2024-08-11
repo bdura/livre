@@ -1,5 +1,5 @@
-use itertools::Itertools;
 use crate::parsers::{extract, Extract, Reference};
+use itertools::Itertools;
 use nom::{bytes::complete::take, multi::count, IResult};
 
 use crate::objects::Stream;
@@ -17,7 +17,6 @@ struct SubSection {
     /// Number of objects in the section
     n: usize,
 }
-
 
 impl From<(usize, usize)> for SubSection {
     fn from((start, n): (usize, usize)) -> Self {
@@ -73,7 +72,15 @@ impl FieldSize {
             }
             1 => false,
             2 => true,
-            _ => unreachable!(),
+            _ => {
+                println!(
+                    "found {} in {}",
+                    ref_type,
+                    String::from_utf8_lossy(&input[..input.len().min(100)])
+                );
+
+                return Ok((input, None));
+            }
         };
 
         let reference = RefLocation::from_offset_and_flag(offset, compressed);
@@ -89,7 +96,7 @@ impl From<[u8; 3]> for FieldSize {
 }
 
 #[derive(Deserialize, Debug, PartialEq, Eq, Clone)]
-#[serde(try_from="Vec<usize>")]
+#[serde(try_from = "Vec<usize>")]
 struct SubSections(pub Vec<SubSection>);
 
 impl TryFrom<Vec<usize>> for SubSections {
@@ -99,7 +106,11 @@ impl TryFrom<Vec<usize>> for SubSections {
         if value.len() % 2 != 0 {
             Err("too many integers")
         } else {
-            let sub_sections: Vec<SubSection> = value.into_iter().tuples::<(_, _)>().map(SubSection::from).collect();
+            let sub_sections: Vec<SubSection> = value
+                .into_iter()
+                .tuples::<(_, _)>()
+                .map(SubSection::from)
+                .collect();
             Ok(SubSections(sub_sections))
         }
     }
@@ -140,11 +151,15 @@ impl<'input> Extract<'input> for XRefStream {
                 structured: XRefStreamConfig { index, w, dict },
             },
         ) = extract(input)?;
+        println!("{decoded:?}");
 
-        let SubSections(index) = index.unwrap_or(vec![SubSection {
-            start: 0,
-            n: dict.size,
-        }].into());
+        let SubSections(index) = index.unwrap_or(
+            vec![SubSection {
+                start: 0,
+                n: dict.size,
+            }]
+            .into(),
+        );
 
         let mut refs = Vec::new();
 
@@ -172,10 +187,10 @@ mod tests {
 
     use std::fmt::Debug;
 
-    use indoc::indoc;
-    use crate::parsers::TypedReference;
     use crate::objects::{Bytes, HexBytes};
+    use crate::parsers::TypedReference;
     use crate::serde::extract_deserialize;
+    use indoc::indoc;
     use rstest::rstest;
 
     use super::*;
@@ -192,6 +207,7 @@ mod tests {
     fn subsection(start: usize, n: usize) -> SubSection {
         SubSection { start, n }
     }
+    
 
     #[rstest]
     #[case(b"1 1", subsection(1, 1))]
@@ -231,7 +247,9 @@ mod tests {
     where
         T: Deserialize<'de> + Debug + PartialEq,
     {
-        let (_, result) = extract_deserialize(input).map_err(|e| e.map_input(Bytes::from)).unwrap();
+        let (_, result) = extract_deserialize(input)
+            .map_err(|e| e.map_input(Bytes::from))
+            .unwrap();
         assert_eq!(expected, result);
     }
 
@@ -265,15 +283,17 @@ mod tests {
         assert_eq!(decoded, b"0".into());
         assert_eq!(
             index.unwrap().0,
-            vec![
-                subsection(1, 1),
-                subsection(7, 1),
-                subsection(91807, 1006),
-            ]
+            vec![subsection(1, 1), subsection(7, 1), subsection(91807, 1006),]
         );
         assert_eq!(w, FieldSize::new(1, 3, 0));
         assert_eq!(
-            dict, 
-            TrailerDict{ size: 92813, prev: Some(116), root: TypedReference::new(90794, 0), info: TypedReference::new(90792, 0) });
+            dict,
+            TrailerDict {
+                size: 92813,
+                prev: Some(116),
+                root: TypedReference::new(90794, 0),
+                info: TypedReference::new(90792, 0)
+            }
+        );
     }
 }

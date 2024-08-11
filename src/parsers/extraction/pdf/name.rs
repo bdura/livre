@@ -5,8 +5,8 @@ use nom::{
     IResult,
 };
 
-use crate::parsers::{is_space_or_newline, parse_hexadecimal_bigram, parse_string_with_escapes};
 use crate::parsers::Extract;
+use crate::parsers::{is_space_or_newline, parse_hexadecimal_bigram, parse_string_with_escapes};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Name(pub String);

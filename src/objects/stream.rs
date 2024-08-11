@@ -1,9 +1,10 @@
 use std::{fmt::Debug, ops::Deref};
 
 use crate::filters::{Filter, Filtering};
-use crate::parsers::take_whitespace;
 use crate::parsers::Extract;
+use crate::parsers::{take_whitespace, OptRef};
 use crate::serde::{extract_deserialize, MaybeArray};
+use nom::bytes::complete::take_until;
 use nom::{
     bytes::complete::{tag, take},
     character::complete::line_ending,
@@ -15,7 +16,7 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "PascalCase")]
 struct StreamDict<T> {
-    length: usize,
+    length: OptRef<usize>,
     #[serde(default)]
     filter: MaybeArray<Filter>,
     #[serde(flatten)]
@@ -71,7 +72,15 @@ where
         ) = extract_deserialize(input)?;
 
         let (input, _) = tuple((take_whitespace, tag(b"stream"), line_ending))(input)?;
-        let (input, content) = take(length)(input)?;
+
+        let (input, content) = match length {
+            OptRef::Val(length) => take(length)(input)?,
+            OptRef::Ref(_) => {
+                let (input, content) = take_until("\nendstream")(input)?;
+                let content = content.strip_suffix(b"\r").unwrap_or(content);
+                (input, content)
+            }
+        };
         let (input, _) = tuple((take_whitespace, tag("endstream"), take_whitespace))(input)?;
 
         let decoded = filter.decode(content).map_err(|_| {
@@ -206,7 +215,7 @@ mod tests {
             /Index[ 1 1 7 1 91807 1006]
             /Length 1>>
         "},
-        StreamDict{ length: 1, filter: MaybeArray(vec![]), structured: () }
+        StreamDict{ length: 1.into(), filter: MaybeArray(vec![]), structured: () }
     )]
     #[case(
         indoc!{b"
@@ -219,7 +228,7 @@ mod tests {
             /Index[ 1 1 7 1 91807 1006]
             /Length 1>>
         "},
-        StreamDict{ length: 1, filter: MaybeArray(vec![]), structured: Test{test: true} }
+        StreamDict{ length: 1.into(), filter: MaybeArray(vec![]), structured: Test{test: true} }
     )]
     #[case(
         indoc!{b"
@@ -229,7 +238,7 @@ mod tests {
             /Type/XRef
             /Length 1>>
         "},
-        StreamDict{ length: 1, filter: MaybeArray(vec![]), structured: TestNested{root: true, inner: Test{test: false}} }
+        StreamDict{ length: 1.into(), filter: MaybeArray(vec![]), structured: TestNested{root: true, inner: Test{test: false}} }
     )]
     #[case(
         indoc!{b"<</Root true /Test false>>"},

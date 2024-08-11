@@ -1,10 +1,7 @@
-use std::ops::Div;
-
 use serde::Deserialize;
 
 use crate::{
     fonts::FontBehavior,
-    objects::Object,
     parsers::{OptRef, TypedReference},
     structure::{Build, Document, ToUnicode},
     text::operators::PdfString,

@@ -2,8 +2,6 @@ use serde::Deserialize;
 
 use crate::{data::Rectangle, parsers::Extract, serde::extract_deserialize};
 
-
-
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Deserialize)]
 #[serde(from = "u32")]
 pub struct FontFlags {
@@ -40,8 +38,7 @@ pub struct FontFlags {
 }
 
 impl From<u32> for FontFlags {
-    fn from(num: u32) -> Self{
-
+    fn from(num: u32) -> Self {
         let fixed_pitch = num & 1 == 1;
         let serif = num >> 1 & 1 == 1;
         let symbolic = num >> 2 & 1 == 1;

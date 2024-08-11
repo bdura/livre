@@ -2,8 +2,6 @@ use nom::bytes::complete::tag;
 
 use super::Extract;
 
-
-
 impl Extract<'_> for () {
     fn extract(input: &[u8]) -> nom::IResult<&[u8], Self> {
         let (input, _) = tag(b"null")(input)?;
@@ -14,8 +12,6 @@ impl Extract<'_> for () {
 #[cfg(test)]
 mod tests {
     use crate::parsers::extraction::parse;
-
-
 
     #[test]
     fn extract_unit() {

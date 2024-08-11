@@ -4,14 +4,15 @@ use crate::{
     data::{Position, Rectangle},
     fonts::{Font, FontBehavior},
     objects::Bytes,
-    parsers::{extract, take_whitespace, take_whitespace1},
+    parsers::{extract, take_whitespace, take_whitespace1, Extract},
     structure::BuiltPage,
 };
 use nalgebra::Matrix3;
 use nom::{
-    bytes::complete::{take, take_until},
-    combinator::{recognize, verify},
-    multi::{many0, many1},
+    bytes::complete::{tag, take, take_until},
+    combinator::recognize,
+    multi::many1,
+    sequence::{preceded, tuple},
     IResult,
 };
 
@@ -233,21 +234,15 @@ impl<'a> Iterator for TextObjectIterator<'a> {
     }
 }
 
-fn take_line(input: &[u8]) -> IResult<&[u8], &[u8]> {
-    let (input, line) = take_until("\n")(input)?;
-    let (input, _) = take(1usize)(input)?;
-
-    let line = line.strip_suffix(b"\r").unwrap_or(line);
-
-    Ok((input, line))
-}
-
 fn find_next_object(input: &[u8]) -> IResult<&[u8], &[u8]> {
     let (input, _) = take_until("BT")(input)?;
     let (input, _) = take(2usize)(input)?;
     let (input, _) = take_whitespace1(input)?;
 
-    recognize(many1(verify(take_line, |line: &[u8]| line != b"ET")))(input)
+    let (input, object) = recognize(many1(preceded(take_whitespace, Op::extract)))(input)?;
+    let (input, _) = tuple((take_whitespace, tag(b"ET")))(input)?;
+
+    Ok((input, object))
 }
 
 #[cfg(test)]
@@ -255,15 +250,13 @@ mod tests {
     use indoc::indoc;
     use rstest::rstest;
 
-    use crate::text::operators::{LowercaseG, ShowTJ, TextMatrix, UppercaseG};
-
     use super::*;
 
     #[rstest]
     #[case(
         indoc!{b"
             BT
-            /F1
+            /F1 8 Tf
             1 0 0 1 9.84 612.34 Tm
             0.2 g
             0.2 G
@@ -274,9 +267,11 @@ mod tests {
     fn text_object(#[case] input: &[u8]) {
         let (_, object) = find_next_object(input).unwrap();
 
-        assert!(object.starts_with(b"/F1"));
-        assert!(object.ends_with(b"] TJ\n"));
+        println!("{:?}", Bytes::from(object));
 
-        assert_eq!(object, &input[3..(input.len() - 3)]);
+        assert!(object.starts_with(b"/F1"));
+        assert!(object.ends_with(b"] TJ"));
+
+        assert_eq!(object, &input[3..(input.len() - 4)]);
     }
 }

@@ -8,8 +8,14 @@ use super::super::{Extract, TypedReference};
 #[derive(Debug, PartialEq, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum OptRef<T> {
-    Val(T),
     Ref(TypedReference<T>),
+    Val(T),
+}
+
+impl<T> From<T> for OptRef<T> {
+    fn from(value: T) -> Self {
+        Self::Val(value)
+    }
 }
 
 impl<'input, T> Extract<'input> for OptRef<T>
