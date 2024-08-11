@@ -3,7 +3,9 @@ use serde::Deserialize;
 use width::Widths;
 pub use width::WidthsTransient;
 
-use crate::{objects::Reference, parsers::TypedReference, structure::Build};
+use crate::{
+    objects::Reference, parsers::TypedReference, structure::Build, text::operators::PdfString,
+};
 
 use super::{FontBehavior, FontDescriptor};
 
@@ -72,8 +74,8 @@ impl FontBehavior for SimpleFont {
         self.font_descriptor.descent / 1000.0
     }
 
-    fn process(&self, input: &[u8]) -> Vec<(char, f32, bool)> {
-        input
+    fn process(&self, input: PdfString) -> Vec<(char, f32, bool)> {
+        Vec::<u8>::from(input)
             .iter()
             .copied()
             .map(|c| (c as char, self.width(c), c == b' '))

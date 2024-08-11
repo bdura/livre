@@ -1,9 +1,11 @@
 use std::borrow::Cow;
 use std::fmt::{self, Debug};
 
+use crate::objects::HexBytes;
 use crate::parsers::{extract, Brackets, Extract};
 use crate::parsers::{pdf_decode, take_whitespace1, LitBytes};
 use crate::text::TextState;
+use itertools::Itertools;
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -15,9 +17,31 @@ use nom::{
 
 use super::Operator;
 
+/// It looks like text can be represented with u8 or u16 code points.
+#[derive(PartialEq, Clone)]
+pub enum PdfString {
+    Utf8(Vec<u8>),
+    Utf16(Vec<u16>),
+}
+
+impl From<PdfString> for Vec<u8> {
+    fn from(value: PdfString) -> Self {
+        match value {
+            PdfString::Utf8(input) => input,
+            PdfString::Utf16(input) => input.into_iter().map(|b| b as u8).collect(),
+        }
+    }
+}
+
+impl Extract<'_> for PdfString {
+    fn extract(input: &'_ [u8]) -> IResult<&'_ [u8], Self> {
+        extract_text(input)
+    }
+}
+
 /// `Tj` operator: show a text string.
 #[derive(Debug, PartialEq, Clone)]
-pub struct ShowTj(pub Vec<u8>);
+pub struct ShowTj(pub PdfString);
 
 impl Extract<'_> for ShowTj {
     fn extract(input: &'_ [u8]) -> nom::IResult<&'_ [u8], Self> {
@@ -43,7 +67,7 @@ impl Operator for ShowTj {
 /// (string) Tj
 /// ```
 #[derive(Debug, PartialEq, Clone)]
-pub struct ShowApostrophe(pub Vec<u8>);
+pub struct ShowApostrophe(pub PdfString);
 
 impl Extract<'_> for ShowApostrophe {
     fn extract(input: &'_ [u8]) -> nom::IResult<&'_ [u8], Self> {
@@ -74,7 +98,7 @@ impl Operator for ShowApostrophe {
 /// ```
 #[derive(Debug, PartialEq, Clone)]
 pub struct ShowQuote {
-    pub text: Vec<u8>,
+    pub text: PdfString,
     pub character_spacing: f32,
     pub word_spacing: f32,
 }
@@ -110,19 +134,22 @@ impl Extract<'_> for ShowQuote {
     }
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum ArrayElement {
     Positioning(f32),
-    Text(Vec<u8>),
+    Text(PdfString),
 }
 
-impl Debug for ArrayElement {
+impl Debug for PdfString {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ArrayElement::Positioning(f0) => f.debug_tuple("Positioning").field(&f0).finish(),
-            ArrayElement::Text(f0) => f
-                .debug_tuple("Text")
+            Self::Utf8(f0) => f
+                .debug_tuple("Utf8")
                 .field(&String::from_utf8_lossy(f0))
+                .finish(),
+            Self::Utf16(f0) => f
+                .debug_tuple("Utf16")
+                .field(&String::from_utf16_lossy(f0))
                 .finish(),
         }
     }
@@ -170,8 +197,15 @@ impl Extract<'_> for ShowTJ {
     }
 }
 
+fn extract_text(input: &[u8]) -> IResult<&[u8], PdfString> {
+    alt((
+        map(extract_lit, PdfString::Utf8),
+        map(extract_hex, PdfString::Utf16),
+    ))(input)
+}
+
 /// Extract text (or single character)
-fn extract_text(input: &[u8]) -> IResult<&[u8], Vec<u8>> {
+fn extract_lit(input: &[u8]) -> IResult<&[u8], Vec<u8>> {
     let (input, LitBytes(bytes)) = extract(input)?;
     // TODO: keep borrowing here.
     let res = match bytes {
@@ -179,6 +213,15 @@ fn extract_text(input: &[u8]) -> IResult<&[u8], Vec<u8>> {
         Cow::Owned(b) => pdf_decode(&b).to_vec(),
     };
     Ok((input, res))
+}
+
+fn extract_hex(input: &[u8]) -> IResult<&[u8], Vec<u16>> {
+    let (input, HexBytes(bytes)) = extract(input)?;
+    let utf16: Vec<u16> = bytes
+        .chunks_exact(2)
+        .map(|b| u16::from_be_bytes([b[0], b[1]]))
+        .collect();
+    Ok((input, utf16))
 }
 
 #[cfg(test)]
@@ -190,12 +233,12 @@ mod tests {
 
     #[rstest]
     #[case(b"(test) Tj", "test")]
-    // #[case(b"<0048> Tj", "H")]
-    // #[case(b"<0057> Tj", "W")]
-    // #[case(b"<0052> Tj", "R")]
+    #[case(b"<0048> Tj", "H")]
+    #[case(b"<0057> Tj", "W")]
+    #[case(b"<0052> Tj", "R")]
     fn show_tj(#[case] input: &[u8], #[case] expected: &str) {
         let (_, ShowTj(text)) = extract(input).unwrap();
-        assert_eq!(text, expected.as_bytes())
+        assert_eq!(Vec::<u8>::from(text), expected.as_bytes())
     }
 
     #[rstest]
@@ -211,7 +254,7 @@ mod tests {
         let mut off = 0.0;
 
         array.into_iter().for_each(|element| match element {
-            ArrayElement::Text(t) => text.extend(&t),
+            ArrayElement::Text(t) => text.extend::<&Vec<u8>>(&t.into()),
             ArrayElement::Positioning(p) => off += p,
         });
         assert_eq!(text, expected.as_bytes());

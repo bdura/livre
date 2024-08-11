@@ -51,40 +51,47 @@ fn main() {
 
     let page = pages.pop().unwrap();
 
-    let decoded = String::from_utf8_lossy(&page.content);
+    // let decoded = String::from_utf8_lossy(&page.content);
 
-    let mut filter = true;
+    // let mut filter = true;
+    // let mut font = "";
 
-    let iter = decoded
-        .split('\n')
-        .map(|t| t.strip_suffix('\r').unwrap_or(t));
+    // let iter = decoded
+    //     .split('\n')
+    //     .map(|t| t.strip_suffix('\r').unwrap_or(t));
 
-    for line in iter {
-        if filter && line == "BT" {
-            filter = false;
-        }
+    // for line in iter {
+    //     if filter && line == "BT" {
+    //         filter = false;
+    //     }
 
-        if !filter {
-            println!("{line}");
-        }
+    //     if !filter && line.ends_with("Tf") {
+    //         font = line;
+    //     }
 
-        if !filter && line == "ET" {
-            filter = true;
-            println!();
-        }
-    }
+    //     if !filter && (line.contains("Tj") || line.contains("TJ")) && line.contains("<") {
+    //         println!("{font}");
+    //         println!("{line}");
+    //         println!();
+    //     }
 
-    // for (i, TextObject { content, mut state }) in TextObjectIterator::from(&page).enumerate() {
-    //     println!();
-    //     println!("# {i}");
-    //     for operator in content {
-    //         println!("- OP {operator:?}");
-    //         state.apply(operator);
+    //     if !filter && line == "ET" {
+    //         filter = true;
+    //         // println!();
     //     }
     // }
 
-    let font_name = "F7";
-    println!("{font_name} -> {:?}", page.fonts.get(font_name).unwrap());
+    for (i, TextObject { content, mut state }) in TextObjectIterator::from(&page).enumerate() {
+        println!();
+        println!("# {i} ({} - {})", &state.font_name, state.font.name());
+        for operator in content {
+            println!("- OP {operator:?}");
+            state.apply(operator);
+        }
+    }
+
+    // let font_name = "F7";
+    // println!("{font_name} -> {:#?}", page.fonts.get(font_name).unwrap());
 
     // println!();
     // println!("F5 -> {f5:?}");

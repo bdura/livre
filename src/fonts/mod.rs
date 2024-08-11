@@ -11,16 +11,26 @@ pub use composite_fonts::{CIDFontTypeTransient, Type0Transient, WElement};
 mod descriptors;
 pub use descriptors::{FontDescriptor, FontFlags};
 
-use crate::{parsers::Extract, serde::extract_deserialize, structure::Build};
+use crate::{
+    parsers::Extract, serde::extract_deserialize, structure::Build, text::operators::PdfString,
+};
 
 #[enum_dispatch]
 pub trait FontBehavior {
-    fn process(&self, input: &[u8]) -> Vec<(char, f32, bool)> {
-        input
-            .iter()
-            .copied()
-            .map(|b| (char::from(b), 0.5, b == b' '))
-            .collect()
+    fn process(&self, input: PdfString) -> Vec<(char, f32, bool)> {
+        match input {
+            PdfString::Utf8(input) => input
+                .iter()
+                .copied()
+                .map(|b| (char::from(b), 0.5, b == b' '))
+                .collect(),
+            PdfString::Utf16(input) => input
+                .iter()
+                .copied()
+                .map(|b| b as u8)
+                .map(|b| (char::from(b), 0.5, b == b' '))
+                .collect(),
+        }
     }
     fn ascent(&self) -> f32 {
         0.0

@@ -7,7 +7,7 @@ use super::super::super::operators::Operator;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct FontSize {
-    pub font: String,
+    pub font_name: String,
     pub size: f32,
 }
 
@@ -16,7 +16,10 @@ impl Extract<'_> for FontSize {
         let (input, (Name(font), size)) = extract(input)?;
         let (input, _) = preceded(take_whitespace1, tag("Tf"))(input)?;
 
-        let font_size = FontSize { font, size };
+        let font_size = FontSize {
+            font_name: font,
+            size,
+        };
         Ok((input, font_size))
     }
 }
@@ -24,7 +27,10 @@ impl Extract<'_> for FontSize {
 impl FontSize {
     pub fn new(font: impl Into<String>, size: f32) -> Self {
         let font = font.into();
-        Self { font, size }
+        Self {
+            font_name: font,
+            size,
+        }
     }
 }
 

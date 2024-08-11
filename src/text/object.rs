@@ -14,7 +14,7 @@ use nom::{
 };
 
 use super::{
-    operators::{FontSize, RenderMode},
+    operators::{FontSize, PdfString, RenderMode},
     Op, Operator,
 };
 
@@ -26,6 +26,7 @@ pub struct TextElement {
 
 #[derive(Debug)]
 pub struct TextState<'a> {
+    pub font_name: String,
     pub font: &'a Font,
     pub size: f32,
     pub character_spacing: f32,
@@ -40,8 +41,9 @@ pub struct TextState<'a> {
 }
 
 impl<'a> TextState<'a> {
-    pub fn new(font: &'a Font, size: f32) -> Self {
+    pub fn new(font_name: String, font: &'a Font, size: f32) -> Self {
         Self {
+            font_name,
             font,
             size,
             character_spacing: 0.0,
@@ -130,10 +132,10 @@ impl<'a> TextState<'a> {
     }
 
     /// Tj operator
-    pub(crate) fn show_text(&mut self, input: Vec<u8>) {
+    pub(crate) fn show_text(&mut self, input: PdfString) {
         // TODO: create text element
 
-        for (char, width, is_space) in self.font.process(&input) {
+        for (char, width, is_space) in self.font.process(input) {
             let start_position = self.start_position();
 
             let mut tx = width * self.size + self.character_spacing;
@@ -217,11 +219,11 @@ impl<'a> Iterator for TextObjectIterator<'a> {
 
         let op = content.next()?;
 
-        if let Op::FontSize(FontSize { font, size }) = op {
-            let font = self.fonts.get(&font).unwrap();
+        if let Op::FontSize(FontSize { font_name, size }) = op {
+            let font = self.fonts.get(&font_name).unwrap();
             Some(TextObject {
                 content,
-                state: TextState::new(font, size),
+                state: TextState::new(font_name, font, size),
             })
         } else {
             panic!("Text object should define font & size before anything else.");
