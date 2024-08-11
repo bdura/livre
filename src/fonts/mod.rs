@@ -1,4 +1,5 @@
 use composite_fonts::Type0;
+use enum_dispatch::enum_dispatch;
 use serde::Deserialize;
 
 mod simple_fonts;
@@ -10,10 +11,36 @@ pub use composite_fonts::{CIDFontTypeTransient, Type0Transient, WElement};
 mod descriptors;
 pub use descriptors::{FontDescriptor, FontFlags};
 
-use crate::{parsers::Extract, serde::extract_deserialize, structure::Build};
+use crate::{
+    parsers::Extract, serde::extract_deserialize, structure::Build, text::operators::PdfString,
+};
 
+#[enum_dispatch]
 pub trait FontBehavior {
-    fn width(&self, character: usize) -> u16;
+    fn process(&self, input: PdfString) -> Vec<(char, f32, bool)> {
+        match input {
+            PdfString::Utf8(input) => input
+                .iter()
+                .copied()
+                .map(|b| (char::from(b), 0.5, b == b' '))
+                .collect(),
+            PdfString::Utf16(input) => input
+                .iter()
+                .copied()
+                .map(|b| b as u8)
+                .map(|b| (char::from(b), 0.5, b == b' '))
+                .collect(),
+        }
+    }
+    fn ascent(&self) -> f32 {
+        0.0
+    }
+    fn descent(&self) -> f32 {
+        0.0
+    }
+    fn name(&self) -> &str {
+        "undefined"
+    }
 }
 
 #[derive(Debug, PartialEq, Deserialize, Clone)]
@@ -35,10 +62,11 @@ impl Extract<'_> for FontTransient {
     }
 }
 
+#[enum_dispatch(FontBehavior)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum Font {
-    Type0(Type0),
-    Simple(SimpleFont),
+    Type0,
+    SimpleFont,
     // TODO: add Type3
 }
 
@@ -48,20 +76,11 @@ impl Build for FontTransient {
     fn build(self, doc: &crate::structure::Document) -> Self::Output {
         match self {
             Self::Type0(font) => Font::Type0(font.build(doc)),
-            Self::Type1(font) => Font::Simple(font.build(doc)),
-            Self::MMType1(font) => Font::Simple(font.build(doc)),
-            Self::TrueType(font) => Font::Simple(font.build(doc)),
+            Self::Type1(font) => Font::SimpleFont(font.build(doc)),
+            Self::MMType1(font) => Font::SimpleFont(font.build(doc)),
+            Self::TrueType(font) => Font::SimpleFont(font.build(doc)),
             Self::Type3 => todo!("no support for Type3 fonts yet"),
             _ => unreachable!("CIDFont are not top-level fonts"),
-        }
-    }
-}
-
-impl FontBehavior for Font {
-    fn width(&self, character: usize) -> u16 {
-        match self {
-            Self::Type0(font) => font.width(character),
-            Self::Simple(font) => font.width(character),
         }
     }
 }

@@ -1,8 +1,9 @@
 use crate::{
-    parsers::{extract, Extract},
+    parsers::{extract, take_whitespace, Extract},
     text::TextState,
 };
 use nalgebra::Matrix3;
+use nom::{bytes::complete::tag, sequence::tuple};
 
 use super::super::super::operators::Operator;
 
@@ -26,6 +27,7 @@ impl From<TextMatrix> for Matrix3<f32> {
 impl Extract<'_> for TextMatrix {
     fn extract(input: &'_ [u8]) -> nom::IResult<&'_ [u8], Self> {
         let (input, (a, b, c, d, e, f)) = extract(input)?;
+        let (input, _) = tuple((take_whitespace, tag(b"Tm")))(input)?;
         let matrix = Self { a, b, c, d, e, f };
         Ok((input, matrix))
     }

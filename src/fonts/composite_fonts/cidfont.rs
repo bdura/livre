@@ -4,7 +4,8 @@ use nom::{branch::alt, combinator::map};
 use serde::Deserialize;
 
 use crate::{
-    parsers::{parse, Extract, OptRef},
+    fonts::FontDescriptor,
+    parsers::{parse, Extract, OptRef, TypedReference},
     serde::extract_deserialize,
     structure::Build,
 };
@@ -109,6 +110,7 @@ pub struct CIDFontTypeTransient {
     default_width: u16,
     #[serde(rename = "W")]
     widths: Option<OptRef<Widths>>,
+    font_descriptor: TypedReference<FontDescriptor>,
 }
 
 impl Default for CIDFontTypeTransient {
@@ -117,6 +119,7 @@ impl Default for CIDFontTypeTransient {
             base_font: Default::default(),
             default_width: 1000,
             widths: None,
+            font_descriptor: TypedReference::new(0, 0),
         }
     }
 }
@@ -129,9 +132,10 @@ impl Extract<'_> for CIDFontTypeTransient {
 
 #[derive(Debug, Deserialize, PartialEq, Clone)]
 pub struct CIDFontType {
-    base_font: String,
-    default_width: u16,
-    widths: Option<Widths>,
+    pub base_font: String,
+    pub default_width: u16,
+    pub widths: Option<Widths>,
+    pub font_descriptor: FontDescriptor,
 }
 
 impl CIDFontType {
@@ -152,13 +156,17 @@ impl Build for CIDFontTypeTransient {
             base_font,
             default_width,
             widths,
+            font_descriptor,
         } = self;
 
+        let font_descriptor = font_descriptor.build(doc);
         let widths = widths.map(|e| e.build(doc));
+
         CIDFontType {
             base_font,
             default_width,
             widths,
+            font_descriptor,
         }
     }
 }
