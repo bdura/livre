@@ -1,6 +1,7 @@
 use std::{
     fs::File,
     io::{prelude::*, BufReader},
+    str::Bytes,
 };
 
 use livre::{
@@ -112,15 +113,19 @@ fn main() {
     list_operators(&page);
     // explore_font("F7", &page);
 
-    // export_page_elements("./letter.csv", &page);
+    export_page_elements("./letter.csv", &page);
 }
 
 fn export_page_elements(file: &str, page: &BuiltPage) {
     let mut file = File::create(file).unwrap();
 
-    writeln!(file, "group,text,font,size,llx,lly,urx,ury").unwrap();
+    writeln!(file, "group,text,font,font_code,size,llx,lly,urx,ury").unwrap();
 
     for (i, TextObject { content, mut state }) in TextObjectIterator::from(page).enumerate() {
+        if i == 51 {
+            println!("{:?}", content)
+        }
+
         for operator in content {
             state.apply(operator);
         }
@@ -128,9 +133,10 @@ fn export_page_elements(file: &str, page: &BuiltPage) {
         for element in state.elements {
             writeln!(
                 file,
-                r#"{i},"{}","{}",{},{},{},{},{}"#,
+                r#"{i},"{}","{}","{}",{},{},{},{},{}"#,
                 element.char,
                 state.font.name(),
+                state.font_name,
                 state.size,
                 element.bounding_box.lower_left.x,
                 element.bounding_box.lower_left.y,

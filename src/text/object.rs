@@ -10,6 +10,8 @@ use crate::{
 use nalgebra::Matrix3;
 use nom::{
     bytes::complete::{take, take_until},
+    combinator::{recognize, verify},
+    multi::{many0, many1},
     IResult,
 };
 
@@ -231,13 +233,6 @@ impl<'a> Iterator for TextObjectIterator<'a> {
     }
 }
 
-fn find_next_object(input: &[u8]) -> IResult<&[u8], &[u8]> {
-    let (input, _) = take_until("BT")(input)?;
-    let (input, _) = take(2usize)(input)?;
-    let (input, _) = take_whitespace1(input)?;
-    take_until("ET")(input)
-}
-
 fn take_line(input: &[u8]) -> IResult<&[u8], &[u8]> {
     let (input, line) = take_until("\n")(input)?;
     let (input, _) = take(1usize)(input)?;
@@ -245,4 +240,44 @@ fn take_line(input: &[u8]) -> IResult<&[u8], &[u8]> {
     let line = line.strip_suffix(b"\r").unwrap_or(line);
 
     Ok((input, line))
+}
+
+fn find_next_object(input: &[u8]) -> IResult<&[u8], &[u8]> {
+    let (input, _) = take_until("BT")(input)?;
+    let (input, _) = take(2usize)(input)?;
+    let (input, _) = take_whitespace1(input)?;
+
+    recognize(many1(verify(take_line, |line: &[u8]| line != b"ET")))(input)
+}
+
+#[cfg(test)]
+mod tests {
+    use indoc::indoc;
+    use rstest::rstest;
+
+    use crate::text::operators::{LowercaseG, ShowTJ, TextMatrix, UppercaseG};
+
+    use super::*;
+
+    #[rstest]
+    #[case(
+        indoc!{b"
+            1 0 0 1 9.84 612.34 Tm
+            0.2 g
+            0.2 G
+            [(9)-6(4)-6(0)7(1)-6(0)7( )-2(CRET)-3(EIL)8( )-2(Ce)4(d)-6(e)4(x)] TJ
+        "},
+        vec![
+            TextMatrix{ a: 1.0, b: 0.0, c: 0.0, d: 1.0, e: 9.84, f: 603.34}.into(),
+            LowercaseG.into(),
+            UppercaseG.into(),
+            ShowTJ(vec![]).into()
+        ],
+    )]
+    fn op_iterator(#[case] input: &[u8], #[case] expected: Vec<Op>) {
+        let obj = ObjectContent(input);
+        let operators: Vec<Op> = obj.collect();
+
+        assert_eq!(operators, expected);
+    }
 }
