@@ -57,7 +57,7 @@ fn list_text_objects(page: &BuiltPage) {
         //     font = line;
         // }
 
-        if !filter && (45..55).contains(&counter) {
+        if !filter && (70..75).contains(&counter) {
             // && (line.contains("Tj") || line.contains("TJ")) && line.contains("<") {
             // println!("{font}");
             println!("{line}");
@@ -68,7 +68,7 @@ fn list_text_objects(page: &BuiltPage) {
             filter = true;
             counter += 1;
 
-            if (45..55).contains(&counter) {
+            if (70..75).contains(&counter) {
                 println!();
                 println!("# {counter}");
             }
@@ -78,9 +78,6 @@ fn list_text_objects(page: &BuiltPage) {
 
 fn list_operators(page: &BuiltPage) {
     for (i, TextObject { content, mut state }) in TextObjectIterator::from(page).enumerate() {
-        if !(45..55).contains(&i) {
-            continue;
-        }
         println!();
         println!("# {i} ({} - {})", &state.font_name, state.font.name());
         for operator in content {
@@ -109,8 +106,8 @@ fn main() {
 
     let page = pages.pop().unwrap();
 
-    list_text_objects(&page);
     list_operators(&page);
+    list_text_objects(&page);
     // explore_font("F7", &page);
 
     export_page_elements("./letter.csv", &page);
@@ -119,13 +116,13 @@ fn main() {
 fn export_page_elements(file: &str, page: &BuiltPage) {
     let mut file = File::create(file).unwrap();
 
-    writeln!(file, "group,text,font,font_code,size,llx,lly,urx,ury").unwrap();
+    writeln!(
+        file,
+        "object_id,text,font,font_code,size,min_x,min_y,max_x,max_y"
+    )
+    .unwrap();
 
     for (i, TextObject { content, mut state }) in TextObjectIterator::from(page).enumerate() {
-        if i == 51 {
-            println!("{:?}", content)
-        }
-
         for operator in content {
             state.apply(operator);
         }

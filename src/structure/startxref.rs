@@ -1,6 +1,5 @@
-use crate::parsers::{extract, Extract};
 use crate::parsers::take_whitespace1;
-use nom::FindSubstring;
+use crate::parsers::{extract, Extract};
 use nom::{
     bytes::complete::{tag, take_until},
     IResult,

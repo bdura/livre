@@ -71,7 +71,7 @@ impl Operator for WordSpace {
 
 impl Operator for Leading {
     fn apply(self, obj: &mut TextState) {
-        obj.leading = self.0;
+        obj.set_leading(self.0);
     }
 }
 

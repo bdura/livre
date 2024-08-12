@@ -10,7 +10,7 @@ mod showing;
 pub use showing::{PdfString, ShowApostrophe, ShowQuote, ShowTJ, ShowTj};
 
 mod other;
-pub use other::{Gs, LowercaseG, LowercaseRG, UppercaseG, UppercaseRG};
+pub use other::{Gs, LowercaseG, LowercaseRG, LowercaseW, UppercaseG, UppercaseRG};
 
 use crate::parsers::Extract;
 
@@ -44,6 +44,7 @@ pub enum Op {
     Gs,
     LowercaseRG,
     UppercaseRG,
+    LowercaseW,
 }
 
 impl Extract<'_> for Op {
@@ -69,6 +70,7 @@ impl Extract<'_> for Op {
             map(Gs::extract, Self::Gs),
             map(LowercaseRG::extract, Self::LowercaseRG),
             map(UppercaseRG::extract, Self::UppercaseRG),
+            map(LowercaseW::extract, Self::LowercaseW),
         ))(input)
     }
 }
