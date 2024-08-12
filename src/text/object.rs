@@ -248,7 +248,9 @@ fn find_next_object(input: &[u8]) -> IResult<&[u8], &[u8]> {
     let (input, _) = take_whitespace1(input)?;
 
     let (input, object) = recognize(many1(preceded(take_whitespace, Op::extract)))(input)?;
-    let (input, _) = tuple((take_whitespace, tag(b"ET")))(input)?;
+    let (input, _) = tuple((take_whitespace, tag(b"ET")))(input)
+        .map_err(|e| e.map_input(|i| Bytes::from(&i[..i.len().min(100)])))
+        .unwrap(); // TODO: remove unwrapping
 
     Ok((input, object))
 }

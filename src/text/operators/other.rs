@@ -36,4 +36,5 @@ ops!(
     b"gs" -> Gs: Name
     b"rg" -> LowercaseRG: (f32, f32, f32)
     b"RG" -> UppercaseRG: (f32, f32, f32)
+    b"w" -> LowercaseW: f32
 );
