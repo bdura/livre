@@ -177,6 +177,18 @@ impl<'a> Debug for ObjectContent<'a> {
     }
 }
 
+impl<'a> ObjectContent<'a> {
+    fn extract<T>(&mut self) -> T
+    where
+        T: Extract<'a>,
+    {
+        let (input, _) = take_whitespace(self.0).unwrap();
+        let (input, result) = extract(input).unwrap();
+        self.0 = input;
+        result
+    }
+}
+
 impl<'a> Iterator for ObjectContent<'a> {
     type Item = Op;
 
@@ -220,17 +232,13 @@ impl<'a> Iterator for TextObjectIterator<'a> {
 
         let mut content = ObjectContent(content);
 
-        let op = content.next()?;
+        let FontSize { font_name, size } = content.extract();
+        let font = self.fonts.get(&font_name).unwrap();
 
-        if let Op::FontSize(FontSize { font_name, size }) = op {
-            let font = self.fonts.get(&font_name).unwrap();
-            Some(TextObject {
-                content,
-                state: TextState::new(font_name, font, size),
-            })
-        } else {
-            panic!("Text object should define font & size before anything else.");
-        }
+        Some(TextObject {
+            content,
+            state: TextState::new(font_name, font, size),
+        })
     }
 }
 
@@ -248,6 +256,7 @@ fn find_next_object(input: &[u8]) -> IResult<&[u8], &[u8]> {
 #[cfg(test)]
 mod tests {
     use indoc::indoc;
+    use nom::multi::many0;
     use rstest::rstest;
 
     use super::*;
@@ -263,15 +272,14 @@ mod tests {
             [(9)-6(4)-6(0)7(1)-6(0)7( )-2(CRET)-3(EIL)8( )-2(Ce)4(d)-6(e)4(x)] TJ
             ET
         "},
+        1
     )]
-    fn text_object(#[case] input: &[u8]) {
-        let (_, object) = find_next_object(input).unwrap();
-
-        println!("{:?}", Bytes::from(object));
-
-        assert!(object.starts_with(b"/F1"));
-        assert!(object.ends_with(b"] TJ"));
-
-        assert_eq!(object, &input[3..(input.len() - 4)]);
+    #[case(
+        indoc!{b"BT /FAAABI 9 Tf 1 0 0 -1 0 8.75 Tm 0 g [(Urss)-1(af Il)1(e-d)-1(e-Franc)-1(e)] TJ 1 0 0 -1 0 19.75 Tm [(93518 )1(Montreuil C)1(ede)-1(x)] TJ ET Q q 1 0 0 1 8.5 30.5 cm Q q 1 0 0 1 8.5 41.5 cm BT /FAAABI 9 Tf 1 0 0 -1 0 8.75 Tm 0 g [(No)1(u)-1(s contact)1(e)-1(r)] TJ ET"},
+        2,
+    )]
+    fn text_object(#[case] input: &[u8], #[case] expected: usize) {
+        let (_, objects) = many0(find_next_object)(input).unwrap();
+        assert_eq!(objects.len(), expected);
     }
 }

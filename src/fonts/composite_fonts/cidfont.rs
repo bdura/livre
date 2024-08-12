@@ -202,6 +202,7 @@ mod tests {
     #[case(b"[0 10 10 0 10 10]", vec![WElement::Range(0, 10, 10), WElement::Range(0, 10, 10)])]
     #[case(b"[0 10 10 0 10 10]", Widths(vec![WElement::Range(0, 10, 10), WElement::Range(0, 10, 10)]))]
     #[case(b"[0 10 10 0[10]]", Widths(vec![WElement::Range(0, 10, 10), WElement::Individual(0, vec![10])]))]
+    #[case(b"[0 10 10 0[10]]", OptRef::Val(Widths(vec![WElement::Range(0, 10, 10), WElement::Individual(0, vec![10])])))]
     fn extraction<'de, T: Extract<'de> + PartialEq + Debug>(
         #[case] input: &'de [u8],
         #[case] expected: T,

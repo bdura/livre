@@ -42,7 +42,7 @@ struct Element {
     max_x: f32,
     min_y: f32,
     max_y: f32,
-    group: usize,
+    object_id: usize,
     size: f32,
 }
 
@@ -54,7 +54,7 @@ impl Element {
         max_x: f32,
         min_y: f32,
         max_y: f32,
-        group: usize,
+        object_id: usize,
         size: f32,
     ) -> Self {
         Self {
@@ -64,14 +64,14 @@ impl Element {
             max_x,
             min_y,
             max_y,
-            group,
+            object_id,
             size,
         }
     }
 }
 
 fn main() {
-    let file = File::open("/Users/basile/Downloads/document.pdf").unwrap();
+    let file = File::open("./tests/letter.pdf").unwrap();
     // let file = File::open("resource/ISO_32000-2-2020_sponsored.pdf").unwrap();
     let mut reader = BufReader::new(file);
 
@@ -83,7 +83,6 @@ fn main() {
         .unwrap();
 
     let root = doc.parse_referenced(doc.root);
-    // println!("{root:?}");
 
     let pages: PageNode = doc.parse_referenced(root.pages);
 
@@ -97,10 +96,7 @@ fn main() {
     let from = TextObjectIterator::from(&page);
 
     for (i, TextObject { content, mut state }) in from.enumerate() {
-        println!();
-        println!("# {i}: {:?}", &state.font);
         for operator in content {
-            println!("{operator:?}");
             state.apply(operator);
         }
 
@@ -118,5 +114,4 @@ fn main() {
             wtr.serialize(element).unwrap();
         }
     }
-    dbg!(Bytes::from(page.content.as_slice()));
 }
