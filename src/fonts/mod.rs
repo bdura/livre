@@ -62,6 +62,7 @@ impl Extract<'_> for FontTransient {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 #[enum_dispatch(FontBehavior)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum Font {
