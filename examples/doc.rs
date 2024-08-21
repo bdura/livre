@@ -1,7 +1,6 @@
 use std::{
     fs::File,
     io::{prelude::*, BufReader},
-    str::Bytes,
 };
 
 use livre::{
