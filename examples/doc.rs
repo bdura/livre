@@ -1,7 +1,6 @@
 use std::{
     fs::File,
     io::{prelude::*, BufReader},
-    str::Bytes,
 };
 
 use livre::{
@@ -88,7 +87,7 @@ fn list_operators(page: &BuiltPage) {
 }
 
 fn main() {
-    let file = File::open("tests/letter.pdf").unwrap();
+    let file = File::open("tests/text.pdf").unwrap();
     // let file = File::open("resource/ISO_32000-2-2020_sponsored.pdf").unwrap();
     let mut reader = BufReader::new(file);
 
