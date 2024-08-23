@@ -14,7 +14,3 @@ is the French word for book.
 
 - [ ] Handle comments (removal)
 - [ ] Use streaming nom API.
-
-## Ideas
-
-- Use serde... Especially whenever dictionaries are present.

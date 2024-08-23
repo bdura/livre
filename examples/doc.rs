@@ -79,7 +79,7 @@ fn list_text_objects(page: &BuiltPage) {
 fn list_operators(page: &BuiltPage) {
     for (i, TextObject { content, mut state }) in TextObjectIterator::from(page).enumerate() {
         println!();
-        println!("# {i} ({} - {})", &state.font_name, state.font.name());
+        println!("# {i} ({} - {})", &state.font_id, state.font.name());
         for operator in content {
             println!("- OP {operator:?}");
             state.apply(operator);
@@ -133,7 +133,7 @@ fn export_page_elements(file: &str, page: &BuiltPage) {
                 r#"{i},"{}","{}","{}",{},{},{},{},{}"#,
                 element.char,
                 state.font.name(),
-                state.font_name,
+                state.font_id,
                 state.size,
                 element.bounding_box.lower_left.x,
                 element.bounding_box.lower_left.y,

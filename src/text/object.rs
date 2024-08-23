@@ -29,24 +29,37 @@ pub struct TextElement {
 
 #[derive(Debug)]
 pub struct TextState<'a> {
-    pub font_name: String,
+    /// The font's identifier within the resource dictionary
+    /// This will probably be removed at some point
+    pub font_id: String,
+    /// The actual font object
     pub font: &'a Font,
+    /// Size of the characters printed
     pub size: f32,
+    /// Additional spacing between characters
     pub character_spacing: f32,
+    /// Additional spacing between words
     pub word_spacing: f32,
+    /// Horizontal scaling of... everything
     pub horizontal_scaling: f32,
+    /// Leading value (offset from one line to the next)
     pub leading: f32,
+    /// Rendering mode
     pub mode: RenderMode,
+    /// Text rise. Not sure what that actually does.
     pub rise: f32,
+    /// Text matrix defining the position/orientation of the text
     pub text_matrix: Matrix3<f32>,
+    /// Line specific matrix (see `text_matrix` field)
     pub text_line_matrix: Matrix3<f32>,
+    /// Vector of text elements
     pub elements: Vec<TextElement>,
 }
 
 impl<'a> TextState<'a> {
     pub fn new(font_name: String, font: &'a Font, size: f32) -> Self {
         Self {
-            font_name,
+            font_id: font_name,
             font,
             size,
             character_spacing: 0.0,
