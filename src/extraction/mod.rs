@@ -4,6 +4,7 @@
 
 use winnow::{BStr, PResult, Parser};
 
+mod pdf;
 mod primitives;
 mod utilities;
 
