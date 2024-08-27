@@ -1,5 +1,7 @@
 use winnow::{BStr, PResult};
 
+mod primitives;
+
 /// The [`Extract`] trait marks a type as extractable from a stream of bytes,
 /// without any context.
 ///
