@@ -16,7 +16,6 @@ use std::borrow::Cow;
 use winnow::{
     combinator::{fail, peek, trace},
     dispatch,
-    error::ContextError,
     token::{any, take_till, take_while},
     BStr, PResult, Parser,
 };
@@ -79,6 +78,7 @@ static F: &[u8] = &[35, 43];
 static LEFT_PAR: &[u8] = b"(";
 static RIGHT_PAR: &[u8] = b")";
 static BACKSLASH: &[u8] = b"\\";
+
 fn escape_string<'de>(input: &mut &'de BStr) -> PResult<Cow<'de, [u8]>> {
     dispatch! {peek(any);
         b'\n' => any.value(Cow::Borrowed(EMPTY)),
