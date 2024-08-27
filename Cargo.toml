@@ -1,0 +1,11 @@
+[package]
+name = "livre"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+winnow = "0.6"
+paste = "1"
+
+[dev-dependencies]
+rstest = "0.22"
