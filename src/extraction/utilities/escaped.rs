@@ -1,17 +1,6 @@
 use std::borrow::Cow;
 
-use winnow::{
-    combinator::{fail, peek, trace},
-    dispatch,
-    error::ContextError,
-    token::{any, take_till, take_while},
-    BStr, PResult, Parser,
-};
-
-use crate::{
-    extraction::{extract, utilities::Parentheses},
-    Extract,
-};
+use winnow::{combinator::fail, error::ContextError, BStr, PResult, Parser};
 
 /// Parse an escaped sequence.
 pub fn escaped_sequence<'de, N, E, T>(

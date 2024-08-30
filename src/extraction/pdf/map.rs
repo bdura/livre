@@ -88,6 +88,15 @@ where
 #[derive(Debug, PartialEq)]
 pub struct RawValue<'de>(pub &'de BStr);
 
+impl<'de> RawValue<'de> {
+    pub fn extract<T>(mut self) -> PResult<T>
+    where
+        T: Extract<'de>,
+    {
+        extract(&mut self.0)
+    }
+}
+
 impl<'de> From<&'de [u8]> for RawValue<'de> {
     fn from(value: &'de [u8]) -> Self {
         Self(value.into())
@@ -120,8 +129,16 @@ impl<'de> Extract<'de> for RawValue<'de> {
 pub struct RawDict<'de>(Map<RawValue<'de>>);
 
 impl<'de> RawDict<'de> {
-    fn pop(&mut self, key: &Name) -> Option<RawValue<'de>> {
+    pub fn pop(&mut self, key: &Name) -> Option<RawValue<'de>> {
         self.0.remove(key)
+    }
+
+    pub fn pop_and_extract<T>(&mut self, key: &Name) -> Option<PResult<T>>
+    where
+        T: Extract<'de>,
+    {
+        let value = self.pop(key)?;
+        Some(value.extract())
     }
 }
 

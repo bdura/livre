@@ -21,17 +21,22 @@ impl Debug for Name {
 
 impl<'de> Extract<'de> for Name {
     fn recognize(input: &mut &'de BStr) -> PResult<&'de [u8]> {
-        (b'/', take_till(1.., b"\r\n \t/<>[]("))
-            .take()
-            .parse_next(input)
+        trace(
+            "livre-recognize-name",
+            (b'/', take_till(1.., b"\r\n \t/<>[](")).take(),
+        )
+        .parse_next(input)
     }
 
-    fn extract(input: &mut &BStr) -> PResult<Self> {
-        let content = preceded(b'/', take_till(1.., b"\r\n \t/<>[](")).parse_next(input)?;
+    fn extract(input: &mut &'de BStr) -> PResult<Self> {
+        trace("livre-name", move |i: &mut &'de BStr| {
+            let content = preceded(b'/', take_till(1.., b"\r\n \t/<>[](")).parse_next(i)?;
 
-        escaped_sequence(take_till(0.., b'#'), b'#'.void(), escape_name)
-            .map(|name| Self(name.to_vec()))
-            .parse_next(&mut content.as_ref())
+            escaped_sequence(take_till(0.., b'#'), b'#'.void(), escape_name)
+                .map(|name| Self(name.to_vec()))
+                .parse_next(&mut content.as_ref())
+        })
+        .parse_next(input)
     }
 }
 
