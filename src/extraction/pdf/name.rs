@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fmt::Debug};
+use std::{borrow::Cow, fmt::Debug, ops::Deref};
 
 use winnow::{
     ascii::hex_uint,
@@ -9,7 +9,7 @@ use winnow::{
 
 use crate::{extraction::utilities::escaped_sequence, Extract};
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Hash, Eq, Clone)]
 pub struct Name(pub Vec<u8>);
 
 impl Debug for Name {
@@ -42,21 +42,27 @@ fn escape_name<'de>(input: &mut &'de BStr) -> PResult<Cow<'de, [u8]>> {
     Ok(Cow::Owned(vec![n]))
 }
 
+impl Deref for Name {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl From<Name> for String {
     fn from(Name(value): Name) -> Self {
         String::from_utf8_lossy(&value).to_string()
     }
 }
 
-impl From<String> for Name {
-    fn from(text: String) -> Self {
-        Self(text.into_bytes())
-    }
-}
-
-impl From<&str> for Name {
-    fn from(text: &str) -> Self {
-        Self(text.as_bytes().to_vec())
+impl<T> From<T> for Name
+where
+    T: AsRef<[u8]>,
+{
+    fn from(value: T) -> Self {
+        let value = value.as_ref();
+        Self(value.into())
     }
 }
 
@@ -83,5 +89,6 @@ mod tests {
     fn name(#[case] input: &[u8], #[case] result: &str) {
         let name = Name::extract(&mut input.as_ref()).unwrap();
         assert_eq!(name, result.into());
+        assert_eq!(format!("{name:?}"), format!("Name({result})"));
     }
 }
