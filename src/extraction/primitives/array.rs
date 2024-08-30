@@ -24,6 +24,7 @@ where
             // NOTE: the following transformation from a `Vec` (of the correct length)
             // to an array is taken from
             // <https://doc.rust-lang.org/1.80.1/src/alloc/vec/mod.rs.html#3540>
+            // This allows to remove the Debug trait bound...
 
             // SAFETY: `.set_len(0)` is always sound.
             unsafe { vec.set_len(0) };
