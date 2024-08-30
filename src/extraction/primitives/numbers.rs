@@ -1,8 +1,9 @@
 use std::ops::{AddAssign, MulAssign, Neg};
 
 use winnow::{
-    ascii::{digit1, float},
+    ascii::{digit0, digit1, float},
     combinator::{alt, opt, preceded, trace},
+    token::one_of,
     BStr, PResult, Parser,
 };
 
@@ -10,7 +11,7 @@ use crate::Extract;
 
 /// Convert a slice of bytes representing decimal integers to a Rust number
 ///
-/// Safety: the slice should only contain (at least one) decimal digit.
+/// SAFETY: the slice should only contain (at least one) decimal digit.
 fn unsafe_convert_unsigned<T>(digits: &[u8]) -> T
 where
     T: From<u8> + MulAssign<T> + AddAssign<T>,
@@ -152,8 +153,21 @@ real! {
     f64
 }
 
+pub fn recognize_number<'de>(input: &mut &'de BStr) -> PResult<&'de [u8]> {
+    alt((
+        (opt(one_of((b'+', b'-'))), digit1).take(),
+        (
+            opt(one_of((b'+', b'-'))),
+            alt(((digit0, b'.', digit1), (digit1, b'.', digit0))),
+        )
+            .take(),
+    ))
+    .parse_next(input)
+}
+
 #[cfg(test)]
 mod tests {
+
     use std::fmt::Debug;
 
     use rstest::rstest;
