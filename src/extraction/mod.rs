@@ -2,6 +2,7 @@
 //! which defines a way for the type to extract itself from a stream of bytes,
 //! consuming the input.
 
+use livre_derive::FromRawDict;
 use pdf::RawDict;
 use winnow::{BStr, PResult, Parser};
 
@@ -42,7 +43,7 @@ where
 ///
 /// Any type that is `FromRawDict` is trivially [`Extract`]
 pub trait FromRawDict<'de>: Sized {
-    fn from_dict(dict: &mut RawDict<'de>) -> PResult<Self>;
+    fn from_raw_dict(dict: &mut RawDict<'de>) -> PResult<Self>;
 }
 
 impl<'de, T> Extract<'de> for T
@@ -51,7 +52,7 @@ where
 {
     fn extract(input: &mut &'de BStr) -> PResult<Self> {
         let mut dict = RawDict::extract(input)?;
-        let result = Self::from_dict(&mut dict)?;
+        let result = Self::from_raw_dict(&mut dict)?;
         Ok(result)
     }
 }

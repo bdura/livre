@@ -1,15 +1,18 @@
 use winnow::{
     combinator::{alt, trace},
-    error::{ContextError, ErrMode},
     BStr, PResult, Parser,
 };
 
 use crate::{extraction::FromRawDict, filtering::Filter, Extract};
 
-use super::RawDict;
-
 #[derive(Debug)]
 struct MaybeArray<T>(pub Vec<T>);
+
+impl<T> Default for MaybeArray<T> {
+    fn default() -> Self {
+        Self(Vec::new())
+    }
+}
 
 impl<T> From<MaybeArray<T>> for Vec<T> {
     fn from(value: MaybeArray<T>) -> Self {
@@ -30,28 +33,11 @@ where
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, FromRawDict)]
 struct StreamDict {
     length: usize,
+    #[livre(from = MaybeArray<Filter>, default)]
     filter: Vec<Filter>,
-}
-
-impl FromRawDict<'_> for StreamDict {
-    fn from_dict(dict: &mut RawDict) -> PResult<Self> {
-        let length: usize = dict
-            .pop_and_extract(&"Length".into())
-            .ok_or(ErrMode::Backtrack(ContextError::new()))??;
-
-        let filter = if let Some(filter) = dict.pop(&"Filter".into()) {
-            let filter: MaybeArray<Filter> = filter.extract()?;
-            filter.into()
-        } else {
-            Vec::new()
-        };
-
-        let result = Self { length, filter };
-        Ok(result)
-    }
 }
 
 #[cfg(test)]
