@@ -4,7 +4,7 @@ use winnow::{
     ascii::multispace0,
     combinator::{fail, iterator, peek, separated_pair, terminated, trace},
     dispatch,
-    token::any,
+    token::{any, one_of, take_till},
     BStr, PResult, Parser,
 };
 
@@ -103,6 +103,22 @@ impl<'de> From<&'de [u8]> for RawValue<'de> {
     }
 }
 
+fn remove_trailing_spaces(input: &[u8]) -> &[u8] {
+    let index = input.iter().rev().enumerate().find_map(|(i, b)| {
+        if b" \t\r\n".contains(b) {
+            None
+        } else {
+            Some(i)
+        }
+    });
+
+    if let Some(i) = index {
+        &input[..(input.len() - i)]
+    } else {
+        &input[..0]
+    }
+}
+
 impl<'de> Extract<'de> for RawValue<'de> {
     fn extract(input: &mut &'de BStr) -> PResult<Self> {
         dispatch! {peek(any);
@@ -110,14 +126,9 @@ impl<'de> Extract<'de> for RawValue<'de> {
             b'[' => Brackets::recognize,
             b'(' => Parentheses::recognize,
             b'<' => Angles::recognize,
-            b'+' | b'-' | b'.' | b'0'..=b'9' => recognize_number,
-            b't' | b'f' => bool::recognize,
-            b'n' => b"null",
-            // FIXME: this is in fact trickier... It could be a tuple, which is
-            // ill-defined.
-            // In practice, it's probably ok to assume that no tuple includes a
-            // PDF name, which makes things easier.
-            _ => fail,
+            // NOTE: provided we do not encounter a name *within a tuple*, this last case
+            // handles every other option.
+            _ => take_till(0.., b'/').map(remove_trailing_spaces),
         }
         .map(Self::from)
         .parse_next(input)
@@ -172,6 +183,14 @@ mod tests {
 
     use super::*;
     use rstest::rstest;
+
+    #[rstest]
+    #[case(b"test ", b"test")]
+    #[case(b"test\r\n", b"test")]
+    #[case(b"test\n", b"test")]
+    fn trailing_spaces(#[case] input: &[u8], #[case] expected: &[u8]) {
+        assert_eq!(expected, remove_trailing_spaces(input))
+    }
 
     #[rstest]
     #[case(b"+200")]
