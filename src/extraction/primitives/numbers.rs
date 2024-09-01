@@ -11,8 +11,8 @@ use crate::Extract;
 
 /// Convert a slice of bytes representing decimal integers to a Rust number
 ///
-/// SAFETY: the slice should only contain (at least one) decimal digit.
-fn unsafe_convert_unsigned<T>(digits: &[u8]) -> T
+/// WARNING: this function expects a slice of digits.
+fn convert_unsigned<T>(digits: &[u8]) -> T
 where
     T: From<u8> + MulAssign<T> + AddAssign<T>,
 {
@@ -31,7 +31,17 @@ where
     result
 }
 
-fn unsafe_convert_signed<T>(digits: &[u8]) -> T
+/// Convert a slice of bytes representing signed decimal integers to a Rust number.
+///
+/// We need a separate function from [`convert_unsigned`], because a signed integer
+/// cannot be converted from a `u8`.
+///
+/// WARNING: this function expects a slice of digits.
+///
+/// NOTE: since `i<bits>::MIN = - (i<bits>::MAX + 1)`, the output of this function
+/// is the negative associated number. It should be converted to a positive integer
+/// if need be.
+fn convert_negative_signed<T>(digits: &[u8]) -> T
 where
     T: From<i8> + MulAssign<T> + AddAssign<T>,
 {
@@ -39,7 +49,7 @@ where
     let mut digits = digits
         .into_iter()
         .copied()
-        .map(|byte| (byte - b'0') as i8)
+        .map(|byte| -((byte - b'0') as i8))
         .map(T::from);
 
     let mut result = digits
@@ -60,7 +70,7 @@ where
 {
     trace(
         "livre-unsigned",
-        preceded(opt(b'+'), digit1.map(unsafe_convert_unsigned)),
+        preceded(opt(b'+'), digit1.map(convert_unsigned)),
     )
     .parse_next(input)
 }
@@ -82,9 +92,9 @@ where
         T: From<i8> + MulAssign<T> + AddAssign<T> + Neg<Output = T>,
     {
         let neg = is_neg(input)?;
-        let mut num: T = digit1.map(unsafe_convert_signed).parse_next(input)?;
+        let mut num: T = digit1.map(convert_negative_signed).parse_next(input)?;
 
-        if neg {
+        if !neg {
             num = -num;
         }
 
@@ -168,7 +178,7 @@ pub fn recognize_number<'de>(input: &mut &'de BStr) -> PResult<&'de [u8]> {
 #[cfg(test)]
 mod tests {
 
-    use std::fmt::Debug;
+    use std::{fmt::Debug, i16, u16};
 
     use rstest::rstest;
 
@@ -176,8 +186,12 @@ mod tests {
 
     #[rstest]
     #[case(b"42", 42u8)]
+    #[case(b"+42", 42u8)]
     #[case(b"42", 42usize)]
     #[case(b"42", 42u16)]
+    #[case(b"65535", u16::MAX)]
+    #[case(b"32767", i16::MAX)]
+    #[case(b"-32768", i16::MIN)]
     #[case(b"42", 42i16)]
     #[case(b"-42", -42i16)]
     #[case(b"42", 42.0f32)]
