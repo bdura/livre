@@ -2,16 +2,15 @@ use std::collections::HashMap;
 
 use winnow::{
     ascii::multispace0,
-    combinator::{fail, iterator, peek, separated_pair, terminated, trace},
+    combinator::{iterator, peek, separated_pair, terminated, trace},
     dispatch,
-    token::{any, one_of, take_till},
+    token::{any, take_till},
     BStr, PResult, Parser,
 };
 
 use crate::{
     extraction::{
         extract,
-        primitives::recognize_number,
         utilities::{Angles, Brackets, DoubleAngles, Parentheses},
     },
     Extract,
