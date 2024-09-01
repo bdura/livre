@@ -2,6 +2,7 @@
 //! which defines a way for the type to extract itself from a stream of bytes,
 //! consuming the input.
 
+use pdf::RawDict;
 use winnow::{BStr, PResult, Parser};
 
 mod pdf;
@@ -32,4 +33,23 @@ where
     T: Extract<'de>,
 {
     T::extract(input)
+}
+
+/// The `FromRawDict` trait allows for the construction of complext
+/// types using a pre-parsed dictionary.
+///
+/// Any type that is `FromRawDict` is trivially [`Extract`]
+pub trait FromRawDict<'de>: Sized {
+    fn from_dict(dict: &mut RawDict<'de>) -> PResult<Self>;
+}
+
+impl<'de, T> Extract<'de> for T
+where
+    T: FromRawDict<'de>,
+{
+    fn extract(input: &mut &'de BStr) -> PResult<Self> {
+        let mut dict = RawDict::extract(input)?;
+        let result = Self::from_dict(&mut dict)?;
+        Ok(result)
+    }
 }

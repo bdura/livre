@@ -3,7 +3,7 @@ use winnow::{
     PResult,
 };
 
-use crate::extraction::FromDict;
+use crate::extraction::FromRawDict;
 
 use super::RawDict;
 
@@ -12,7 +12,7 @@ struct StreamDict {
     length: usize,
 }
 
-impl FromDict<'_> for StreamDict {
+impl FromRawDict<'_> for StreamDict {
     fn from_dict(dict: &mut RawDict) -> PResult<Self> {
         let length: usize = dict
             .pop_and_extract(&"Length".into())
