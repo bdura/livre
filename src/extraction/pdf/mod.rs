@@ -6,3 +6,4 @@ mod reference;
 mod stream;
 
 pub use map::{RawDict, RawValue};
+pub use name::Name;

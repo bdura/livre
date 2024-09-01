@@ -9,6 +9,8 @@ mod pdf;
 mod primitives;
 mod utilities;
 
+pub use pdf::Name;
+
 /// The [`Extract`] trait marks a type as extractable from a stream of bytes,
 /// without any context. Not object safe.
 ///
