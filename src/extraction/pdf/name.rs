@@ -9,6 +9,22 @@ use winnow::{
 
 use crate::{extraction::utilities::escaped_sequence, Extract};
 
+/// In the PDF specification, a *Name* represents a dictionary key,
+/// or a (sub-)type specification. It uses an escape scheme using
+/// a NUMBER SIGN (`#`) as the escape key.
+///
+/// The specification defines it as "an atomic symbol uniquely defined
+/// by a sequence of any characters (8-bit values)". However, the
+/// specification immediately amends that definition by:
+///
+/// > No token delimiter (such as white-space) occurs between the SOLIDUS
+/// > and the encoded name. White-space used as part of a name shall
+/// > always be coded using the 2-digit hexadecimal notation.
+///
+/// In practice, it looks like the characters ` \r\n\t/<>[]>` must be
+/// escaped within a name (or at least the opening delimiters), since
+/// there would be no way of knowing whether `<` denotes the start of
+/// a hex string/dictionary or the continuation of the name object.
 #[derive(PartialEq, Hash, Eq, Clone)]
 pub struct Name(pub Vec<u8>);
 
