@@ -1,6 +1,10 @@
-use proc_macro2::TokenStream;
+use std::{any::Any, collections::HashSet};
+
+use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{parse_macro_input, Data, DataStruct, DeriveInput, Fields};
+use syn::{
+    parse_macro_input, parse_quote_spanned, Data, DataStruct, DeriveInput, Fields, Type, TypeParam
+};
 
 use crate::{add_trait_bounds, utilities::attr::Attributes};
 
@@ -13,15 +17,22 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // Used in the quasi-quotation below as `#name`.
     let name = input.ident;
 
-    // Add a bound `T: Extract` to every type parameter T.
-    let generics = add_trait_bounds(input.generics);
-    let (_impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+    let (extraction, flattened) = generate_extraction(&input.data);
 
-    let extraction = generate_extraction(&input.data);
+    // Add a bound `T: Extract` to every type parameter T.
+    let generics = add_trait_bounds(input.generics, flattened);
+    let mut gen_lt = generics.clone();
+
+    gen_lt
+        .params
+        .push(parse_quote_spanned!(Span::mixed_site() => 'de));
+
+    let (_, ty_generics, where_clause) = generics.split_for_impl();
+    let (impl_generics, _, _) = gen_lt.split_for_impl();
 
     let expanded = quote! {
         // The generated impl.
-        impl<'de> crate::extraction::FromRawDict<'de> for #name #ty_generics #where_clause {
+        impl #impl_generics crate::extraction::FromRawDict<'de> for #name #ty_generics #where_clause {
             fn from_raw_dict(dict: &mut crate::extraction::RawDict<'de>) -> ::winnow::PResult<Self> {
                 #extraction
                 Ok(res)
@@ -33,7 +44,8 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     proc_macro::TokenStream::from(expanded)
 }
 
-fn generate_extraction(data: &Data) -> TokenStream {
+fn generate_extraction(data: &Data) -> (TokenStream, HashSet<String>) {
+    let mut set = HashSet::new();
     match data {
         Data::Struct(DataStruct {
             fields: Fields::Named(fields),
@@ -52,6 +64,14 @@ fn generate_extraction(data: &Data) -> TokenStream {
                     is_opt,
                     default,
                 } = attr::parse_attributes(f).unwrap();
+                
+                if flatten {
+                    let path = match ty {
+                        Type::Path(p) => &p.path,
+                        _ => unimplemented!(),
+                    };
+                    set.insert(path.get_ident().unwrap().to_string());
+                }
 
                 let from_ty = from.as_ref().unwrap_or(ty);
 
@@ -98,7 +118,7 @@ fn generate_extraction(data: &Data) -> TokenStream {
                 extraction
             });
 
-            quote! {
+            let extraction = quote! {
                 #(
                     #field_by_field
                 )*
@@ -108,7 +128,9 @@ fn generate_extraction(data: &Data) -> TokenStream {
                         #fieldname,
                     )*
                 };
-            }
+            };
+
+            (extraction, set)
         }
         _ => unimplemented!(),
     }

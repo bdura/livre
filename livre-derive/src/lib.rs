@@ -1,4 +1,6 @@
-use syn::{parse_quote, GenericParam, Generics};
+use std::collections::HashSet;
+
+use syn::{parse_quote, GenericParam, Generics, TypeParam};
 
 mod extract;
 mod utilities;
@@ -9,10 +11,18 @@ pub fn derive_extract(input: proc_macro::TokenStream) -> proc_macro::TokenStream
 }
 
 // Add a bound `T: Extract` to every type parameter T.
-fn add_trait_bounds(mut generics: Generics) -> Generics {
+fn add_trait_bounds(mut generics: Generics, flattened: HashSet<String>) -> Generics {
     for param in &mut generics.params {
         if let GenericParam::Type(ref mut type_param) = *param {
-            type_param.bounds.push(parse_quote!(livre::FromDict<'de>));
+            if flattened.contains(&type_param.ident.to_string()) {
+                type_param
+                    .bounds
+                    .push(parse_quote!(crate::extraction::FromRawDict<'de>));
+            } else {
+                type_param
+                    .bounds
+                    .push(parse_quote!(crate::extraction::Extract<'de>));
+            }
         }
     }
     generics
