@@ -1,6 +1,5 @@
 use winnow::{
     ascii::{line_ending, multispace0},
-    combinator::{alt, trace},
     error::{ContextError, ErrMode},
     token::take,
     BStr, PResult, Parser,
@@ -12,33 +11,7 @@ use crate::{
     Extract,
 };
 
-#[derive(Debug)]
-struct MaybeArray<T>(pub Vec<T>);
-
-impl<T> Default for MaybeArray<T> {
-    fn default() -> Self {
-        Self(Vec::new())
-    }
-}
-
-impl<T> From<MaybeArray<T>> for Vec<T> {
-    fn from(value: MaybeArray<T>) -> Self {
-        value.0
-    }
-}
-
-impl<'de, T> Extract<'de> for MaybeArray<T>
-where
-    T: Extract<'de>,
-{
-    fn extract(input: &mut &'de BStr) -> PResult<Self> {
-        trace(
-            "livre-maybe-array",
-            alt((T::extract.map(|t| vec![t]), Vec::<T>::extract)).map(Self),
-        )
-        .parse_next(input)
-    }
-}
+use super::MaybeArray;
 
 #[derive(Debug, PartialEq, Eq, FromRawDict)]
 struct StreamDict<T> {
