@@ -14,6 +14,6 @@ mod tests {
 
     #[test]
     fn unit() {
-        assert_eq!((), extract(&mut b"null".as_ref().into()).unwrap());
+        extract::<()>(&mut b"null".as_ref().into()).unwrap();
     }
 }
