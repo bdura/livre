@@ -4,6 +4,7 @@ mod literal_string;
 mod map;
 mod maybe_array;
 mod name;
+mod object;
 mod reference;
 mod stream;
 

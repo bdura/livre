@@ -13,46 +13,31 @@ use crate::{
         extract,
         utilities::{Angles, Brackets, DoubleAngles, Parentheses},
     },
-    Extract,
+    Extract, FromRawDict,
 };
 
 use super::name::Name;
 
 /// In PDFs, dictionary keys are [`Name`]s.
-type Map<T> = HashMap<Name, T>;
+pub type Map<T> = HashMap<Name, T>;
 
-impl<'de, T> Extract<'de> for Map<T>
+impl<'de, T> FromRawDict<'de> for Map<T>
 where
     T: Extract<'de>,
 {
-    fn extract(input: &mut &'de BStr) -> winnow::PResult<Self> {
-        trace("livre-map", |i: &mut &'de BStr| {
-            let DoubleAngles(mut inside) = extract(i)?;
+    fn from_raw_dict(dict: &mut RawDict<'de>) -> PResult<Self> {
+        let mut map = Map::with_capacity(dict.0.len());
 
-            // Remove leading spaces
-            multispace0(&mut inside)?;
+        for (key, value) in dict.0.drain() {
+            // NOTE: this is debatable. The alternative would be to fail whenever there's
+            // a value that cannot be extracted.
+            // Let's try it out this way and see how it goes.
+            if let Ok(value) = value.extract() {
+                map.insert(key, value);
+            }
+        }
 
-            // `parse_key_value` includes trailing spaces
-            let mut it = iterator(inside, parse_key_value);
-
-            let map = it.collect();
-            let (i, _) = it.finish()?;
-
-            // TODO: remove this panic... Useful for now, it lets us know if
-            // something went wrong.
-            assert!(
-                i.is_empty(),
-                "Input not empty after parsing a dictionary: {:?}",
-                i
-            );
-
-            Ok(map)
-        })
-        .parse_next(input)
-    }
-
-    fn recognize(input: &mut &'de winnow::BStr) -> winnow::PResult<&'de [u8]> {
-        DoubleAngles::extract.take().parse_next(input)
+        Ok(map)
     }
 }
 
@@ -154,8 +139,29 @@ impl<'de> RawDict<'de> {
 
 impl<'de> Extract<'de> for RawDict<'de> {
     fn extract(input: &mut &'de BStr) -> PResult<Self> {
-        let inner = extract(input)?;
-        Ok(Self(inner))
+        trace("livre-map", |i: &mut &'de BStr| {
+            let DoubleAngles(mut inside) = extract(i)?;
+
+            // Remove leading spaces
+            multispace0(&mut inside)?;
+
+            // `parse_key_value` includes trailing spaces
+            let mut it = iterator(inside, parse_key_value);
+
+            let map = it.collect();
+            let (i, _) = it.finish()?;
+
+            // TODO: remove this panic... Useful for now, it lets us know if
+            // something went wrong.
+            assert!(
+                i.is_empty(),
+                "Input not empty after parsing a dictionary: {:?}",
+                i
+            );
+
+            Ok(Self(map))
+        })
+        .parse_next(input)
     }
 
     fn recognize(input: &mut &'de BStr) -> PResult<&'de [u8]> {
