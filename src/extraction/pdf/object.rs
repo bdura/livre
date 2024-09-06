@@ -84,6 +84,36 @@ where
     }
 }
 
+impl<K, V> FromIterator<(K, V)> for Object
+where
+    Name: From<K>,
+    Object: From<V>,
+{
+    fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
+        let map = iter
+            .into_iter()
+            .map(|(k, v)| (Name::from(k), Object::from(v)))
+            .collect();
+        Self::Dictionary(map)
+    }
+}
+
+impl From<Stream<Map<Object>>> for Object {
+    fn from(value: Stream<Map<Object>>) -> Self {
+        Self::Stream(value)
+    }
+}
+
+impl From<Stream<()>> for Object {
+    fn from(value: Stream<()>) -> Self {
+        let Stream { content, .. } = value;
+        Self::Stream(Stream {
+            structured: Map::new(),
+            content,
+        })
+    }
+}
+
 impl From<bool> for Object {
     fn from(value: bool) -> Self {
         Self::Boolean(value)
@@ -180,9 +210,43 @@ mod tests {
     #[case(b"[true 1]", vec![Object::Boolean(true), Object::Integer(1)])]
     #[case(b"(test)", "test")]
     #[case(b"/test", Name::from("test"))]
+    #[case(
+        indoc!{b"
+            <<
+            /bool true
+            /int 1
+            >>
+        "},
+        vec![("bool", Object::Boolean(true)), ("int", Object::Integer(1))].into_iter().collect::<Object>()
+    )]
+    #[case(b"0 0 R", Reference::<Object>::from((0, 0)))]
+    #[case(
+        indoc!{b"
+            <</Length 1>>stream
+            0
+            endstream
+        "},
+        Stream {
+            content: b"0".into(),
+            structured: (),
+        }
+    )]
+    #[case(
+        indoc!{b"
+            <</Length 1/Test (test)>>stream
+            0
+            endstream
+        "},
+        Stream::<Map<Object>> {
+            content: b"0".into(),
+            structured: vec![
+                (Name::from("Test"), Object::from("test"))
+            ].into_iter().collect(),
+        }
+    )]
     fn parse_object(#[case] input: &[u8], #[case] expected: impl Into<Object>) {
         let expected: Object = expected.into();
-        let result = Object::extract.parse(input.into()).unwrap();
+        let result = Object::extract.parse_next(&mut input.into()).unwrap();
 
         assert_eq!(expected, result);
     }

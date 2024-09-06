@@ -69,6 +69,20 @@ impl FromRawDict<'_> for NoOp {
     }
 }
 
+impl Extract<'_> for Stream<()> {
+    fn extract(input: &mut &'_ BStr) -> PResult<Self> {
+        let Stream {
+            structured: NoOp,
+            content,
+        } = extract(input)?;
+
+        Ok(Self {
+            structured: (),
+            content,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
