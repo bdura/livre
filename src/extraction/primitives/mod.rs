@@ -14,5 +14,3 @@ mod option;
 mod tuple;
 mod unit;
 mod vec;
-
-pub use numbers::recognize_number;

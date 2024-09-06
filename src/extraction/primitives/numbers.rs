@@ -1,9 +1,8 @@
 use std::ops::{AddAssign, MulAssign, Neg};
 
 use winnow::{
-    ascii::{digit0, digit1, float},
+    ascii::{digit1, float},
     combinator::{alt, opt, preceded, trace},
-    token::one_of,
     BStr, PResult, Parser,
 };
 
@@ -161,18 +160,6 @@ signed! {
 real! {
     f32
     f64
-}
-
-pub fn recognize_number<'de>(input: &mut &'de BStr) -> PResult<&'de [u8]> {
-    alt((
-        (opt(one_of((b'+', b'-'))), digit1).take(),
-        (
-            opt(one_of((b'+', b'-'))),
-            alt(((digit0, b'.', digit1), (digit1, b'.', digit0))),
-        )
-            .take(),
-    ))
-    .parse_next(input)
 }
 
 #[cfg(test)]
