@@ -19,3 +19,4 @@ livre-derive = { path = "./livre-derive" }
 
 [dev-dependencies]
 rstest = "0.22"
+indoc = "2"
