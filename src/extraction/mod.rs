@@ -10,7 +10,7 @@ mod primitives;
 mod special;
 mod utilities;
 
-pub use special::Name;
+pub use special::{Name, Reference, ReferenceId};
 
 /// The [`Extract`] trait marks a type as extractable from a stream of bytes,
 /// without any context. Not object safe.
