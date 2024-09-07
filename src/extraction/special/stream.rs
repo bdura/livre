@@ -64,7 +64,7 @@ where
 pub struct NoOp;
 
 impl FromRawDict<'_> for NoOp {
-    fn from_raw_dict(_: &mut crate::extraction::pdf::RawDict<'_>) -> PResult<Self> {
+    fn from_raw_dict(_: &mut crate::extraction::special::RawDict<'_>) -> PResult<Self> {
         Ok(NoOp)
     }
 }

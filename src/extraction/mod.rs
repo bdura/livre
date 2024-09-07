@@ -3,14 +3,14 @@
 //! consuming the input.
 
 use livre_derive::FromRawDict;
-use pdf::RawDict;
+use special::RawDict;
 use winnow::{BStr, PResult, Parser};
 
-mod pdf;
 mod primitives;
+mod special;
 mod utilities;
 
-pub use pdf::Name;
+pub use special::Name;
 
 /// The [`Extract`] trait marks a type as extractable from a stream of bytes,
 /// without any context. Not object safe.
