@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use winnow::{
     ascii::hex_uint,
     combinator::{delimited, repeat, trace},
@@ -17,7 +19,22 @@ use crate::Extract;
 /// > arbitrary binary data in a PDF file.
 /// > A hexadecimal string shall be written as a sequence of hexadecimal digits
 /// > encoded as ASCII characters and enclosed within angle brackets.
+#[derive(PartialEq, Eq, Clone)]
 pub struct HexadecimalString(pub Vec<u8>);
+
+impl Debug for HexadecimalString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "HexadecimalString<")?;
+
+        for b in &self.0 {
+            write!(f, "{b:02X}")?;
+        }
+
+        write!(f, ">")?;
+
+        Ok(())
+    }
+}
 
 impl Extract<'_> for HexadecimalString {
     fn extract(input: &mut &BStr) -> PResult<Self> {
@@ -26,6 +43,16 @@ impl Extract<'_> for HexadecimalString {
             delimited(b'<', repeat(1.., parse_hexadecimal_bigram), b'>').map(Self),
         )
         .parse_next(input)
+    }
+}
+
+impl<T> From<T> for HexadecimalString
+where
+    T: Into<Vec<u8>>,
+{
+    fn from(value: T) -> Self {
+        let vec = value.into();
+        Self(vec)
     }
 }
 
@@ -68,5 +95,14 @@ mod tests {
     fn hex_string(#[case] input: &[u8], #[case] expected: &[u8]) {
         let HexadecimalString(bytes) = extract(&mut input.as_ref()).unwrap();
         assert_eq!(bytes, expected);
+    }
+
+    #[rstest]
+    #[case(&[0x90, 0x1F, 0xA3], "901FA3")]
+    #[case(&[0x01, 0x0, 0x0F], "01000F")]
+    fn hex_string_debug(#[case] input: &[u8], #[case] expected: &str) {
+        let expected = format!("HexadecimalString<{expected}>");
+        let result = HexadecimalString::from(input);
+        assert_eq!(format!("{result:?}"), expected);
     }
 }
