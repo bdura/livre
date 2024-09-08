@@ -11,7 +11,7 @@
 //! this is the reason why "PDF strings" are actually stored as bytes within
 //! Livre.
 
-use std::borrow::Cow;
+use std::{borrow::Cow, fmt::Debug};
 
 use winnow::{
     combinator::{fail, peek, trace},
@@ -50,7 +50,27 @@ use crate::{
 ///
 /// (This string contains \245two octal characters\307.)
 /// ```
+#[derive(Clone, PartialEq, Eq)]
 pub struct LiteralString<'de>(pub Cow<'de, [u8]>);
+
+impl Debug for LiteralString<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "LiteralString({})", String::from_utf8_lossy(&self.0))?;
+        Ok(())
+    }
+}
+
+impl From<String> for LiteralString<'static> {
+    fn from(value: String) -> Self {
+        Self(Cow::Owned(value.into()))
+    }
+}
+
+impl<'a> From<&'a str> for LiteralString<'a> {
+    fn from(value: &'a str) -> Self {
+        Self(Cow::Borrowed(value.as_bytes()))
+    }
+}
 
 impl<'de> Extract<'de> for LiteralString<'de> {
     fn extract(input: &mut &'de BStr) -> PResult<Self> {
@@ -147,5 +167,16 @@ mod tests {
     fn literal_string(#[case] input: &[u8], #[case] expected: &[u8]) {
         let LiteralString(inner) = extract(&mut input.as_ref()).unwrap();
         assert_eq!(expected, inner.as_ref());
+    }
+
+    #[rstest]
+    #[case("abcd", "LiteralString(abcd)")]
+    #[case("test", "LiteralString(test)")]
+    fn literal_string_debug<'a, T: Into<LiteralString<'a>>>(
+        #[case] input: T,
+        #[case] expected: &'a str,
+    ) {
+        let result = input.into();
+        assert_eq!(format!("{result:?}"), expected);
     }
 }
