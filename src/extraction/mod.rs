@@ -2,15 +2,16 @@
 //! which defines a way for the type to extract itself from a stream of bytes,
 //! consuming the input.
 
-use livre_derive::FromRawDict;
-use special::RawDict;
+pub use livre_derive::FromRawDict;
 use winnow::{BStr, PResult, Parser};
 
 mod primitives;
 mod special;
 mod utilities;
 
-pub use special::{Name, Reference, ReferenceId};
+pub use special::{
+    HexadecimalString, LiteralString, MaybeArray, Name, RawDict, Reference, ReferenceId,
+};
 
 /// The [`Extract`] trait marks a type as extractable from a stream of bytes,
 /// without any context. Not object safe.

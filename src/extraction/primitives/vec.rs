@@ -1,5 +1,5 @@
-use winnow::ascii::{multispace0, multispace1};
-use winnow::combinator::{delimited, preceded, separated, trace};
+use winnow::ascii::multispace0;
+use winnow::combinator::{delimited, preceded, repeat, trace};
 use winnow::{BStr, PResult, Parser};
 
 use super::Extract;
@@ -13,7 +13,7 @@ where
             "livre-vec",
             delimited(
                 b'[',
-                separated(0.., preceded(multispace0, T::extract), multispace1),
+                repeat(0.., preceded(multispace0, T::extract)),
                 (multispace0, b']'),
             ),
         )

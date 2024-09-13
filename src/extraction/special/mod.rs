@@ -8,6 +8,8 @@ mod object;
 mod reference;
 mod stream;
 
+pub use hex_string::HexadecimalString;
+pub use literal_string::LiteralString;
 pub use map::RawDict;
 pub use maybe_array::MaybeArray;
 pub use name::Name;

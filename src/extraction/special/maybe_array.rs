@@ -5,7 +5,7 @@ use winnow::{
 
 use crate::Extract;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct MaybeArray<T>(pub Vec<T>);
 
 impl<T> Default for MaybeArray<T> {
