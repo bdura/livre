@@ -3,7 +3,7 @@ use std::{any::Any, collections::HashSet};
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{
-    parse_macro_input, parse_quote_spanned, Data, DataStruct, DeriveInput, Fields, Type, TypeParam
+    parse_macro_input, parse_quote_spanned, Data, DataEnum, DataStruct, DeriveInput, Fields, Type
 };
 
 use crate::{add_trait_bounds, utilities::attr::Attributes};

@@ -1,13 +1,13 @@
 use std::collections::HashSet;
 
-use syn::{parse_quote, GenericParam, Generics, TypeParam};
+use syn::{parse_quote, GenericParam, Generics};
 
-mod extract;
+mod from_raw_dict;
 mod utilities;
 
 #[proc_macro_derive(FromRawDict, attributes(livre))]
 pub fn derive_extract(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    extract::derive(input)
+    from_raw_dict::derive(input)
 }
 
 // Add a bound `T: Extract` to every type parameter T.
