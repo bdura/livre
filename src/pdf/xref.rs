@@ -1,14 +1,32 @@
 use std::{fmt::Debug, str::FromStr};
 
 use winnow::{
-    ascii::{crlf, line_ending, multispace0, multispace1},
+    ascii::{line_ending, multispace0, multispace1},
     combinator::{alt, delimited, iterator, repeat, separated_pair, terminated, trace},
     error::ContextError,
-    token::take_while,
+    token::{take_until, take_while},
     BStr, PResult, Parser,
 };
 
 use crate::extraction::{extract, Extract, ReferenceId};
+
+#[derive(Debug, Clone, Copy)]
+pub struct StartXRef(pub usize);
+
+impl Extract<'_> for StartXRef {
+    fn extract(input: &mut &BStr) -> PResult<Self> {
+        let (_, _, value) = (b"startxref", multispace1, extract).parse_next(input)?;
+        Ok(Self(value))
+    }
+}
+
+impl StartXRef {
+    pub fn find(input: &BStr) -> PResult<Self> {
+        let mut i = &input[(input.len().saturating_sub(30))..];
+        take_until(0.., b"startxref".as_slice()).parse_next(&mut i)?;
+        Self::extract(&mut i)
+    }
+}
 
 fn dec_num<'de, T, E>(count: usize) -> impl Parser<&'de BStr, T, ContextError>
 where
@@ -24,7 +42,7 @@ where
     }
 }
 
-fn ref_entry(input: &mut &BStr) -> PResult<(usize, u16, bool)> {
+fn xref_entry(input: &mut &BStr) -> PResult<(usize, u16, bool)> {
     trace("livre-ref-entry", move |i: &mut &BStr| {
         let (offset, gen) = separated_pair(dec_num(10), b' ', dec_num(5)).parse_next(i)?;
 
@@ -44,7 +62,7 @@ fn xref_subsection<'de>(input: &mut &'de BStr) -> PResult<Vec<(ReferenceId, usiz
     let (initial, n) = separated_pair(usize::extract, b' ', usize::extract).parse_next(input)?;
     line_ending(input)?;
 
-    let entries: Vec<(usize, u16, bool)> = repeat(n, ref_entry).parse_next(input)?;
+    let entries: Vec<(usize, u16, bool)> = repeat(n, xref_entry).parse_next(input)?;
 
     let res = entries
         .into_iter()
@@ -82,7 +100,7 @@ mod tests {
     #[case(b"0000000010 00000 n\r\n", (10, 0, true))]
     #[case(b"0000000103 00001 n \r", (103, 1, true))]
     fn extract_ref_entry(#[case] input: &[u8], #[case] expected: (usize, u16, bool)) {
-        let result = ref_entry(&mut input.as_ref()).unwrap();
+        let result = xref_entry(&mut input.as_ref()).unwrap();
         assert_eq!(expected, result)
     }
 
@@ -140,8 +158,34 @@ mod tests {
             ((4, 0).into(), 300),
         ]
     )]
-    fn xref_extracdtion(#[case] input: &[u8], #[case] expected: Vec<(ReferenceId, usize)>) {
+    fn xref_extraction(#[case] input: &[u8], #[case] expected: Vec<(ReferenceId, usize)>) {
         let res = xref(&mut input.as_ref()).unwrap();
         assert_eq!(expected, res)
+    }
+
+    #[test]
+    fn startxref() {
+        let input = indoc! {b"
+            test
+            test
+            test
+            test
+            test
+            test
+            test
+            test
+            test
+            test
+            startxref
+            7
+        "}
+        .as_slice();
+
+        assert_eq!(input.len(), 62);
+
+        let StartXRef(value) = StartXRef::find(input.as_ref()).unwrap();
+
+        assert_eq!(input.len(), 62);
+        assert_eq!(value, 7);
     }
 }
