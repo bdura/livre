@@ -9,6 +9,14 @@ use winnow::{
 
 use crate::{extraction::extract, Extract};
 
+/// An ID that uniquely identifies an object and its version.
+///
+/// In practice, it looks like the [`object`](Self::object) field alone
+/// should be enough for text extraction since the XRef dictionary is
+/// updated such that only the latest version of a given object is referenced.
+///
+/// In the future we *might* want to look at the document's history,
+/// hence the [`ReferenceId`] keeps the generation number.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct ReferenceId {
     object: usize,
@@ -91,6 +99,8 @@ impl<T> From<(usize, u16)> for Reference<T> {
     }
 }
 
+/// The source for an indirect object, which can later be
+/// referenced using a [`Reference`].
 struct Indirect<T> {
     id: ReferenceId,
     inner: T,
