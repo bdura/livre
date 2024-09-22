@@ -10,7 +10,7 @@ mod special;
 mod utilities;
 
 pub use special::{
-    HexadecimalString, LiteralString, MaybeArray, Name, RawDict, Reference, ReferenceId,
+    HexadecimalString, LiteralString, MaybeArray, Name, OptRef, RawDict, Reference, ReferenceId,
 };
 
 /// The [`Extract`] trait marks a type as extractable from a stream of bytes,

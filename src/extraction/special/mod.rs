@@ -13,4 +13,4 @@ pub use literal_string::LiteralString;
 pub use map::RawDict;
 pub use maybe_array::MaybeArray;
 pub use name::Name;
-pub use reference::{Reference, ReferenceId};
+pub use reference::{OptRef, Reference, ReferenceId};

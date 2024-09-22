@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use winnow::{
     ascii::multispace1,
-    combinator::{delimited, separated_pair, terminated, trace},
+    combinator::{alt, delimited, separated_pair, terminated, trace},
     error::{ContextError, ErrMode},
     BStr, PResult, Parser,
 };
@@ -99,6 +99,28 @@ impl<T> From<(usize, u16)> for Reference<T> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
+pub enum OptRef<T> {
+    Ref(Reference<T>),
+    Direct(T),
+}
+
+impl<'de, T> Extract<'de> for OptRef<T>
+where
+    T: Extract<'de>,
+{
+    fn extract(input: &mut &'de BStr) -> PResult<Self> {
+        trace("livre-optref", move |i: &mut &'de BStr| {
+            alt((
+                Reference::extract.map(Self::Ref),
+                T::extract.map(Self::Direct),
+            ))
+            .parse_next(i)
+        })
+        .parse_next(input)
+    }
+}
+
 /// The source for an indirect object, which can later be
 /// referenced using a [`Reference`].
 struct Indirect<T> {
@@ -169,5 +191,17 @@ mod tests {
         let reference = Reference::extract(&mut input.as_ref()).unwrap();
         let extracted = reference.extract_from_source(&mut source.as_ref()).unwrap();
         assert_eq!(expected, extracted)
+    }
+
+    #[rstest]
+    #[case(b"0 0 R", OptRef::Ref(Reference::<u16>::from((0, 0))))]
+    #[case(b"0", OptRef::Direct(0u16))]
+    #[case(b"0 10", OptRef::Direct((0, 10)))]
+    fn opt_ref<'de, T>(#[case] input: &'de [u8], #[case] expected: OptRef<T>)
+    where
+        T: Extract<'de> + Debug + PartialEq,
+    {
+        let result = extract(&mut input.as_ref()).unwrap();
+        assert_eq!(expected, result);
     }
 }
