@@ -7,7 +7,10 @@ use winnow::{
     BStr, PResult, Parser,
 };
 
-use crate::{extraction::extract, Extract};
+use crate::{
+    extraction::{extract, Builder},
+    Build, Extract,
+};
 
 /// An ID that uniquely identifies an object and its version.
 ///
@@ -17,7 +20,7 @@ use crate::{extraction::extract, Extract};
 ///
 /// In the future we *might* want to look at the document's history,
 /// hence the [`ReferenceId`] keeps the generation number.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct ReferenceId {
     object: usize,
     generation: u16,
@@ -26,6 +29,13 @@ pub struct ReferenceId {
 impl ReferenceId {
     pub fn new(object: usize, generation: u16) -> Self {
         Self { object, generation }
+    }
+
+    pub fn first(object: usize) -> Self {
+        Self {
+            object,
+            generation: 0,
+        }
     }
 }
 
@@ -57,7 +67,7 @@ impl From<(usize, u16)> for ReferenceId {
 /// Be that as it may, the `Reference` object in Livre proposes a type-safe implementation.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Reference<T> {
-    id: ReferenceId,
+    pub id: ReferenceId,
     _mark: PhantomData<T>,
 }
 
@@ -99,10 +109,37 @@ impl<T> From<(usize, u16)> for Reference<T> {
     }
 }
 
+impl<T> Reference<T>
+where
+    T: for<'de> Build<'de>,
+{
+    pub fn instantiate<'de, B>(self, builder: &B) -> PResult<T>
+    where
+        B: Builder<'de>,
+    {
+        builder.build_reference(self)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum OptRef<T> {
     Ref(Reference<T>),
     Direct(T),
+}
+
+impl<T> OptRef<T>
+where
+    T: for<'de> Build<'de>,
+{
+    pub fn instantiate<'de, B>(self, builder: &mut B) -> PResult<T>
+    where
+        B: Builder<'de>,
+    {
+        match self {
+            Self::Ref(reference) => reference.instantiate(builder),
+            Self::Direct(inner) => Ok(inner),
+        }
+    }
 }
 
 impl<'de, T> Extract<'de> for OptRef<T>
@@ -123,9 +160,9 @@ where
 
 /// The source for an indirect object, which can later be
 /// referenced using a [`Reference`].
-struct Indirect<T> {
-    id: ReferenceId,
-    inner: T,
+pub struct Indirect<T> {
+    pub id: ReferenceId,
+    pub inner: T,
 }
 
 impl<'de, T> Extract<'de> for Indirect<T>

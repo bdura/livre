@@ -1,4 +1,7 @@
-use std::ops::{AddAssign, MulAssign, Neg};
+use std::{
+    num::NonZeroU8,
+    ops::{AddAssign, MulAssign, Neg},
+};
 
 use winnow::{
     ascii::{digit1, float},
@@ -160,6 +163,17 @@ signed! {
 real! {
     f32
     f64
+}
+
+impl Extract<'_> for NonZeroU8 {
+    fn extract(input: &mut &BStr) -> PResult<Self> {
+        let n = u8::extract.verify(|&r| r != 0).parse_next(input)?;
+
+        // SAFETY: the verification happens at the parser level ↑
+        let n = unsafe { NonZeroU8::new_unchecked(n) };
+
+        Ok(n)
+    }
 }
 
 #[cfg(test)]

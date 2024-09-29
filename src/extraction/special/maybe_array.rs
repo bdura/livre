@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use winnow::{
     combinator::{alt, trace},
     BStr, PResult, Parser,
@@ -17,6 +19,12 @@ impl<T> Default for MaybeArray<T> {
 impl<T> From<MaybeArray<T>> for Vec<T> {
     fn from(value: MaybeArray<T>) -> Self {
         value.0
+    }
+}
+
+impl<T> From<MaybeArray<T>> for VecDeque<T> {
+    fn from(value: MaybeArray<T>) -> Self {
+        value.0.into()
     }
 }
 

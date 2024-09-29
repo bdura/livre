@@ -12,7 +12,7 @@ use crate::{
     Extract,
 };
 
-use super::MaybeArray;
+use super::{MaybeArray, Nil};
 
 #[derive(Debug, PartialEq, Eq, FromRawDict)]
 struct StreamDict<T> {
@@ -60,19 +60,10 @@ where
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Copy, Eq)]
-pub struct NoOp;
-
-impl FromRawDict<'_> for NoOp {
-    fn from_raw_dict(_: &mut crate::extraction::special::RawDict<'_>) -> PResult<Self> {
-        Ok(NoOp)
-    }
-}
-
 impl Extract<'_> for Stream<()> {
     fn extract(input: &mut &'_ BStr) -> PResult<Self> {
         let Stream {
-            structured: NoOp,
+            structured: Nil,
             content,
         } = extract(input)?;
 
@@ -96,10 +87,10 @@ mod tests {
     use super::*;
 
     #[rstest]
-    #[case(b"<</Length 2/SomeOtherKey/Test>>", StreamDict{length: 2, filter: vec![], structured: NoOp})]
-    #[case(b"<</Length 42>>", StreamDict{length: 42, filter: vec![], structured: NoOp})]
-    #[case(b"<<  /SomeRandomKey (some text...)/Length 42>>", StreamDict{length: 42, filter: vec![], structured: NoOp})]
-    fn stream_dict(#[case] input: &[u8], #[case] expected: StreamDict<NoOp>) {
+    #[case(b"<</Length 2/SomeOtherKey/Test>>", StreamDict{length: 2, filter: vec![], structured: Nil})]
+    #[case(b"<</Length 42>>", StreamDict{length: 42, filter: vec![], structured: Nil})]
+    #[case(b"<<  /SomeRandomKey (some text...)/Length 42>>", StreamDict{length: 42, filter: vec![], structured: Nil})]
+    fn stream_dict(#[case] input: &[u8], #[case] expected: StreamDict<Nil>) {
         let result = extract(&mut input.as_ref()).unwrap();
         assert_eq!(expected, result);
     }
@@ -128,17 +119,17 @@ mod tests {
         b"0",
         TestStruct { test: false},
     )]
-    #[case(b"<</Length 1/Test true/Test2 false>>stream\n0\nendstream", b"0", NoOp)]
-    #[case(b"<</Length 1/Test false/Root true>>stream\n0\nendstream", b"0", NoOp)]
+    #[case(b"<</Length 1/Test true/Test2 false>>stream\n0\nendstream", b"0", Nil)]
+    #[case(b"<</Length 1/Test false/Root true>>stream\n0\nendstream", b"0", Nil)]
     #[case(
         b"<</Length 10/Test/Test>> stream\n0123456789\nendstream\n",
         b"0123456789",
-        NoOp
+        Nil
     )]
     #[case(
         b"<</Length 10/Test/Test>> stream\n0123456789\nendstream\n",
         b"0123456789",
-        NoOp
+        Nil
     )]
     fn stream<'de, T>(
         #[case] input: &'de [u8],

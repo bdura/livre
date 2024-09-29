@@ -2,31 +2,18 @@ use std::{fmt::Debug, str::FromStr};
 
 use winnow::{
     ascii::{line_ending, multispace0, multispace1},
-    combinator::{alt, delimited, iterator, repeat, separated_pair, terminated, trace},
+    combinator::{alt, delimited, iterator, repeat, separated_pair, terminated, todo, trace},
     error::ContextError,
-    token::{take_until, take_while},
+    token::take_while,
     BStr, PResult, Parser,
 };
 
-use crate::extraction::{extract, Extract, ReferenceId};
+use crate::{
+    extraction::{Extract, ReferenceId},
+    pdf::TrailerDict,
+};
 
-#[derive(Debug, Clone, Copy)]
-pub struct StartXRef(pub usize);
-
-impl Extract<'_> for StartXRef {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
-        let (_, _, value) = (b"startxref", multispace1, extract).parse_next(input)?;
-        Ok(Self(value))
-    }
-}
-
-impl StartXRef {
-    pub fn find(input: &BStr) -> PResult<Self> {
-        let mut i = &input[(input.len().saturating_sub(30))..];
-        take_until(0.., b"startxref".as_slice()).parse_next(&mut i)?;
-        Self::extract(&mut i)
-    }
-}
+use super::RefLocation;
 
 fn dec_num<'de, T, E>(count: usize) -> impl Parser<&'de BStr, T, ContextError>
 where
@@ -78,14 +65,29 @@ fn xref_subsection<'de>(input: &mut &'de BStr) -> PResult<Vec<(ReferenceId, usiz
     Ok(res)
 }
 
-fn xref(input: &mut &BStr) -> PResult<Vec<(ReferenceId, usize)>> {
+pub fn xref_sections(input: &mut &BStr) -> PResult<Vec<(ReferenceId, RefLocation)>> {
     (b"xref", multispace1).parse_next(input)?;
 
     let mut it = iterator(*input, terminated(xref_subsection, multispace0));
-    let res = it.flatten().collect();
+    let res = it
+        .flatten()
+        .map(|(r, loc)| (r, RefLocation::Uncompressed(loc)))
+        .collect();
     *input = it.finish()?.0;
 
     Ok(res)
+}
+
+pub fn xref(input: &mut &BStr) -> PResult<(TrailerDict, Vec<(ReferenceId, RefLocation)>)> {
+    trace("livre-xref-plain", move |i: &mut &BStr| {
+        let xrefs = xref_sections(i)?;
+
+        (multispace0, b"trailer", multispace1).parse_next(i)?;
+        let dict = TrailerDict::extract(i)?;
+
+        Ok((dict, xrefs))
+    })
+    .parse_next(input)
 }
 
 #[cfg(test)]
@@ -153,39 +155,13 @@ mod tests {
             0000000300 00000 n\r
         "},
         vec![
-            ((1, 0).into(), 200),
-            ((2, 1).into(), 220),
-            ((4, 0).into(), 300),
+            ((1, 0).into(), RefLocation::Uncompressed(200)),
+            ((2, 1).into(), RefLocation::Uncompressed(220)),
+            ((4, 0).into(), RefLocation::Uncompressed(300)),
         ]
     )]
-    fn xref_extraction(#[case] input: &[u8], #[case] expected: Vec<(ReferenceId, usize)>) {
-        let res = xref(&mut input.as_ref()).unwrap();
+    fn xref_extraction(#[case] input: &[u8], #[case] expected: Vec<(ReferenceId, RefLocation)>) {
+        let res = xref_sections(&mut input.as_ref()).unwrap();
         assert_eq!(expected, res)
-    }
-
-    #[test]
-    fn startxref() {
-        let input = indoc! {b"
-            test
-            test
-            test
-            test
-            test
-            test
-            test
-            test
-            test
-            test
-            startxref
-            7
-        "}
-        .as_slice();
-
-        assert_eq!(input.len(), 62);
-
-        let StartXRef(value) = StartXRef::find(input.as_ref()).unwrap();
-
-        assert_eq!(input.len(), 62);
-        assert_eq!(value, 7);
     }
 }

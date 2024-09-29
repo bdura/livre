@@ -183,6 +183,15 @@ where
     }
 }
 
+#[derive(Debug, PartialEq, Clone, Copy, Eq)]
+pub struct Nil;
+
+impl FromRawDict<'_> for Nil {
+    fn from_raw_dict(_: &mut crate::extraction::special::RawDict<'_>) -> PResult<Self> {
+        Ok(Nil)
+    }
+}
+
 #[cfg(test)]
 mod tests {
 

@@ -3,14 +3,20 @@
 //! consuming the input.
 
 pub use livre_derive::FromRawDict;
-use winnow::{BStr, PResult, Parser};
+use winnow::{
+    ascii::multispace1,
+    combinator::terminated,
+    error::{ContextError, ErrMode},
+    BStr, PResult, Parser,
+};
 
 mod primitives;
 mod special;
 mod utilities;
 
 pub use special::{
-    HexadecimalString, LiteralString, MaybeArray, Name, OptRef, RawDict, Reference, ReferenceId,
+    HexadecimalString, Indirect, LiteralString, MaybeArray, Name, OptRef, RawDict, Reference,
+    ReferenceId, Stream,
 };
 
 /// The [`Extract`] trait marks a type as extractable from a stream of bytes,
@@ -55,5 +61,46 @@ where
         let mut dict = RawDict::extract(input)?;
         let result = Self::from_raw_dict(&mut dict)?;
         Ok(result)
+    }
+}
+
+/// An `Builder` holds every information to follow indirect references
+pub trait Builder<'de>: Sized {
+    /// The entrypoint for the builder. This method provides the stream slice
+    /// that describes the referenced entity.
+    fn follow_reference(&self, reference_id: ReferenceId) -> Option<&'de BStr>;
+    fn build_reference<T>(&self, Reference { id, .. }: Reference<T>) -> PResult<T>
+    where
+        T: Build<'de>,
+    {
+        let mut input = self
+            .follow_reference(id)
+            .ok_or(ErrMode::Cut(ContextError::new()))?;
+
+        let reference_id =
+            terminated(ReferenceId::extract, (b" obj", multispace1)).parse_next(&mut input)?;
+
+        debug_assert_eq!(reference_id, id);
+
+        T::build(&mut input, self)
+    }
+}
+
+/// A `Build` type uses an extractor to follow references
+pub trait Build<'de>: Sized {
+    fn build<B>(input: &mut &'de BStr, builder: &B) -> PResult<Self>
+    where
+        B: Builder<'de>;
+}
+
+impl<'de, T> Build<'de> for T
+where
+    T: Extract<'de>,
+{
+    fn build<B>(input: &mut &'de BStr, _: &B) -> PResult<Self>
+    where
+        B: Builder<'de>,
+    {
+        extract(input)
     }
 }

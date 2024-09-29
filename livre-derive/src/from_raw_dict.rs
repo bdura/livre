@@ -1,12 +1,12 @@
-use std::{any::Any, collections::HashSet};
+use std::collections::HashSet;
 
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{
-    parse_macro_input, parse_quote_spanned, Data, DataEnum, DataStruct, DeriveInput, Fields, Type
+    parse_macro_input, parse_quote_spanned, Data, DataStruct, DeriveInput, Fields, Type
 };
 
-use crate::{add_trait_bounds, utilities::attr::Attributes};
+use crate::{add_extraction_trait_bounds, utilities::attr::Attributes};
 
 use super::utilities::attr;
 
@@ -20,7 +20,7 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let (extraction, flattened) = generate_extraction(&input.data);
 
     // Add a bound `T: Extract` to every type parameter T.
-    let generics = add_trait_bounds(input.generics, flattened);
+    let generics = add_extraction_trait_bounds(input.generics, flattened);
     let mut gen_lt = generics.clone();
 
     gen_lt
@@ -110,9 +110,16 @@ fn generate_extraction(data: &Data) -> (TokenStream, HashSet<String>) {
                 }
 
                 if from.is_some() {
-                    extraction = quote! {
-                        #extraction
-                        let #name: #ty = #name.into();
+                    if is_opt {
+                        extraction = quote! {
+                            #extraction
+                            let #name = #name.map(|inner| inner.into());
+                        };
+                    } else {
+                        extraction = quote! {
+                            #extraction
+                            let #name: #ty = #name.into();
+                        };
                     }
                 }
                 extraction

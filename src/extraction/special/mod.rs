@@ -10,7 +10,8 @@ mod stream;
 
 pub use hex_string::HexadecimalString;
 pub use literal_string::LiteralString;
-pub use map::RawDict;
+pub use map::{Nil, RawDict};
 pub use maybe_array::MaybeArray;
 pub use name::Name;
-pub use reference::{OptRef, Reference, ReferenceId};
+pub use reference::{Indirect, OptRef, Reference, ReferenceId};
+pub use stream::Stream;

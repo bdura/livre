@@ -1,6 +1,6 @@
 use crate::extraction::{FromRawDict, HexadecimalString, MaybeArray, Reference};
 
-use super::catalogue::Catalogue;
+use super::catalog::Catalog;
 
 #[derive(Debug, Clone, PartialEq, FromRawDict)]
 pub struct TrailerDict {
@@ -21,13 +21,13 @@ pub struct TrailerDict {
     ///
     /// NOTE: At this stage, we only keep track of the reference.
     /// TODO: generate a proper document from the sequence of trailer dicts
-    pub root: Reference<Catalogue>,
+    pub root: Reference<Catalog>,
     // pub encrypt: Encrypt,
-    /// The PDF file’s [information dictionary](Info).
-    /// Not required.
+    // The PDF file’s [information dictionary](Info).
+    // Not required.
     // pub info: Option<Reference<Info>>,
-    #[livre(rename = "ID", from = MaybeArray<HexadecimalString>)]
-    pub id: Vec<HexadecimalString>,
+    #[livre(rename = "ID", from = Option<MaybeArray<HexadecimalString>>)]
+    pub id: Option<Vec<HexadecimalString>>,
 }
 
 
@@ -59,7 +59,7 @@ mod tests {
         TrailerDict{ 
             size: 92813, 
             prev: Some(116), 
-            id: vec![[0x2b, 0x55].into(), [0x0a, 0x12].into()],
+            id: Some(vec![[0x2b, 0x55].into(), [0x0a, 0x12].into()]),
             root: Reference::from((90794, 0)), 
             //info: TypedReference::new(90792, 0), 
         }
