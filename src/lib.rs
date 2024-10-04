@@ -1,6 +1,7 @@
 mod document;
 mod extraction;
 mod filtering;
+mod fonts;
 mod pdf;
 mod structures;
 
