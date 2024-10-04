@@ -2,7 +2,7 @@ use std::{fmt::Debug, str::FromStr};
 
 use winnow::{
     ascii::{line_ending, multispace0, multispace1},
-    combinator::{alt, delimited, iterator, repeat, separated_pair, terminated, todo, trace},
+    combinator::{alt, delimited, iterator, repeat, separated_pair, terminated, trace},
     error::ContextError,
     token::take_while,
     BStr, PResult, Parser,
@@ -71,7 +71,7 @@ pub fn xref_sections(input: &mut &BStr) -> PResult<Vec<(ReferenceId, RefLocation
     let mut it = iterator(*input, terminated(xref_subsection, multispace0));
     let res = it
         .flatten()
-        .map(|(r, loc)| (r, RefLocation::Uncompressed(loc)))
+        .map(|(r, loc)| (r, RefLocation::Plain(loc)))
         .collect();
     *input = it.finish()?.0;
 
@@ -155,9 +155,9 @@ mod tests {
             0000000300 00000 n\r
         "},
         vec![
-            ((1, 0).into(), RefLocation::Uncompressed(200)),
-            ((2, 1).into(), RefLocation::Uncompressed(220)),
-            ((4, 0).into(), RefLocation::Uncompressed(300)),
+            ((1, 0).into(), RefLocation::Plain(200)),
+            ((2, 1).into(), RefLocation::Plain(220)),
+            ((4, 0).into(), RefLocation::Plain(300)),
         ]
     )]
     fn xref_extraction(#[case] input: &[u8], #[case] expected: Vec<(ReferenceId, RefLocation)>) {

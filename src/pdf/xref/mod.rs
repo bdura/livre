@@ -29,7 +29,7 @@ impl StartXRef {
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum RefLocation {
-    Uncompressed(usize),
+    Plain(usize),
     Compressed(usize),
 }
 
@@ -38,7 +38,7 @@ impl RefLocation {
         if compressed {
             Self::Compressed(offset)
         } else {
-            Self::Uncompressed(offset)
+            Self::Plain(offset)
         }
     }
 }
