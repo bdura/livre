@@ -131,7 +131,7 @@ impl<T> OptRef<T>
 where
     T: for<'de> Build<'de>,
 {
-    pub fn instantiate<'de, B>(self, builder: &mut B) -> PResult<T>
+    pub fn instantiate<'de, B>(self, builder: &B) -> PResult<T>
     where
         B: Builder<'de>,
     {

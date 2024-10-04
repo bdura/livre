@@ -86,6 +86,12 @@ pub trait Builder<'de>: Sized {
     }
 }
 
+pub trait BuildFromRawDict<'de>: Sized {
+    fn build_from_raw_dict<B>(raw_dict: &mut RawDict<'de>, builder: &B) -> PResult<Self>
+    where
+        B: Builder<'de>;
+}
+
 /// A `Build` type uses an extractor to follow references
 pub trait Build<'de>: Sized {
     fn build<B>(input: &mut &'de BStr, builder: &B) -> PResult<Self>

@@ -4,6 +4,7 @@ use winnow::{
     ascii::multispace0,
     combinator::{iterator, peek, separated_pair, terminated, trace},
     dispatch,
+    error::ContextError,
     token::{any, take_till},
     BStr, PResult, Parser,
 };
@@ -128,12 +129,25 @@ impl<'de> RawDict<'de> {
         self.0.remove(key)
     }
 
+    pub fn pop_required(&mut self, key: &Name) -> PResult<RawValue<'de>> {
+        self.pop(key)
+            .ok_or(winnow::error::ErrMode::Cut(ContextError::new()))
+    }
+
     pub fn pop_and_extract<T>(&mut self, key: &Name) -> Option<PResult<T>>
     where
         T: Extract<'de>,
     {
         let value = self.pop(key)?;
         Some(value.extract())
+    }
+
+    pub fn pop_and_extract_required<T>(&mut self, key: &Name) -> PResult<T>
+    where
+        T: Extract<'de>,
+    {
+        let value = self.pop_required(key)?;
+        value.extract()
     }
 }
 

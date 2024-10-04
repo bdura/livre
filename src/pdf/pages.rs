@@ -119,9 +119,7 @@ impl PageElement {
 
 impl FromRawDict<'_> for PageElement {
     fn from_raw_dict(dict: &mut RawDict<'_>) -> PResult<Self> {
-        let Name(page_type) = dict
-            .pop_and_extract(&"Type".into())
-            .ok_or(ErrMode::Cut(ContextError::new()))??;
+        let Name(page_type) = dict.pop_and_extract_required(&"Type".into())?;
 
         let res = match page_type.as_slice() {
             b"Page" => Self::Page(Page::from_raw_dict(dict)?),
