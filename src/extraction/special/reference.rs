@@ -74,10 +74,7 @@ pub struct Reference<T> {
 // We need to implement this manually because of the automatic trait bound on T.
 impl<T> Clone for Reference<T> {
     fn clone(&self) -> Self {
-        Self {
-            id: self.id,
-            _mark: PhantomData,
-        }
+        *self
     }
 }
 

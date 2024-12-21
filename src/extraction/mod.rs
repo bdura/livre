@@ -21,8 +21,6 @@ pub use special::{
 
 /// The [`Extract`] trait marks a type as extractable from a stream of bytes,
 /// without any context. Not object safe.
-///
-/// TODO: add a `Build` trait that can follow references as they arise
 pub trait Extract<'de>: Sized {
     fn extract(input: &mut &'de BStr) -> PResult<Self>;
 
@@ -48,7 +46,7 @@ where
 /// The `FromRawDict` trait allows for the construction of complext
 /// types using a pre-parsed dictionary.
 ///
-/// Any type that is `FromRawDict` is trivially [`Extract`]
+/// Any type that is `FromRawDict` is trivially [`Extract`].
 pub trait FromRawDict<'de>: Sized {
     fn from_raw_dict(dict: &mut RawDict<'de>) -> PResult<Self>;
 }
@@ -92,13 +90,14 @@ pub trait BuildFromRawDict<'de>: Sized {
         B: Builder<'de>;
 }
 
-/// A `Build` type uses an extractor to follow references
+/// A `Build` type uses a builder to follow references
 pub trait Build<'de>: Sized {
     fn build<B>(input: &mut &'de BStr, builder: &B) -> PResult<Self>
     where
         B: Builder<'de>;
 }
 
+/// Any type that is [`Extract`] is trivially [`Build`]: you don't even need the builder.
 impl<'de, T> Build<'de> for T
 where
     T: Extract<'de>,
