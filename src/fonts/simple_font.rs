@@ -4,11 +4,11 @@ use winnow::{
 };
 
 use crate::{
-    extraction::{BuildFromRawDict, Name, OptRef, RawDict},
+    extraction::{BuildFromRawDict, LiteralString, Name, OptRef, RawDict},
     Build, Builder, Extract, FromRawDict,
 };
 
-use super::descriptor::FontDescriptor;
+use super::{descriptor::FontDescriptor, Font};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Widths {
@@ -95,24 +95,29 @@ impl SimpleFont {
     }
 }
 
-//impl FontBehavior for SimpleFont {
-//    fn ascent(&self) -> f32 {
-//        self.font_descriptor.ascent / 1000.0
-//    }
-//
-//    fn descent(&self) -> f32 {
-//        self.font_descriptor.descent / 1000.0
-//    }
-//
-//    fn process(&self, input: PdfString) -> Vec<(char, f32, bool)> {
-//        Vec::<u8>::from(input)
-//            .iter()
-//            .copied()
-//            .map(|c| (c as char, self.width(c), c == b' '))
-//            .collect()
-//    }
-//
-//    fn name(&self) -> &str {
-//        &self.font_descriptor.font_name
-//    }
-//}
+impl Font for SimpleFont {
+    fn ascent(&self) -> f32 {
+        self.font_descriptor.ascent / 1000.0
+    }
+
+    fn descent(&self) -> f32 {
+        self.font_descriptor.descent / 1000.0
+    }
+
+    fn process(&self, LiteralString(string): LiteralString) -> Vec<(char, f32, bool)> {
+        string
+            .iter()
+            .copied()
+            .map(|c| (c as char, self.width(c), c == b' '))
+            .collect()
+    }
+
+    fn width(&self, code: u8) -> f32 {
+        self.width(code)
+    }
+
+    fn name(&self) -> &str {
+        let name = &self.font_descriptor.font_name;
+        std::str::from_utf8(name).unwrap()
+    }
+}
