@@ -155,7 +155,7 @@ mod tests {
     use indoc::indoc;
     use rstest::rstest;
 
-    use crate::{extraction::extract, Extract};
+    use crate::Extract;
 
     use super::*;
 

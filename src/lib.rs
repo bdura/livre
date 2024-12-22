@@ -1,5 +1,5 @@
 mod document;
-mod extraction;
+pub mod extraction;
 mod filtering;
 mod pdf;
 mod structures;

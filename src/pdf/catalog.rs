@@ -148,10 +148,10 @@ mod tests {
 
     use std::fmt::Debug;
 
-    use indoc::indoc;
+    //use indoc::indoc;
     use rstest::rstest;
 
-    use crate::extraction::Builder;
+    //use crate::extraction::Builder;
 
     use super::*;
 
@@ -178,13 +178,13 @@ mod tests {
         assert_eq!(expected, res)
     }
 
-    struct DummyBuilder<'de>(&'de BStr);
-
-    impl<'de> Builder<'de> for DummyBuilder<'de> {
-        fn follow_reference(&self, _: crate::extraction::ReferenceId) -> Option<&'de BStr> {
-            Some(self.0)
-        }
-    }
+    //struct DummyBuilder<'de>(&'de BStr);
+    //
+    //impl<'de> Builder<'de> for DummyBuilder<'de> {
+    //    fn follow_reference(&self, _: crate::extraction::ReferenceId) -> Option<&'de BStr> {
+    //        Some(self.0)
+    //    }
+    //}
 
     //#[rstest]
     //#[case(

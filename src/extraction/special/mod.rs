@@ -1,4 +1,4 @@
-mod comments;
+// mod comments;
 mod hex_string;
 mod literal_string;
 mod map;
