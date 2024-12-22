@@ -22,10 +22,9 @@ pub struct Resources {
 /// Inheritable page properties. All values shall be inherited as-is,
 /// without merging.
 ///
-/// Thus for instance the [Resources] dictionary for a page shall be
-/// found by searching the [PageLeaf](super::PageLeaf) object and then
-/// each [PageNode](super::PageNode) object encountered by following
-/// `Parent`` links up the pages tree from the Page towards the Catalog object.
+/// Thus for instance the [`Resources`] dictionary for a page shall be
+/// found by searching the [`Page`] object and then each [`PageNode`] object encountered
+/// by following `Parent`` links up the pages tree from the Page towards the Catalog object.
 /// When the first Resources dictionary is found the search shall be stopped
 /// and that Resources dictionary shall be used in its entirety.
 #[derive(Debug, PartialEq, Clone, FromRawDict)]
