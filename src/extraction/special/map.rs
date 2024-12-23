@@ -68,6 +68,7 @@ where
 pub struct RawValue<'de>(pub &'de BStr);
 
 impl<'de> RawValue<'de> {
+    /// Extract the raw value into a strongly typed object.
     pub fn extract<T>(mut self) -> PResult<T>
     where
         T: Extract<'de>,

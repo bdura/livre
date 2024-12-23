@@ -1,10 +1,13 @@
-//! Definition of the entire extraction logic, organised around three main traits:
+//! Definition of the extraction logic, organised around three main traits:
 //! [`Extract`], [`Build`], and [`Builder`] - and their implementation for primitive types.
 //!
 //! Livre aims to provide a sufficient set of tools to be able to parse *any* PDF object in a
 //! type-safe way. To that end, we define an [`Extract`] trait, which defines a way for a type
 //! to extract itself from a stream of bytes. Every "primitive" type (e.g. `f64`, `bool`,
 //! but also some PDF-specific types) implement that trait.
+//!
+//! Types that describe more high-level aspects such as the PDF structure, the page layout
+//! or the representation of fonts are not managed by this module.
 //!
 //! ## Complex and indirect objects
 //!
@@ -35,6 +38,11 @@
 //! Livre can represent those as generic [`HashMap`](std::collections::HashMap)s,
 //! or extract them as structured types using the [`FromRawDict`] trait. [`FromRawDict`]
 //! is derivable thanks to the [`livre_derive`] crate.
+//!
+//! ## Derivability
+//!
+//! Through the [`livre_derive`] helper crate, Livre provides (and uses) a derive macro
+//! for [`FromRawDict`].
 
 pub use livre_derive::FromRawDict;
 use winnow::{
@@ -83,6 +91,8 @@ where
 
 /// The `FromRawDict` trait allows for the construction of complex types using a pre-parsed
 /// dictionary.
+///
+/// This type can be derived using the [`livre_derive`] helper crate.
 pub trait FromRawDict<'de>: Sized {
     /// Build a type from a raw dictionary. Note that the supplied dict is not consumed.
     /// Rather, the method takes hold of a mutable reference to extract only the fields

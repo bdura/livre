@@ -119,6 +119,7 @@ where
     }
 }
 
+/// An optional reference, i.e. a type that may be represented directly of via a reference.
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum OptRef<T> {
     Ref(Reference<T>),
@@ -129,6 +130,9 @@ impl<T> OptRef<T>
 where
     T: for<'de> Build<'de>,
 {
+    /// Like the [`Reference`] type, [`OptRef`] declares an `instantiate` method to instantiate
+    /// the underlying object, either by returning it directly (if the object was directly defined)
+    /// or by having a [`Builder`] follow the reference.
     pub fn instantiate<'de, B>(self, builder: &mut B) -> PResult<T>
     where
         B: Builder<'de>,
