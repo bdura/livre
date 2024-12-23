@@ -5,6 +5,11 @@ use winnow::{
 
 use super::Extract;
 
+/// Note: this conflicts with the definition of the unit type, and may be removed
+/// at some point.
+///
+/// In effect, it looks like PDFs use absence of key to denote the `None` variant
+/// (using abusive denomination).
 impl<'de, T> Extract<'de> for Option<T>
 where
     T: Extract<'de>,

@@ -15,6 +15,9 @@ use super::{MaybeArray, Nil};
 
 #[derive(Debug, PartialEq, Eq, FromRawDict)]
 struct StreamDict<T> {
+    // FIXME: the length of a PDF stream is in fact an OptRef... This allows processors to write
+    // the stream without knowing its size in advance.
+    // Be that as it may, this is a failure case for the time being.
     length: usize,
     #[livre(from = MaybeArray<Filter>, default)]
     filter: Vec<Filter>,
