@@ -6,7 +6,7 @@ authors = ["Basile Dura <basile@bdura.me>"]
 rust-version = "1.82.0"
 
 readme = "README.md"
-description = "Another PDF parser, aiming for type-safety"
+description = "The derive macro for Livre, a type-safe PDF parser"
 repository = "https://github.com/bdura/livre"
 
 license = "MIT"
