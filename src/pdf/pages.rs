@@ -6,8 +6,8 @@ use winnow::{
 };
 
 use crate::{
-    extraction::{extract, Builder, MaybeArray, Name, RawDict, Reference},
-    Build, FromRawDict, Rectangle,
+    extraction::{extract, Build, Builder, FromRawDict, MaybeArray, Name, RawDict, Reference},
+    Rectangle,
 };
 
 /// Page resources.
@@ -155,7 +155,7 @@ mod tests {
     use indoc::indoc;
     use rstest::rstest;
 
-    use crate::Extract;
+    use crate::extraction::Extract;
 
     use super::*;
 

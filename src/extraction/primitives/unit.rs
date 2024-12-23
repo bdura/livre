@@ -1,6 +1,6 @@
 use winnow::{combinator::trace, BStr, PResult, Parser};
 
-use crate::Extract;
+use crate::extraction::Extract;
 
 impl Extract<'_> for () {
     fn extract(input: &mut &BStr) -> PResult<Self> {

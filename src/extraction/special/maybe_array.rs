@@ -5,7 +5,7 @@ use winnow::{
     BStr, PResult, Parser,
 };
 
-use crate::Extract;
+use crate::extraction::Extract;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct MaybeArray<T>(pub Vec<T>);

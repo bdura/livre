@@ -7,7 +7,7 @@ use winnow::{
     BStr, PResult, Parser,
 };
 
-use crate::{extraction::utilities::escaped_sequence, Extract};
+use crate::extraction::{utilities::escaped_sequence, Extract};
 
 /// In the PDF specification, a *Name* represents a dictionary key,
 /// or a (sub-)type specification. It uses an escape scheme using

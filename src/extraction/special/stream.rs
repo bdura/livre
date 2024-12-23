@@ -7,9 +7,8 @@ use winnow::{
 };
 
 use crate::{
-    extraction::{extract, FromRawDict},
+    extraction::{extract, Extract, FromRawDict},
     filtering::{Filter, Filtering},
-    Extract,
 };
 
 use super::{MaybeArray, Nil};
@@ -23,6 +22,7 @@ struct StreamDict<T> {
     structured: T,
 }
 
+/// A PDF object that stores arbitrary content, as well as some (optional) structured data.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Stream<T> {
     pub structured: T,

@@ -9,7 +9,7 @@ use winnow::{
     BStr, PResult, Parser,
 };
 
-use crate::Extract;
+use crate::extraction::Extract;
 
 /// Convert a slice of bytes representing decimal integers to a Rust number
 ///
@@ -183,7 +183,7 @@ mod tests {
 
     use rstest::rstest;
 
-    use crate::{extraction::extract, Extract};
+    use crate::extraction::{extract, Extract};
 
     #[rstest]
     #[case(b"42", 42u8)]

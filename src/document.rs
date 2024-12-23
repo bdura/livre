@@ -3,9 +3,8 @@ use std::collections::HashMap;
 use winnow::BStr;
 
 use crate::{
-    extraction::{Builder, Reference, ReferenceId},
+    extraction::{Builder, Extract, Reference, ReferenceId},
     pdf::{extract_xref, Catalog, RefLocation, StartXRef, TrailerDict},
-    Extract,
 };
 
 impl<'de> Builder<'de> for HashMap<ReferenceId, &'de BStr> {

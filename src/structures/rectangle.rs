@@ -1,6 +1,6 @@
 use winnow::{combinator::trace, BStr, PResult, Parser};
 
-use crate::{extraction::extract, Extract};
+use crate::extraction::{extract, Extract};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Rectangle {

@@ -5,18 +5,30 @@ use winnow::{
     BStr, PResult, Parser,
 };
 
-use crate::{extraction::extract, Extract};
+use crate::extraction::{extract, Extract};
 
 use super::{
-    hex_string::HexadecimalString, literal_string::LiteralString, map::Map, reference::Reference,
-    stream::Stream, Name,
+    map::Map,
+    name::Name,
+    reference::Reference,
+    stream::Stream,
+    strings::{HexadecimalString, LiteralString},
 };
 
-/// A PDF object. Mainly for testing purposes, since the whole point
-/// of livre is to provide a type-safe implementation for PDF extraction.
+/// A type that can represent *any* PDF object.
 ///
-/// Because of the stated goal, Livre's implementation for PDF objects
-/// owns its data for simplicity.
+/// Mainly for testing purposes, since the whole point of Livre is to provide a type-safe
+/// implementation for PDF extraction.
+///
+/// Because of the stated goal, Livre's implementation for PDF objects **owns its data**
+/// for simplicity.
+///
+/// From the specification:
+///
+/// > PDF syntax includes nine basic types of objects: boolean values, integers, real numbers,
+/// > strings, names, arrays, dictionaries, streams, and the null object. Objects may be labelled
+/// > so that they can be referred to by other objects. A labelled object is called an indirect object
+/// > (see 7.3.10, "Indirect objects")
 #[derive(Debug, Clone, PartialEq)]
 pub enum Object {
     Null,

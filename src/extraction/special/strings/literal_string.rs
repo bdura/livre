@@ -1,16 +1,3 @@
-//! The PDF specs are quite convoluted when it comes to string definition.
-//! In fact, even though in most cases a PDF string maps with the actual
-//! text that is rendered on the page, there is **absolutely no guarantee**
-//! that this is the case.
-//!
-//! In effect, we have to consider a PDF "string" as an array of bytes,
-//! whose translation into an actual text can only be performed knowing the
-//! encoding, along with the font used for rendering.
-//!
-//! This is at least my current understanding of how PDFs work. In any case,
-//! this is the reason why "PDF strings" are actually stored as bytes within
-//! Livre.
-
 use std::{borrow::Cow, fmt::Debug};
 
 use winnow::{
@@ -20,19 +7,20 @@ use winnow::{
     BStr, PResult, Parser,
 };
 
-use crate::{
-    extraction::{
-        extract,
-        utilities::{escaped_sequence, Parentheses},
-    },
+use crate::extraction::{
+    extract,
+    utilities::{escaped_sequence, Parentheses},
     Extract,
 };
 
 /// Struct that represent a PDF "literal string", ie one represented within
 /// parentheses.
 ///
+/// Note that although they are named `Strings` in the PDF specification, [`LiteralString`]s
+/// are not necessarily valid UTF-8 and, as such, not represetable by a Rust [`String`].
+///
 /// No attempt to decode the string is made at this point. Livre represents
-/// this data structure as plain bytes (see [intro](self)).
+/// this data structure as plain bytes (see intro to PDF strings module).
 ///
 /// # Examples
 ///
@@ -99,6 +87,7 @@ static LEFT_PAR: &[u8] = b"(";
 static RIGHT_PAR: &[u8] = b")";
 static BACKSLASH: &[u8] = b"\\";
 
+/// Escape [`LiteralString`] characters.
 fn escape_string<'de>(input: &mut &'de BStr) -> PResult<Cow<'de, [u8]>> {
     dispatch! {peek(any);
         b'\n' => any.value(Cow::Borrowed(EMPTY)),
@@ -120,7 +109,7 @@ fn escape_string<'de>(input: &mut &'de BStr) -> PResult<Cow<'de, [u8]>> {
 ///
 /// NOTE: the PDF specs allow 1 to 3 digits for the octal escape sequence.
 /// Contrary to Hexadecimal Strings, missing digits are interpreted as *leading* zeros.
-pub fn parse_octal(input: &mut &BStr) -> PResult<u8> {
+fn parse_octal(input: &mut &BStr) -> PResult<u8> {
     trace("livre-octal", |i: &mut &BStr| {
         let num = take_while(1..=3, b'0'..b'8').parse_next(i)?;
 
