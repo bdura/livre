@@ -8,10 +8,7 @@ use winnow::{
 
 use flate2::read::ZlibDecoder;
 
-use crate::{
-    extraction::{extract, Name},
-    Extract,
-};
+use crate::extraction::{extract, Extract, Name};
 
 #[enum_dispatch]
 pub trait Filtering {

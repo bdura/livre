@@ -9,12 +9,13 @@ use winnow::{
     BStr, PResult, Parser,
 };
 
-use crate::Extract;
+use crate::extraction::Extract;
 
 /// A PDF Hexadecimal String.
 ///
 /// Note that although they are named `Strings` in the PDF specification, [`HexadecimalString`]s
-/// are not necessarily valid UTF-8 and, as such, not represetable by a Rust [`String`].
+/// and [`LiteralString`](super::LiteralString)s are not necessarily valid UTF-8 and, as such,
+/// not represetable by a Rust [`String`].
 ///
 /// Quoting the specs:
 ///

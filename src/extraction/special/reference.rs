@@ -7,10 +7,7 @@ use winnow::{
     BStr, PResult, Parser,
 };
 
-use crate::{
-    extraction::{extract, Builder},
-    Build, Extract,
-};
+use crate::extraction::{extract, Build, Builder, Extract};
 
 /// An ID that uniquely identifies an object and its version.
 ///
@@ -22,8 +19,8 @@ use crate::{
 /// hence the [`ReferenceId`] keeps the generation number.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct ReferenceId {
-    object: usize,
-    generation: u16,
+    pub object: usize,
+    pub generation: u16,
 }
 
 impl ReferenceId {
@@ -56,11 +53,15 @@ impl From<(usize, u16)> for ReferenceId {
     }
 }
 
+/// A PDF reference to an *indirect object*.
+///
 /// PDF documents resort to a "random access" strategy to limit repetition and split large objects
 /// into smaller atoms.
 ///
 /// To that end, some objects will be represented by a `Reference`, indicating the object ID as
 /// well as the generation number.
+///
+/// ## Note
 ///
 /// I have still to understand what that means in practice... Although the definition is quite
 /// simple, it looks like the generation number only takes two values: 0 or 65535.
@@ -71,13 +72,10 @@ pub struct Reference<T> {
     _mark: PhantomData<T>,
 }
 
-// We need to implement this manually because of the automatic trait bound on T.
+/// We need to implement the [`Clone`] trait manually because of the automatic trait bound on `T`.
 impl<T> Clone for Reference<T> {
     fn clone(&self) -> Self {
-        Self {
-            id: self.id,
-            _mark: PhantomData,
-        }
+        *self
     }
 }
 
@@ -121,6 +119,7 @@ where
     }
 }
 
+/// An optional reference, i.e. a type that may be represented directly of via a reference.
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum OptRef<T> {
     Ref(Reference<T>),
@@ -131,6 +130,9 @@ impl<T> OptRef<T>
 where
     T: for<'de> Build<'de>,
 {
+    /// Like the [`Reference`] type, [`OptRef`] declares an `instantiate` method to instantiate
+    /// the underlying object, either by returning it directly (if the object was directly defined)
+    /// or by having a [`Builder`] follow the reference.
     pub fn instantiate<'de, B>(self, builder: &mut B) -> PResult<T>
     where
         B: Builder<'de>,
@@ -158,11 +160,19 @@ where
     }
 }
 
-/// The source for an indirect object, which can later be
-/// referenced using a [`Reference`].
+/// The source for an indirect object, which can later be referenced using a [`Reference`].
 pub struct Indirect<T> {
     pub id: ReferenceId,
     pub inner: T,
+}
+
+impl<'de, T> From<(ReferenceId, T)> for Indirect<T>
+where
+    T: Extract<'de>,
+{
+    fn from((id, inner): (ReferenceId, T)) -> Self {
+        Self { id, inner }
+    }
 }
 
 impl<'de, T> Extract<'de> for Indirect<T>
@@ -176,7 +186,7 @@ where
                 ReferenceId::extract,
                 delimited((b" obj", multispace1), T::extract, (multispace1, b"endobj")),
             )
-                .map(|(id, inner)| Self { id, inner }),
+                .map(Self::from),
         )
         .parse_next(input)
     }

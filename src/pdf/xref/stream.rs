@@ -7,9 +7,8 @@ use winnow::{
 };
 
 use crate::{
-    extraction::{extract, Indirect, Stream},
+    extraction::{extract, Extract, Indirect, ReferenceId, Stream},
     pdf::TrailerDict,
-    Extract, ReferenceId,
 };
 
 use super::RefLocation;

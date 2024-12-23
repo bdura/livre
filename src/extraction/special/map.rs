@@ -8,11 +8,9 @@ use winnow::{
     BStr, PResult, Parser,
 };
 
-use crate::{
-    extraction::{
-        extract,
-        utilities::{Angles, Brackets, DoubleAngles, Parentheses},
-    },
+use crate::extraction::{
+    extract,
+    utilities::{Angles, Brackets, DoubleAngles, Parentheses},
     Extract, FromRawDict,
 };
 
@@ -54,25 +52,23 @@ where
 }
 
 /// A container for **any** PDF type that may appear, to be parsed by a
-/// dedicated parser. After the fact.
+/// dedicated parser after the facts.
 ///
-/// Idea: replace this logic with an iterator-based extraction, where the
-/// key is directly extracted using the dedicated parser.
-/// This is likely an involved endeavour. The trickiest part is for enums:
-/// how do you know which type this is ahead of time?
+/// In effect, it is merely a pointer to the start of the defered object within
+/// the input stream. The point of having a dedicated type for that lies within
+/// the specific extraction logic: all the [`RawValue`] knows how to do is
+/// recognize the next PDF object, without explicitly parsing it.
 ///
-/// This is the issue with serde, which starts mapping everything to its
-/// internal data model, which works with well-defined formats but not
-/// with PDFs...
+/// `RawValue` also provides an [`extract`](Self::extract) method to simplify
+/// the extraction ot the actual value.
 ///
-/// I see two solutions:
+/// `RawValue` is the main building block for the [`RawDict`] type.
 ///
-/// 1. Parse as `RawValue`, handle it once we know which type this is
-/// 2. Iterate once to get the type, then iterate knowing the type.
 #[derive(Debug, PartialEq)]
 pub struct RawValue<'de>(pub &'de BStr);
 
 impl<'de> RawValue<'de> {
+    /// Extract the raw value into a strongly typed object.
     pub fn extract<T>(mut self) -> PResult<T>
     where
         T: Extract<'de>,
@@ -112,6 +108,7 @@ impl<'de> Extract<'de> for RawValue<'de> {
             b'<' => Angles::recognize,
             // NOTE: provided we do not encounter a name *within a tuple*, this last case
             // handles every other option.
+            // FIXME: remove that failure case.
             _ => take_till(0.., b'/').map(remove_trailing_spaces),
         }
         .map(Self::from)
@@ -119,7 +116,13 @@ impl<'de> Extract<'de> for RawValue<'de> {
     }
 }
 
-/// A dictionary instance that keeps values in their raw form.
+/// A dictionary instance that keeps values in their raw form, i.e. we only
+/// detect the bounds of each value without actually parsing them.
+///
+/// The intended workflow is as follows:
+///
+/// 1. Build a [`RawDict`] by iterating through key-value pairs.
+/// 2. Extract the actual structured type using [`FromRawDict`].
 #[derive(Debug, PartialEq)]
 pub struct RawDict<'de>(Map<RawValue<'de>>);
 

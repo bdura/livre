@@ -1,9 +1,6 @@
 use winnow::{combinator::trace, BStr, PResult, Parser};
 
-use crate::{
-    extraction::{extract, Stream},
-    Extract,
-};
+use crate::extraction::{extract, Extract, Stream};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContentStream(Vec<u8>);

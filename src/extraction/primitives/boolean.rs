@@ -5,6 +5,10 @@ use winnow::{BStr, PResult, Parser};
 
 use super::Extract;
 
+/// From the specification:
+///
+/// > Boolean objects represent the logical values of true and false.
+/// > They appear in PDF files using the keywords true and false.
 impl Extract<'_> for bool {
     fn extract(input: &mut &BStr) -> PResult<Self> {
         trace(

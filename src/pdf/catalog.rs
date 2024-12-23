@@ -4,10 +4,7 @@ use winnow::{
     BStr, PResult, Parser,
 };
 
-use crate::{
-    extraction::{extract, Name, RawDict, Reference},
-    Build, Extract,
-};
+use crate::extraction::{extract, Build, Extract, Name, RawDict, Reference};
 
 use super::pages::Pages;
 

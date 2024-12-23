@@ -1,3 +1,7 @@
+//! This is not documented nor tested... I'm sorry.
+//!
+//! See the [`livre`](https://docs.rs/livre) documentation for more information.
+
 use std::collections::HashSet;
 
 use syn::{parse_quote, GenericParam, Generics};

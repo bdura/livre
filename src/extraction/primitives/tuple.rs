@@ -1,4 +1,4 @@
-use crate::Extract;
+use crate::extraction::Extract;
 
 use winnow::ascii::multispace1;
 use winnow::combinator::trace;
@@ -62,7 +62,7 @@ mod tests {
 
     use rstest::rstest;
 
-    use crate::{extraction::extract, Extract};
+    use crate::extraction::{extract, Extract};
 
     #[rstest]
     #[case(b"42 true", (42, true))]

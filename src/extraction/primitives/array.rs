@@ -6,7 +6,7 @@ use winnow::{
     BStr, PResult, Parser,
 };
 
-use crate::Extract;
+use crate::extraction::Extract;
 
 impl<'de, T, const N: usize> Extract<'de> for [T; N]
 where
@@ -25,6 +25,8 @@ where
             // to an array is taken from
             // <https://doc.rust-lang.org/1.80.1/src/alloc/vec/mod.rs.html#3540>
             // This allows to remove the Debug trait bound...
+            // FIXME: find an alternative design that either a) does not use unsafe and/or b) does
+            // not allocate a `Vec` to begin with.
 
             // SAFETY: `.set_len(0)` is always sound.
             unsafe { vec.set_len(0) };
@@ -48,7 +50,7 @@ mod tests {
 
     use rstest::rstest;
 
-    use crate::{extraction::extract, Extract};
+    use crate::extraction::{extract, Extract};
 
     #[rstest]
     #[case(b"[true true  false]", [true, true, false])]

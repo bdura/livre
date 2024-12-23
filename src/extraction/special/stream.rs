@@ -7,15 +7,17 @@ use winnow::{
 };
 
 use crate::{
-    extraction::{extract, FromRawDict},
+    extraction::{extract, Extract, FromRawDict},
     filtering::{Filter, Filtering},
-    Extract,
 };
 
 use super::{MaybeArray, Nil};
 
 #[derive(Debug, PartialEq, Eq, FromRawDict)]
 struct StreamDict<T> {
+    // FIXME: the length of a PDF stream is in fact an OptRef... This allows processors to write
+    // the stream without knowing its size in advance.
+    // Be that as it may, this is a failure case for the time being.
     length: usize,
     #[livre(from = MaybeArray<Filter>, default)]
     filter: Vec<Filter>,
@@ -23,6 +25,7 @@ struct StreamDict<T> {
     structured: T,
 }
 
+/// A PDF object that stores arbitrary content, as well as some (optional) structured data.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Stream<T> {
     pub structured: T,
