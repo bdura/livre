@@ -1,4 +1,4 @@
-//! Types that describe the structure of a PDF document.
+//! Types that describe the structure of a PDF document and their extraction strategies.
 //!
 //! ## How do you parse a PDF?
 //!
