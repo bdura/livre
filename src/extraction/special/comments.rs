@@ -10,7 +10,7 @@ use crate::extraction::Extract;
 /// PDF comment, which references into the original data.
 ///
 /// The content is borrowed, starts after the first leading `%` and strips leading spaces.
-pub struct Comment<'de>(&'de [u8]);
+pub struct Comment<'de>(pub &'de [u8]);
 
 impl<'de> Extract<'de> for Comment<'de> {
     fn extract(input: &mut &'de BStr) -> PResult<Self> {
