@@ -28,7 +28,7 @@ impl<'de> Builder<'de> for InMemoryDocument<'de> {
         let &offset = self.xrefs.get(&reference_id)?;
 
         match offset {
-            RefLocation::Uncompressed(offset) => self.input.get(offset..).map(|s| s.as_ref()),
+            RefLocation::Plain(offset) => self.input.get(offset..).map(|s| s.as_ref()),
             _ => todo!("We focus on *vanilla* refs for now."),
         }
     }

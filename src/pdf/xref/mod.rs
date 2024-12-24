@@ -21,15 +21,20 @@ impl Extract<'_> for StartXRef {
 
 impl StartXRef {
     pub fn find(input: &BStr) -> PResult<Self> {
-        let mut i = &input[(input.len().saturating_sub(30))..];
+        const MAXIMUM_XREF_LEN: usize = 30;
+
+        // Rush to the end
+        let mut i = &input[(input.len().saturating_sub(MAXIMUM_XREF_LEN))..];
+        // Look for the tag
         take_until(0.., b"startxref".as_slice()).parse_next(&mut i)?;
+        // Extract tag + value
         Self::extract(&mut i)
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum RefLocation {
-    Uncompressed(usize),
+    Plain(usize),
     Compressed(usize),
 }
 
@@ -38,7 +43,7 @@ impl RefLocation {
         if compressed {
             Self::Compressed(offset)
         } else {
-            Self::Uncompressed(offset)
+            Self::Plain(offset)
         }
     }
 }

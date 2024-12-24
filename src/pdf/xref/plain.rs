@@ -47,6 +47,7 @@ fn xref_entry(input: &mut &BStr) -> PResult<(usize, u16, bool)> {
 
 fn xref_subsection<'de>(input: &mut &'de BStr) -> PResult<Vec<(ReferenceId, usize)>> {
     let (initial, n) = separated_pair(usize::extract, b' ', usize::extract).parse_next(input)?;
+
     line_ending(input)?;
 
     let entries: Vec<(usize, u16, bool)> = repeat(n, xref_entry).parse_next(input)?;
@@ -71,7 +72,7 @@ pub fn xref_sections(input: &mut &BStr) -> PResult<Vec<(ReferenceId, RefLocation
     let mut it = iterator(*input, terminated(xref_subsection, multispace0));
     let res = it
         .flatten()
-        .map(|(r, loc)| (r, RefLocation::Uncompressed(loc)))
+        .map(|(r, loc)| (r, RefLocation::Plain(loc)))
         .collect();
     *input = it.finish()?.0;
 
@@ -155,9 +156,9 @@ mod tests {
             0000000300 00000 n\r
         "},
         vec![
-            ((1, 0).into(), RefLocation::Uncompressed(200)),
-            ((2, 1).into(), RefLocation::Uncompressed(220)),
-            ((4, 0).into(), RefLocation::Uncompressed(300)),
+            ((1, 0).into(), RefLocation::Plain(200)),
+            ((2, 1).into(), RefLocation::Plain(220)),
+            ((4, 0).into(), RefLocation::Plain(300)),
         ]
     )]
     fn xref_extraction(#[case] input: &[u8], #[case] expected: Vec<(ReferenceId, RefLocation)>) {
