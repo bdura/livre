@@ -10,7 +10,7 @@ use winnow::{
 
 use crate::{
     extraction::{Extract, ReferenceId},
-    pdf::TrailerDict,
+    pdf::Trailer,
 };
 
 use super::RefLocation;
@@ -79,12 +79,12 @@ pub fn xref_sections(input: &mut &BStr) -> PResult<Vec<(ReferenceId, RefLocation
     Ok(res)
 }
 
-pub fn xref(input: &mut &BStr) -> PResult<(TrailerDict, Vec<(ReferenceId, RefLocation)>)> {
+pub fn xref(input: &mut &BStr) -> PResult<(Trailer, Vec<(ReferenceId, RefLocation)>)> {
     trace("livre-xref-plain", move |i: &mut &BStr| {
         let xrefs = xref_sections(i)?;
 
         (multispace0, b"trailer", multispace1).parse_next(i)?;
-        let dict = TrailerDict::extract(i)?;
+        let dict = Trailer::extract(i)?;
 
         Ok((dict, xrefs))
     })

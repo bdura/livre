@@ -7,7 +7,7 @@ use winnow::{ascii::multispace1, combinator::alt, token::take_until, BStr, PResu
 
 use crate::extraction::{extract, Extract, ReferenceId};
 
-use super::TrailerDict;
+use super::Trailer;
 
 #[derive(Debug, Clone, Copy)]
 pub struct StartXRef(pub usize);
@@ -48,7 +48,7 @@ impl RefLocation {
     }
 }
 
-pub fn extract_xref(input: &mut &BStr) -> PResult<(TrailerDict, Vec<(ReferenceId, RefLocation)>)> {
+pub fn extract_xref(input: &mut &BStr) -> PResult<(Trailer, Vec<(ReferenceId, RefLocation)>)> {
     alt((plain::xref, stream::xref)).parse_next(input)
 }
 

@@ -2,8 +2,12 @@ use crate::extraction::{FromRawDict, HexadecimalString, MaybeArray, Reference};
 
 use super::catalog::Catalog;
 
+/// PDF file trailer.
+///
+/// The trailer of a PDF file enables a PDF processor to quickly find the cross-reference
+/// table and certain special objects.
 #[derive(Debug, Clone, PartialEq, FromRawDict)]
-pub struct TrailerDict {
+pub struct Trailer {
     /// From the specs:
     ///
     /// > The total number of entries in the PDF file's cross-ref table,
@@ -14,8 +18,8 @@ pub struct TrailerDict {
     /// > Any object in a cross-reference section whose number is greater than
     /// > this value shall be ignored and defined to be missing by a PDF reader.
     pub size: usize,
-    /// > The byte offset from the beginning of the PDF file to the beginning
-    /// > of the previous cross-reference stream.
+    /// The byte offset from the beginning of the PDF file to the beginning
+    /// of the previous cross-reference stream.
     pub prev: Option<usize>,
     ///  > The [catalog dictionary](Catalogue) for the PDF file.
     ///
@@ -56,7 +60,7 @@ mod tests {
             /Index[ 1 1 7 1 14 1 16 1 91807 1006]
             /Length 1>>\
         "},
-        TrailerDict{ 
+        Trailer{ 
             size: 92813, 
             prev: Some(116), 
             id: Some(vec![[0x2b, 0x55].into(), [0x0a, 0x12].into()]),

@@ -8,7 +8,7 @@ use winnow::{
 
 use crate::{
     extraction::{extract, Extract, Indirect, ReferenceId, Stream},
-    pdf::TrailerDict,
+    pdf::Trailer,
 };
 
 use super::RefLocation;
@@ -103,12 +103,12 @@ struct XRefStreamConfig {
     /// byte offset of the previous section
     w: FieldSize,
     #[livre(flatten)]
-    dict: TrailerDict,
+    dict: Trailer,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 struct XRefStream {
-    pub dict: TrailerDict,
+    pub dict: Trailer,
     pub refs: Vec<(ReferenceId, RefLocation)>,
 }
 
@@ -143,7 +143,7 @@ impl Extract<'_> for XRefStream {
     }
 }
 
-pub fn xref(input: &mut &BStr) -> PResult<(TrailerDict, Vec<(ReferenceId, RefLocation)>)> {
+pub fn xref(input: &mut &BStr) -> PResult<(Trailer, Vec<(ReferenceId, RefLocation)>)> {
     trace("livre-xref-stream", move |i: &mut &BStr| {
         let Indirect { inner, .. } = extract(i)?;
         let XRefStream { dict, refs } = inner;

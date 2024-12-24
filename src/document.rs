@@ -4,7 +4,7 @@ use winnow::BStr;
 
 use crate::{
     extraction::{Builder, Extract, Reference, ReferenceId},
-    pdf::{extract_xref, Catalog, RefLocation, StartXRef, TrailerDict},
+    pdf::{extract_xref, Catalog, RefLocation, StartXRef, Trailer},
 };
 
 impl<'de> Builder<'de> for HashMap<ReferenceId, &'de BStr> {
@@ -43,7 +43,7 @@ impl<'de> Extract<'de> for InMemoryDocument<'de> {
 
         let mut xrefs = Vec::new();
 
-        let (TrailerDict { prev, root, .. }, refs) = extract_xref(i)?;
+        let (Trailer { prev, root, .. }, refs) = extract_xref(i)?;
         xrefs.extend(refs);
 
         let mut next = prev;
@@ -51,7 +51,7 @@ impl<'de> Extract<'de> for InMemoryDocument<'de> {
         while let Some(prev) = next {
             let i = &mut &input[prev..];
 
-            let (TrailerDict { prev, .. }, refs) = extract_xref(i)?;
+            let (Trailer { prev, .. }, refs) = extract_xref(i)?;
             xrefs.extend(refs);
 
             next = prev;

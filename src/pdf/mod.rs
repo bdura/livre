@@ -39,5 +39,5 @@ mod xref;
 
 pub use catalog::Catalog;
 pub use pages::Page;
-pub use trailer::TrailerDict;
+pub use trailer::Trailer;
 pub use xref::{extract_xref, RefLocation, StartXRef};
