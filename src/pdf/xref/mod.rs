@@ -9,6 +9,7 @@ use crate::extraction::{extract, Extract, ReferenceId};
 
 use super::Trailer;
 
+/// Extractor type for the `startxref` tag in a PDF document.
 #[derive(Debug, Clone, Copy)]
 pub struct StartXRef(pub usize);
 
@@ -24,11 +25,11 @@ impl StartXRef {
         const MAXIMUM_XREF_LEN: usize = 30;
 
         // Rush to the end
-        let mut i = &input[(input.len().saturating_sub(MAXIMUM_XREF_LEN))..];
+        let i = &mut &input[(input.len().saturating_sub(MAXIMUM_XREF_LEN))..];
         // Look for the tag
-        take_until(0.., b"startxref".as_slice()).parse_next(&mut i)?;
+        take_until(0.., b"startxref".as_slice()).parse_next(i)?;
         // Extract tag + value
-        Self::extract(&mut i)
+        Self::extract(i)
     }
 }
 

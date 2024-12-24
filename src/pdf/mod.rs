@@ -2,7 +2,16 @@
 //!
 //! ## How do you parse a PDF?
 //!
-//! The very first step in parsing a PDF document is to obtain the cross-reference table.
+//! From the specification:
+//!
+//! > PDF processors should read a PDF file from its end. The last line of the file shall
+//! > contain only the end-of-file marker, `%%EOF`. The two preceding lines shall contain,
+//! > one per line and in order, the keyword `startxref` and the byte offset in the decoded
+//! > stream from the beginning of the PDF file to the beginning of the `xref` keyword in
+//! > the last cross-reference section. The `startxref` line shall be preceded by the trailer
+//! > dictionary
+//!
+//! Indeed, the very first step in parsing a PDF document is to obtain the cross-reference table.
 //! Indeed, the PDF specification takes a "random-access" and append-only strategy to allow the
 //! creation of PDFs in resource-constrained environment. Keep in mind that the technology is
 //! not young, and that PDF documents may include thousands of pages with intricate graphics.
