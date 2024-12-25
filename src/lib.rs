@@ -9,4 +9,4 @@ mod filtering;
 mod structures;
 
 pub use document::InMemoryDocument;
-pub use structures::Rectangle;
+pub use structures::{Id, Rectangle};
