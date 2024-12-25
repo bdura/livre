@@ -92,10 +92,7 @@ impl Extract<'_> for PageMode {
 pub struct Catalog {
     // pub version: Option<Name>,
     // pub extensions
-    /// The root [page tree node](PageNode)
-    // NOTE: the `Pages` object is a composite object, that does not
-    // reflect an actual PDF object.
-    //
+    /// The root [page tree node](Pages).
     pub pages: Pages,
 
     /// A name object ([PageLayout]) specifying the page layout

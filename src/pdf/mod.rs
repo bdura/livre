@@ -46,7 +46,7 @@ mod pages;
 mod trailer;
 mod xref;
 
-pub use catalog::Catalog;
-pub use pages::Page;
+pub use catalog::{Catalog, PageLayout, PageMode};
+pub use pages::Pages;
 pub use trailer::Trailer;
 pub use xref::{extract_xref, RefLocation, StartXRef};
