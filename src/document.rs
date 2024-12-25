@@ -4,7 +4,7 @@ use winnow::BStr;
 
 use crate::{
     extraction::{Builder, Extract, Reference, ReferenceId},
-    pdf::{extract_xref, Catalog, RefLocation, StartXRef, Trailer},
+    pdf::{extract_xref, RefLocation, StartXRef, Trailer},
 };
 
 impl<'de> Builder<'de> for HashMap<ReferenceId, &'de BStr> {
@@ -15,7 +15,7 @@ impl<'de> Builder<'de> for HashMap<ReferenceId, &'de BStr> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct InMemoryDocument<'de> {
-    pub catalog: Reference<Catalog>,
+    pub catalog: Reference<()>,
     /// The entire input slice
     input: &'de BStr,
     /// The cross-reference table
