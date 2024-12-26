@@ -1,4 +1,4 @@
-use std::{cell::Ref, num::NonZeroU8};
+use std::num::NonZeroU8;
 
 use winnow::{
     combinator::{repeat, trace},
