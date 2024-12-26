@@ -1,3 +1,5 @@
+use std::{cell::Ref, num::NonZeroU8};
+
 use winnow::{
     combinator::{repeat, trace},
     error::ContextError,
@@ -27,71 +29,142 @@ impl Extract<'_> for SubSection {
     }
 }
 
+/// The field size is declared by the `/W` key in the cross-reference stream dictionary.
+///
+/// It describes how the references are described within the stream (more precisely, how many bytes
+/// are used to represent the entries). For instance, `[1 2 1]` means that the fields are one byte,
+/// two bytes, and one byte, respectively.
+///
+/// Since `FieldSize` effectively governs the extraction logic, it implements [Parser] and
+/// produces.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 struct FieldSize {
     f1: u8,
-    // TODO: NonZeroU8?
-    f2: u8,
-    // Not actually useful?
+    f2: NonZeroU8,
     f3: u8,
 }
 
 impl Extract<'_> for FieldSize {
     fn extract(input: &mut &BStr) -> PResult<Self> {
         let [f1, f2, f3] = extract(input)?;
-        Ok(Self { f1, f2, f3 })
+        Ok(Self {
+            f1,
+            f2: NonZeroU8::new(f2).expect("guaranteed by the specification"),
+            f3,
+        })
+    }
+}
+
+fn parse_num(num: &[u8]) -> usize {
+    let mut res = 0;
+    for (i, &digit) in num.iter().rev().enumerate() {
+        res += (digit as usize) * 8usize.pow(i as u32);
+    }
+    res
+}
+
+/// Different possible types of xref entry.
+///
+/// This is non-exhaustive. From the specification:
+///
+/// > Any other value shall be interpreted as a reference to the null object, thus permitting
+/// > new entry types to be defined in the future.
+#[non_exhaustive]
+enum EntryType {
+    /// Type `0` entries define the linked list of free (unused) objects.
+    ///
+    /// Livre simply discards those, since browsing a document's history is not one of Livre's
+    /// goal.
+    Type0,
+    /// Type `1` entries define objects that are in use but uncompressed, i.e. stored as
+    /// free-standing indirect objct in the PDF body.
+    Type1 {
+        /// Number of bytes handling the byte offset of the indirect object.
+        byte_offset_len: NonZeroU8,
+        /// Number of bytes occupied by the generation number.
+        ///
+        /// Livre does not keep track of the generation number for the cross-reference table...
+        /// Since Livre is only intrested in the layout of the *current document*, we can safely
+        /// disregard the generation number and focus on the ID.
+        _generation_number_len: u8,
+    },
+    /// Type `2` entries define objects that are in use and compressed, i.e. stored within
+    /// an object stream.
+    Type2 {
+        /// Number of bytes detailing the ID of the cross-reference stream that owns the indirect
+        /// object.
+        ///
+        /// Note that this introduces an additional indirection for indirect object:
+        ///
+        /// 1. Get to the relevant ref location
+        /// 2. Get the ID of the stream
+        /// 3. Get to the relevant ref location
+        /// 4. Parse the stream, extract the relevant part
+        stream_id_len: NonZeroU8,
+        index_len: u8,
+    },
+    /// The `Unknown` variant is used to handle additional types "gracefully".
+    Unknown,
+}
+
+impl Parser<&BStr, Option<RefLocation>, ContextError> for EntryType {
+    fn parse_next(&mut self, input: &mut &BStr) -> PResult<Option<RefLocation>> {
+        match self {
+            Self::Type0 => Ok(None),
+            Self::Type1 {
+                byte_offset_len,
+                _generation_number_len: _,
+            } => {
+                let byte_offset = take(byte_offset_len.get())
+                    .map(parse_num)
+                    .parse_next(input)?;
+
+                Ok(Some(RefLocation::Plain(byte_offset)))
+            }
+            Self::Type2 {
+                stream_id_len,
+                index_len,
+            } => {
+                let stream_id = take(stream_id_len.get()).map(parse_num).parse_next(input)?;
+                let index = take(*index_len).map(parse_num).parse_next(input)?;
+
+                Ok(Some(RefLocation::Compressed { stream_id, index }))
+            }
+            Self::Unknown => Ok(None),
+        }
     }
 }
 
 impl FieldSize {
-    fn parse_ref_type(&self, input: &mut &BStr) -> PResult<u8> {
+    /// Extract the reference entry type.
+    fn parse_ref_type(&self, input: &mut &BStr) -> PResult<EntryType> {
         if self.f1 == 0 {
-            Ok(1)
+            Ok(EntryType::Type0)
         } else {
             let num = take(self.f1).parse_next(input)?;
-            debug_assert_eq!(num.len(), 1);
-            Ok(num[0])
+            debug_assert_eq!(num.len(), 1, "f1 should only ever span one byte.");
+            let entry_type = match num[0] {
+                0 => EntryType::Type0,
+                1 => EntryType::Type1 {
+                    byte_offset_len: self.f2,
+                    _generation_number_len: self.f3,
+                },
+                2 => EntryType::Type2 {
+                    stream_id_len: self.f2,
+                    index_len: self.f3,
+                },
+                _ => EntryType::Unknown,
+            };
+
+            Ok(entry_type)
         }
-    }
-
-    fn parse_offset(&self, input: &mut &BStr) -> PResult<usize> {
-        let num = take(self.f2).parse_next(input)?;
-        let mut res = 0;
-
-        for (i, &digit) in num.iter().rev().enumerate() {
-            res += (digit as usize) * 16usize.pow(i as u32);
-        }
-
-        Ok(res)
-    }
-
-    fn parse_ref(&self, input: &mut &BStr) -> PResult<Option<RefLocation>> {
-        let ref_type = self.parse_ref_type(input)?;
-        let offset = self.parse_offset(input)?;
-        take(self.f3).parse_next(input)?;
-
-        let compressed = match ref_type {
-            0 => {
-                return Ok(None);
-            }
-            1 => false,
-            2 => true,
-            _ => {
-                println!("found {} in {:?}", ref_type, &input[..input.len().min(100)]);
-
-                return Ok(None);
-            }
-        };
-
-        let reference = RefLocation::from_offset_and_flag(offset, compressed);
-
-        Ok(Some(reference))
     }
 }
 
 impl Parser<&BStr, Option<RefLocation>, ContextError> for FieldSize {
-    fn parse_next(&mut self, input: &mut &BStr) -> PResult<Option<RefLocation>, ContextError> {
-        self.parse_ref(input)
+    fn parse_next(&mut self, input: &mut &BStr) -> PResult<Option<RefLocation>> {
+        let mut ref_type = self.parse_ref_type(input)?;
+        ref_type.parse_next(input)
     }
 }
 

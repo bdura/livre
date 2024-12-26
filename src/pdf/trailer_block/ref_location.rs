@@ -5,18 +5,14 @@ use std::fmt::Debug;
 ///
 /// The PDF specification allows indirect objects to be included within an object stream.
 /// Livre encodes that fact within the `RefLocation` object directly.
+///
+/// ## Side note: performance implication
+///
+/// We might be better off using two dedicated data structures instead of a single one with this
+/// enum type, since it breaks the alignement... Do not get to attached to the `RefLocation` type,
+/// it may be removed at some point.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum RefLocation {
     Plain(usize),
-    Compressed(usize),
-}
-
-impl RefLocation {
-    pub fn from_offset_and_flag(offset: usize, compressed: bool) -> Self {
-        if compressed {
-            Self::Compressed(offset)
-        } else {
-            Self::Plain(offset)
-        }
-    }
+    Compressed { stream_id: usize, index: usize },
 }
