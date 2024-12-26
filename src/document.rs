@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use winnow::BStr;
 
 use crate::{
-    extraction::{Builder, Extract, Reference, ReferenceId},
-    pdf::{extract_xref, RefLocation, StartXRef, Trailer},
+    extraction::{extract, Builder, Extract, Reference, ReferenceId},
+    pdf::{Previous, RefLocation, StartXRef, Trailer, XRefTrailerBlock},
 };
 
 impl<'de> Builder<'de> for HashMap<ReferenceId, &'de BStr> {
@@ -41,26 +41,37 @@ impl<'de> Extract<'de> for InMemoryDocument<'de> {
         let StartXRef(start) = StartXRef::find(i)?;
         let i = &mut &input[start..];
 
-        let mut xrefs = Vec::new();
+        let mut cross_references = Vec::new();
 
-        let (Trailer { prev, root, .. }, refs) = extract_xref(i)?;
-        xrefs.extend(refs);
+        let XRefTrailerBlock {
+            trailer:
+                Trailer {
+                    root,
+                    size: _,
+                    id: _,
+                },
+            mut previous,
+            xrefs,
+        } = extract(i)?;
+        cross_references.extend(xrefs);
 
-        let mut next = prev;
-
-        while let Some(prev) = next {
+        while let Previous::Linked(prev) = previous {
             let i = &mut &input[prev..];
 
-            let (Trailer { prev, .. }, refs) = extract_xref(i)?;
-            xrefs.extend(refs);
+            let XRefTrailerBlock {
+                previous: p,
+                xrefs,
+                trailer: _,
+            } = extract(i)?;
+            cross_references.extend(xrefs);
 
-            next = prev;
+            previous = p;
         }
 
         Ok(Self {
             catalog: root,
             input,
-            xrefs: xrefs.into_iter().collect(),
+            xrefs: cross_references.into_iter().collect(),
         })
     }
 }

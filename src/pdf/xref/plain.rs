@@ -1,3 +1,6 @@
+//! Describe how to extract "plain" references, i.e. indirect objects that are not compressed
+//! within an PDF [stream](crate::extraction::Stream).
+
 use std::{fmt::Debug, str::FromStr};
 
 use winnow::{
@@ -9,12 +12,13 @@ use winnow::{
 };
 
 use crate::{
-    extraction::{Extract, ReferenceId},
+    extraction::{extract, Extract, FromRawDict, ReferenceId},
     pdf::Trailer,
 };
 
-use super::RefLocation;
+use super::{previous::Previous, RefLocation, XRefTrailerBlock};
 
+/// Decimal number, with fixed number of characters.
 fn dec_num<'de, T, E>(count: usize) -> impl Parser<&'de BStr, T, ContextError>
 where
     T: FromStr<Err = E>,
@@ -29,6 +33,19 @@ where
     }
 }
 
+/// Extract a single cross-reference entry.
+///
+/// cross-reference entries are serialised using the following format:
+///
+/// ```raw
+/// nnnnnnnnnn ggggg n EOL
+/// ---------- ----- - ---
+///      |       |   |  |
+///      |       |   | 2-character end-of-line marker
+///      |       |  n/f: in use/free
+///      |     5-digit generation number
+///  10-digit byte offset of the indirect object
+/// ```
 fn xref_entry(input: &mut &BStr) -> PResult<(usize, u16, bool)> {
     trace("livre-ref-entry", move |i: &mut &BStr| {
         let (offset, gen) = separated_pair(dec_num(10), b' ', dec_num(5)).parse_next(i)?;
@@ -45,7 +62,14 @@ fn xref_entry(input: &mut &BStr) -> PResult<(usize, u16, bool)> {
     .parse_next(input)
 }
 
-fn xref_subsection<'de>(input: &mut &'de BStr) -> PResult<Vec<(ReferenceId, usize)>> {
+/// Extract a cross-reference subsection.
+///
+/// ```raw
+/// 0 6                  -> Id of the first object, and number of objects in the subsection
+/// 0000000003 65535 f   -> Cross-reference entry
+/// 0000000017 00000 n   -> Another Xref entry
+/// ```
+fn xref_subsection(input: &mut &BStr) -> PResult<Vec<(ReferenceId, usize)>> {
     let (initial, n) = separated_pair(usize::extract, b' ', usize::extract).parse_next(input)?;
 
     line_ending(input)?;
@@ -66,7 +90,8 @@ fn xref_subsection<'de>(input: &mut &'de BStr) -> PResult<Vec<(ReferenceId, usiz
     Ok(res)
 }
 
-pub fn xref_sections(input: &mut &BStr) -> PResult<Vec<(ReferenceId, RefLocation)>> {
+/// Extract the full cross-reference table.
+pub fn xref(input: &mut &BStr) -> PResult<Vec<(ReferenceId, RefLocation)>> {
     (b"xref", multispace1).parse_next(input)?;
 
     let mut it = iterator(*input, terminated(xref_subsection, multispace0));
@@ -79,14 +104,27 @@ pub fn xref_sections(input: &mut &BStr) -> PResult<Vec<(ReferenceId, RefLocation
     Ok(res)
 }
 
-pub fn xref(input: &mut &BStr) -> PResult<(Trailer, Vec<(ReferenceId, RefLocation)>)> {
+/// Useful type for extraction.
+#[derive(Debug, FromRawDict)]
+struct PlainTrailer {
+    #[livre(flatten)]
+    pub trailer: Trailer,
+    #[livre(flatten)]
+    pub previous: Previous,
+}
+
+pub fn block(input: &mut &BStr) -> PResult<XRefTrailerBlock> {
     trace("livre-xref-plain", move |i: &mut &BStr| {
-        let xrefs = xref_sections(i)?;
+        let xrefs = xref(i)?;
 
         (multispace0, b"trailer", multispace1).parse_next(i)?;
-        let dict = Trailer::extract(i)?;
+        let PlainTrailer { trailer, previous } = extract(i)?;
 
-        Ok((dict, xrefs))
+        Ok(XRefTrailerBlock {
+            trailer,
+            previous,
+            xrefs,
+        })
     })
     .parse_next(input)
 }
@@ -162,7 +200,7 @@ mod tests {
         ]
     )]
     fn xref_extraction(#[case] input: &[u8], #[case] expected: Vec<(ReferenceId, RefLocation)>) {
-        let res = xref_sections(&mut input.as_ref()).unwrap();
+        let res = xref(&mut input.as_ref()).unwrap();
         assert_eq!(expected, res)
     }
 }

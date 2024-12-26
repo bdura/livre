@@ -1,4 +1,3 @@
-use livre_derive::FromRawDict;
 use winnow::{
     combinator::{repeat, trace},
     error::ContextError,
@@ -7,11 +6,11 @@ use winnow::{
 };
 
 use crate::{
-    extraction::{extract, Extract, Indirect, ReferenceId, Stream},
+    extraction::{extract, Extract, FromRawDict, Indirect, ReferenceId, Stream},
     pdf::Trailer,
 };
 
-use super::RefLocation;
+use super::{previous::Previous, RefLocation, XRefTrailerBlock};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 struct SubSection {
@@ -103,30 +102,35 @@ struct XRefStreamConfig {
     /// byte offset of the previous section
     w: FieldSize,
     #[livre(flatten)]
-    dict: Trailer,
+    trailer: Trailer,
+    #[livre(flatten)]
+    previous: Previous,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-struct XRefStream {
-    pub dict: Trailer,
-    pub refs: Vec<(ReferenceId, RefLocation)>,
-}
+#[derive(Debug)]
+struct XRefStreamBlock(pub XRefTrailerBlock);
 
-impl Extract<'_> for XRefStream {
+impl Extract<'_> for XRefStreamBlock {
     fn extract(input: &mut &BStr) -> PResult<Self> {
         let Stream {
             content,
-            structured: XRefStreamConfig { index, w, dict },
+            structured:
+                XRefStreamConfig {
+                    index,
+                    w,
+                    trailer,
+                    previous,
+                },
         } = extract(input)?;
 
         let index = index.unwrap_or(vec![SubSection {
             start: 0,
-            n: dict.size,
+            n: trailer.size,
         }]);
 
         let input = &mut content.as_slice().as_ref();
 
-        let mut refs = Vec::new();
+        let mut xrefs = Vec::new();
 
         for SubSection { start, n } in index {
             let subsection: Vec<Option<RefLocation>> = repeat(n, w).parse_next(input)?;
@@ -136,18 +140,25 @@ impl Extract<'_> for XRefStream {
                 .enumerate()
                 .filter_map(|(i, loc)| loc.map(|offset| (ReferenceId::first(start + i), offset)));
 
-            refs.extend(iter);
+            xrefs.extend(iter);
         }
 
-        Ok(Self { refs, dict })
+        Ok(Self(XRefTrailerBlock {
+            xrefs,
+            trailer,
+            previous,
+        }))
     }
 }
 
-pub fn xref(input: &mut &BStr) -> PResult<(Trailer, Vec<(ReferenceId, RefLocation)>)> {
+pub fn block(input: &mut &BStr) -> PResult<XRefTrailerBlock> {
     trace("livre-xref-stream", move |i: &mut &BStr| {
-        let Indirect { inner, .. } = extract(i)?;
-        let XRefStream { dict, refs } = inner;
-        Ok((dict, refs))
+        let Indirect {
+            inner: XRefStreamBlock(block),
+            ..
+        } = extract(i)?;
+
+        Ok(block)
     })
     .parse_next(input)
 }

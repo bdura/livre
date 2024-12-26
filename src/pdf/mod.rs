@@ -34,7 +34,8 @@
 //!
 //! 1. Collect the full cross-reference table:
 //!    1. Rush to the end of the file! You will find a [`startxref`](xref::StartXRef) tag which
-//!       holds the byte location of the first cross-reference table.
+//!       holds the byte location of the first [cross-reference table/trailer
+//!       bloc](XRefTrailerBlock).
 //!    2. That table may contain a link to the previous cross-reference dictionary - if it does,
 //!       follow along and continue your way up the document until you have collected the full
 //!       cross-reference table.
@@ -49,4 +50,4 @@ mod xref;
 pub use catalog::{Catalog, PageLayout, PageMode};
 pub use pages::Pages;
 pub use trailer::Trailer;
-pub use xref::{extract_xref, RefLocation, StartXRef};
+pub use xref::{Previous, RefLocation, StartXRef, XRefTrailerBlock};
