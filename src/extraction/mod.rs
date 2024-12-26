@@ -58,7 +58,7 @@ mod utilities;
 
 pub use special::{
     multicomment0, multicomment1, Comment, HexadecimalString, Indirect, LiteralString, MaybeArray,
-    Name, Object, OptRef, RawDict, Reference, ReferenceId, Stream,
+    Name, Nil, Object, OptRef, RawDict, Reference, ReferenceId, Stream,
 };
 
 /// The [`Extract`] trait marks a type as extractable from a stream of bytes.

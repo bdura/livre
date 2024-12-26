@@ -11,7 +11,7 @@ use crate::{
     filtering::{Filter, Filtering},
 };
 
-use super::{MaybeArray, Nil};
+use super::{MaybeArray, Nil, RawDict};
 
 #[derive(Debug, PartialEq, Eq, FromRawDict)]
 struct StreamDict<T> {
@@ -32,17 +32,19 @@ pub struct Stream<T> {
     pub content: Vec<u8>,
 }
 
-impl<'de, T> Extract<'de> for Stream<T>
+impl<'de, T> Stream<T>
 where
     T: FromRawDict<'de>,
 {
-    fn extract(input: &mut &'de BStr) -> PResult<Self> {
-        trace("livre-stream", move |i: &mut &'de BStr| {
+    /// Extract the stream, and returns the partially consumed dictionary for later use.
+    pub fn extract_with_dict(input: &mut &'de BStr) -> PResult<(Self, RawDict<'de>)> {
+        trace("livre-stream-dict", move |i: &mut &'de BStr| {
+            let mut dict: RawDict = extract(i)?;
             let StreamDict {
                 length,
                 filter,
                 structured,
-            } = extract(i)?;
+            } = StreamDict::from_raw_dict(&mut dict)?;
 
             (multispace0, b"stream", line_ending).parse_next(i)?;
 
@@ -54,10 +56,26 @@ where
                 .decode(content)
                 .map_err(|_| ErrMode::Cut(ContextError::new()))?;
 
-            Ok(Self {
-                structured,
-                content,
-            })
+            Ok((
+                Self {
+                    structured,
+                    content,
+                },
+                dict,
+            ))
+        })
+        .parse_next(input)
+    }
+}
+
+impl<'de, T> Extract<'de> for Stream<T>
+where
+    T: FromRawDict<'de>,
+{
+    fn extract(input: &mut &'de BStr) -> PResult<Self> {
+        trace("livre-stream", move |i: &mut &'de BStr| {
+            let (stream, _) = Self::extract_with_dict(i)?;
+            Ok(stream)
         })
         .parse_next(input)
     }
