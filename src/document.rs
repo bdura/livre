@@ -4,7 +4,7 @@ use winnow::BStr;
 
 use crate::{
     extraction::{extract, Builder, Extract, Reference, ReferenceId},
-    pdf::{Previous, RefLocation, StartXRef, Trailer, XRefTrailerBlock},
+    pdf::{RefLocation, StartXRef, Trailer, XRefTrailerBlock},
 };
 
 impl<'de> Builder<'de> for HashMap<ReferenceId, &'de BStr> {
@@ -49,23 +49,28 @@ impl<'de> Extract<'de> for InMemoryDocument<'de> {
                     root,
                     size: _,
                     id: _,
+                    mut prev,
                 },
-            mut previous,
             xrefs,
         } = extract(i)?;
         cross_references.extend(xrefs);
 
-        while let Previous::Linked(prev) = previous {
-            let i = &mut &input[prev..];
+        while let Some(p) = prev {
+            let i = &mut &input[p..];
 
             let XRefTrailerBlock {
-                previous: p,
                 xrefs,
-                trailer: _,
+                trailer:
+                    Trailer {
+                        size: _,
+                        prev: previous,
+                        root: _,
+                        id: _,
+                    },
             } = extract(i)?;
             cross_references.extend(xrefs);
 
-            previous = p;
+            prev = previous;
         }
 
         Ok(Self {

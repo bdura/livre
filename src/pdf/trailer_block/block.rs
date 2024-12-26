@@ -10,7 +10,7 @@ use crate::{
     pdf::Trailer,
 };
 
-use super::{plain, previous::Previous, stream, RefLocation};
+use super::{plain, stream, RefLocation};
 
 /// Container for a cross-reference table & PDF trailer block.
 ///
@@ -43,9 +43,6 @@ pub struct XRefTrailerBlock {
     /// The [PDF trailer](Trailer). Only the last one (i.e., the first one that is extracted) is
     /// useful.
     pub trailer: Trailer,
-    /// A link to the previous bloc. The PDF specification defines it within the trailer
-    /// dictionary, but this is only ever used for cross-reference table concatenation.
-    pub previous: Previous,
     /// The collected cross-reference. The full cross-reference table is the concatenation of all
     /// tables.
     pub xrefs: Vec<(ReferenceId, RefLocation)>,

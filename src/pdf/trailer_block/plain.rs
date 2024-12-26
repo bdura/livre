@@ -11,12 +11,9 @@ use winnow::{
     BStr, PResult, Parser,
 };
 
-use crate::{
-    extraction::{extract, Extract, FromRawDict, ReferenceId},
-    pdf::Trailer,
-};
+use crate::extraction::{extract, Extract, ReferenceId};
 
-use super::{previous::Previous, RefLocation, XRefTrailerBlock};
+use super::{RefLocation, XRefTrailerBlock};
 
 /// Decimal number, with fixed number of characters.
 fn dec_num<'de, T, E>(count: usize) -> impl Parser<&'de BStr, T, ContextError>
@@ -104,27 +101,14 @@ pub fn xref(input: &mut &BStr) -> PResult<Vec<(ReferenceId, RefLocation)>> {
     Ok(res)
 }
 
-/// Useful type for extraction.
-#[derive(Debug, FromRawDict)]
-struct PlainTrailer {
-    #[livre(flatten)]
-    pub trailer: Trailer,
-    #[livre(flatten)]
-    pub previous: Previous,
-}
-
 pub fn block(input: &mut &BStr) -> PResult<XRefTrailerBlock> {
     trace("livre-xref-plain", move |i: &mut &BStr| {
         let xrefs = xref(i)?;
 
         (multispace0, b"trailer", multispace1).parse_next(i)?;
-        let PlainTrailer { trailer, previous } = extract(i)?;
+        let trailer = extract(i)?;
 
-        Ok(XRefTrailerBlock {
-            trailer,
-            previous,
-            xrefs,
-        })
+        Ok(XRefTrailerBlock { trailer, xrefs })
     })
     .parse_next(input)
 }

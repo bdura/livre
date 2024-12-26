@@ -10,7 +10,7 @@ use crate::{
     pdf::Trailer,
 };
 
-use super::{previous::Previous, RefLocation, XRefTrailerBlock};
+use super::{RefLocation, XRefTrailerBlock};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 struct SubSection {
@@ -103,8 +103,6 @@ struct XRefStreamConfig {
     w: FieldSize,
     #[livre(flatten)]
     trailer: Trailer,
-    #[livre(flatten)]
-    previous: Previous,
 }
 
 #[derive(Debug)]
@@ -114,13 +112,7 @@ impl Extract<'_> for XRefStreamBlock {
     fn extract(input: &mut &BStr) -> PResult<Self> {
         let Stream {
             content,
-            structured:
-                XRefStreamConfig {
-                    index,
-                    w,
-                    trailer,
-                    previous,
-                },
+            structured: XRefStreamConfig { index, w, trailer },
         } = extract(input)?;
 
         let index = index.unwrap_or(vec![SubSection {
@@ -143,11 +135,7 @@ impl Extract<'_> for XRefStreamBlock {
             xrefs.extend(iter);
         }
 
-        Ok(Self(XRefTrailerBlock {
-            xrefs,
-            trailer,
-            previous,
-        }))
+        Ok(Self(XRefTrailerBlock { xrefs, trailer }))
     }
 }
 

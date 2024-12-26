@@ -46,4 +46,4 @@ mod pages;
 mod trailer_block;
 
 pub use pages::Pages;
-pub use trailer_block::{Previous, RefLocation, StartXRef, Trailer, XRefTrailerBlock};
+pub use trailer_block::{RefLocation, StartXRef, Trailer, XRefTrailerBlock};

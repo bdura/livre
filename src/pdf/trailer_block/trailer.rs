@@ -6,10 +6,6 @@ use crate::{extraction::{FromRawDict, Reference}, Id};
 /// table and certain special objects. In the case of an updated PDF, the full trailer is
 /// repeated (be it modified or not), hence only the last trailer of the document is necessary
 /// for comprehension.
-///
-/// Since the `/Prev` key is only really used for generating the completed cross-reference table,
-/// Livre makes the choice of handling it separately through the [`Previous` bespoke
-/// type](super::Previous).
 #[derive(Debug, Clone, PartialEq, FromRawDict)]
 pub struct Trailer {
     /// From the specs:
@@ -22,6 +18,10 @@ pub struct Trailer {
     /// > Any object in a cross-reference section whose number is greater than
     /// > this value shall be ignored and defined to be missing by a PDF reader.
     pub size: usize,
+
+    /// The byte offset from the beginning of the PDF file to the beginning
+    /// of the previous cross-reference stream.
+    pub prev: Option<usize>,
 
     /// Reference to the PDF catalog.
     pub root: Reference<()>,
@@ -71,6 +71,7 @@ mod tests {
         Trailer{ 
             size: 92813, 
             id: Some([[0x2b, 0x55, 0x2b, 0x55], [0x0a, 0x12, 0x2b, 0x55]].into()),
+            prev: Some(116),
             root: Reference::from((90794, 0)), 
             //info: TypedReference::new(90792, 0), 
         }
