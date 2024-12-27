@@ -33,8 +33,8 @@ pub struct Trailer {
 
     /// The PDF identifier.
     ///
-    /// Interestingly, the specification gives some precisions on the exact format of the PDF ID
-    /// that are not present in the specific section:
+    /// Interestingly, the specification gives a few clarifications on the exact format of the PDF
+    /// ID that are not present in the specific section:
     ///
     /// > Each PDF file identifier byte-string shall have a minimum length of 16 bytes.
     /// > If there is an Encrypt entry, this array and the two byte-strings shall be
