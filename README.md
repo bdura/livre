@@ -17,7 +17,7 @@ Visit the [PDF Association's website](https://pdfa.org/resource/iso-32000-pdf/) 
 ## Tentative roadmap
 
 - [x] (`v0.1.0`) Low-level extraction utilities for primitive PDF types
-- [ ] (`v0.2.0`) Parser for cross-reference dictionary
+- [x] (`v0.2.0`) Parser for cross-reference dictionary
 - [ ] (`v0.3.0`) Eager, owned instance of the `Builder` trait
 - [ ] (`v0.4.0`) Parser for the general PDF structure, allowing to iterate over pages and their content
 - [ ] (`v0.5.0`) Parser for fonts definition - starting with "simple fonts"

@@ -2,12 +2,11 @@
 //! the French word for book) aims to provide a set of type-safe tools to read PDF content.
 
 pub mod extraction;
+pub mod pdf;
 
 mod document;
 mod filtering;
-mod pdf;
 mod structures;
 
 pub use document::InMemoryDocument;
-pub use pdf::Page;
-pub use structures::Rectangle;
+pub use structures::{Id, Rectangle};

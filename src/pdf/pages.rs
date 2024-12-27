@@ -102,6 +102,7 @@ pub struct Page {
     pub user_unit: Option<f32>,
 }
 
+/// Element from the page tree node.
 #[derive(Debug, Clone, PartialEq)]
 enum PageElement {
     Page(Page),
@@ -133,6 +134,8 @@ impl FromRawDict<'_> for PageElement {
     }
 }
 
+/// An abstraction over PDF pages. This object does not actually reflect any PDF object.
+/// Rather, it is constructed from the PDF page tree to obtain a "linearised" list of pages.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Pages {
     pub pages: Vec<Page>,

@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use winnow::BStr;
 
 use crate::{
-    extraction::{Builder, Extract, Reference, ReferenceId},
-    pdf::{extract_xref, Catalog, RefLocation, StartXRef, TrailerDict},
+    extraction::{extract, Builder, Extract, Reference, ReferenceId},
+    pdf::{RefLocation, StartXRef, Trailer, XRefTrailerBlock},
 };
 
 impl<'de> Builder<'de> for HashMap<ReferenceId, &'de BStr> {
@@ -15,7 +15,7 @@ impl<'de> Builder<'de> for HashMap<ReferenceId, &'de BStr> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct InMemoryDocument<'de> {
-    pub catalog: Reference<Catalog>,
+    pub catalog: Reference<()>,
     /// The entire input slice
     input: &'de BStr,
     /// The cross-reference table
@@ -28,7 +28,7 @@ impl<'de> Builder<'de> for InMemoryDocument<'de> {
         let &offset = self.xrefs.get(&reference_id)?;
 
         match offset {
-            RefLocation::Uncompressed(offset) => self.input.get(offset..).map(|s| s.as_ref()),
+            RefLocation::Plain(offset) => self.input.get(offset..).map(|s| s.as_ref()),
             _ => todo!("We focus on *vanilla* refs for now."),
         }
     }
@@ -41,26 +41,42 @@ impl<'de> Extract<'de> for InMemoryDocument<'de> {
         let StartXRef(start) = StartXRef::find(i)?;
         let i = &mut &input[start..];
 
-        let mut xrefs = Vec::new();
+        let mut cross_references = Vec::new();
 
-        let (TrailerDict { prev, root, .. }, refs) = extract_xref(i)?;
-        xrefs.extend(refs);
+        let XRefTrailerBlock {
+            trailer:
+                Trailer {
+                    root,
+                    size: _,
+                    id: _,
+                    mut prev,
+                },
+            xrefs,
+        } = extract(i)?;
+        cross_references.extend(xrefs);
 
-        let mut next = prev;
+        while let Some(p) = prev {
+            let i = &mut &input[p..];
 
-        while let Some(prev) = next {
-            let i = &mut &input[prev..];
+            let XRefTrailerBlock {
+                xrefs,
+                trailer:
+                    Trailer {
+                        size: _,
+                        prev: previous,
+                        root: _,
+                        id: _,
+                    },
+            } = extract(i)?;
+            cross_references.extend(xrefs);
 
-            let (TrailerDict { prev, .. }, refs) = extract_xref(i)?;
-            xrefs.extend(refs);
-
-            next = prev;
+            prev = previous;
         }
 
         Ok(Self {
             catalog: root,
             input,
-            xrefs: xrefs.into_iter().collect(),
+            xrefs: cross_references.into_iter().collect(),
         })
     }
 }

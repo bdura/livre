@@ -1,4 +1,4 @@
-// mod comments;
+mod comments;
 mod map;
 mod maybe_array;
 mod name;
@@ -7,6 +7,7 @@ mod reference;
 mod stream;
 mod strings;
 
+pub use comments::{multicomment0, multicomment1, Comment};
 pub use map::{Nil, RawDict};
 pub use maybe_array::MaybeArray;
 pub use name::Name;

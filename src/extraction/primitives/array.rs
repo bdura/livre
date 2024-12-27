@@ -1,8 +1,8 @@
 use std::ptr;
 
 use winnow::{
-    ascii::{multispace0, multispace1},
-    combinator::{delimited, separated, trace},
+    ascii::multispace0,
+    combinator::{delimited, preceded, repeat, trace},
     BStr, PResult, Parser,
 };
 
@@ -15,8 +15,8 @@ where
     fn extract(input: &mut &'de BStr) -> PResult<Self> {
         trace(format!("livre-{N}-array"), move |i: &mut &'de BStr| {
             let mut vec: Vec<T> = delimited(
-                (b'[', multispace0),
-                separated(N, T::extract, multispace1),
+                b'[',
+                repeat(0.., preceded(multispace0, T::extract)),
                 (multispace0, b']'),
             )
             .parse_next(i)?;
@@ -50,13 +50,14 @@ mod tests {
 
     use rstest::rstest;
 
-    use crate::extraction::{extract, Extract};
+    use crate::extraction::{extract, Extract, HexadecimalString};
 
     #[rstest]
     #[case(b"[true true  false]", [true, true, false])]
     #[case(b"[1 0 -42]", [1.0, 0.0, -42.0])]
     #[case(b"[1 0]", [1, 0])]
     #[case(b"[  1   0  \r\n  ]", [1, 0])]
+    #[case(b"[<00><FF>]", [HexadecimalString(vec![0x00]), HexadecimalString(vec![0xff])])]
     fn array<T>(#[case] input: &[u8], #[case] expected: T)
     where
         T: for<'a> Extract<'a> + Debug + PartialEq,

@@ -1,14 +1,10 @@
-mod plain;
-mod stream;
-
 use std::fmt::Debug;
 
-use winnow::{ascii::multispace1, combinator::alt, token::take_until, BStr, PResult, Parser};
+use winnow::{ascii::multispace1, token::take_until, BStr, PResult, Parser};
 
-use crate::extraction::{extract, Extract, ReferenceId};
+use crate::extraction::{extract, Extract};
 
-use super::TrailerDict;
-
+/// Extractor type for the `startxref` tag in a PDF document.
 #[derive(Debug, Clone, Copy)]
 pub struct StartXRef(pub usize);
 
@@ -21,30 +17,15 @@ impl Extract<'_> for StartXRef {
 
 impl StartXRef {
     pub fn find(input: &BStr) -> PResult<Self> {
-        let mut i = &input[(input.len().saturating_sub(30))..];
-        take_until(0.., b"startxref".as_slice()).parse_next(&mut i)?;
-        Self::extract(&mut i)
+        const MAXIMUM_XREF_LEN: usize = 30;
+
+        // Rush to the end
+        let i = &mut &input[(input.len().saturating_sub(MAXIMUM_XREF_LEN))..];
+        // Look for the tag
+        take_until(0.., b"startxref".as_slice()).parse_next(i)?;
+        // Extract tag + value
+        Self::extract(i)
     }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum RefLocation {
-    Uncompressed(usize),
-    Compressed(usize),
-}
-
-impl RefLocation {
-    pub fn from_offset_and_flag(offset: usize, compressed: bool) -> Self {
-        if compressed {
-            Self::Compressed(offset)
-        } else {
-            Self::Uncompressed(offset)
-        }
-    }
-}
-
-pub fn extract_xref(input: &mut &BStr) -> PResult<(TrailerDict, Vec<(ReferenceId, RefLocation)>)> {
-    alt((plain::xref, stream::xref)).parse_next(input)
 }
 
 #[cfg(test)]
