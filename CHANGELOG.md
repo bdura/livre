@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Declaration of the `Trailer` type to represent PDF trailers.
 - Extraction facilities for cross-reference tables & trailer (regrouped as a single block),
-  with support for cross-reference tables & streams.
+  with support for cross-reference tables & streams. Such a block is described by the new
+  `XRefTrailerBlock` type.
 
 ## [0.1.0] - 2024-12-23
 
