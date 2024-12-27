@@ -1,57 +1,12 @@
 use std::marker::PhantomData;
 
 use winnow::{
-    ascii::multispace1,
-    combinator::{alt, delimited, separated_pair, terminated, trace},
-    error::{ContextError, ErrMode},
+    combinator::{alt, terminated, trace},
     BStr, PResult, Parser,
 };
 
-use crate::extraction::{extract, Build, Builder, Extract};
-
-/// An ID that uniquely identifies an object and its version.
-///
-/// In practice, it looks like the [`object`](Self::object) field alone
-/// should be enough for text extraction since the XRef dictionary is
-/// updated such that only the latest version of a given object is referenced.
-///
-/// In the future we *might* want to look at the document's history,
-/// hence the [`ReferenceId`] keeps the generation number.
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-pub struct ReferenceId {
-    pub object: usize,
-    pub generation: u16,
-}
-
-impl ReferenceId {
-    pub fn new(object: usize, generation: u16) -> Self {
-        Self { object, generation }
-    }
-
-    pub fn first(object: usize) -> Self {
-        Self {
-            object,
-            generation: 0,
-        }
-    }
-}
-
-impl Extract<'_> for ReferenceId {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
-        trace(
-            "livre-reference-id",
-            separated_pair(extract, b' ', extract)
-                .map(|(object, generation)| Self::new(object, generation)),
-        )
-        .parse_next(input)
-    }
-}
-
-impl From<(usize, u16)> for ReferenceId {
-    fn from((object, generation): (usize, u16)) -> Self {
-        Self::new(object, generation)
-    }
-}
+use super::ReferenceId;
+use crate::extraction::{extract, Builder, Extract, Indirect};
 
 /// A PDF reference to an *indirect object*.
 ///
@@ -107,15 +62,21 @@ impl<T> From<(usize, u16)> for Reference<T> {
     }
 }
 
-impl<T> Reference<T>
+impl<'de, T> Reference<T>
 where
-    T: for<'de> Build<'de>,
+    T: Extract<'de>,
 {
-    pub fn instantiate<'de, B>(self, builder: &B) -> PResult<T>
+    pub fn instantiate<B>(self, builder: &B) -> PResult<T>
     where
         B: Builder<'de>,
     {
         builder.build_reference(self)
+    }
+
+    pub fn build_indirect_object(&self, input: &mut &'de BStr) -> PResult<T> {
+        let Indirect { id, inner } = extract(input)?;
+        debug_assert_eq!(self.id, id, "the indirect id should be the expected id");
+        Ok(inner)
     }
 }
 
@@ -126,14 +87,14 @@ pub enum OptRef<T> {
     Direct(T),
 }
 
-impl<T> OptRef<T>
+impl<'de, T> OptRef<T>
 where
-    T: for<'de> Build<'de>,
+    T: Extract<'de>,
 {
     /// Like the [`Reference`] type, [`OptRef`] declares an `instantiate` method to instantiate
     /// the underlying object, either by returning it directly (if the object was directly defined)
     /// or by having a [`Builder`] follow the reference.
-    pub fn instantiate<'de, B>(self, builder: &mut B) -> PResult<T>
+    pub fn instantiate<B>(self, builder: &mut B) -> PResult<T>
     where
         B: Builder<'de>,
     {
@@ -160,60 +121,11 @@ where
     }
 }
 
-/// The source for an indirect object, which can later be referenced using a [`Reference`].
-pub struct Indirect<T> {
-    pub id: ReferenceId,
-    pub inner: T,
-}
-
-impl<'de, T> From<(ReferenceId, T)> for Indirect<T>
-where
-    T: Extract<'de>,
-{
-    fn from((id, inner): (ReferenceId, T)) -> Self {
-        Self { id, inner }
-    }
-}
-
-impl<'de, T> Extract<'de> for Indirect<T>
-where
-    T: Extract<'de>,
-{
-    fn extract(input: &mut &'de BStr) -> PResult<Self> {
-        trace(
-            "livre-indirect",
-            (
-                ReferenceId::extract,
-                delimited((b" obj", multispace1), T::extract, (multispace1, b"endobj")),
-            )
-                .map(Self::from),
-        )
-        .parse_next(input)
-    }
-}
-
-impl<'de, T> Reference<T>
-where
-    T: Extract<'de>,
-{
-    /// Instantiate a typed object from the relevant input slice.
-    ///
-    /// TODO: add an instantiation method, that uses the ReferenceId to
-    /// get the input slice.
-    pub fn extract_from_source(&self, input: &mut &'de BStr) -> PResult<T> {
-        let Indirect { id, inner } = extract(input).unwrap();
-
-        if id != self.id {
-            return Err(ErrMode::Cut(ContextError::new()));
-        }
-
-        Ok(inner)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::fmt::Debug;
+
+    use crate::extraction::extract;
 
     use super::*;
     use rstest::rstest;
@@ -236,7 +148,9 @@ mod tests {
         T: Extract<'de> + Debug + PartialEq,
     {
         let reference = Reference::extract(&mut input.as_ref()).unwrap();
-        let extracted = reference.extract_from_source(&mut source.as_ref()).unwrap();
+        let extracted = reference
+            .build_indirect_object(&mut source.as_ref())
+            .unwrap();
         assert_eq!(expected, extracted)
     }
 
