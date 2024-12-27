@@ -58,7 +58,7 @@ impl Extract<'_> for FieldSize {
 fn parse_num(num: &[u8]) -> usize {
     let mut res = 0;
     for (i, &digit) in num.iter().rev().enumerate() {
-        res += (digit as usize) * 8usize.pow(i as u32);
+        res += (digit as usize) * 256usize.pow(i as u32);
     }
     res
 }
@@ -222,4 +222,35 @@ pub fn block(input: &mut &BStr) -> PResult<XRefTrailerBlock> {
         Ok(block)
     })
     .parse_next(input)
+}
+
+#[cfg(test)]
+mod tests {
+
+    use rstest::rstest;
+
+    use super::*;
+
+    #[rstest]
+    #[case(&[0x00, 0x0e, 0x8a, 0x00], None)]
+    #[case(&[0x00, 0x11, 0x00, 0x00], None)]
+    #[case(&[0x01, 0x0e, 0x8a, 0x00], Some(RefLocation::Plain(3722)))]
+    #[case(&[0x02, 0x00, 0x02, 0x00], Some(RefLocation::Compressed { stream_id: 2, index: 0}))]
+    #[case(&[0x02, 0x00, 0x02, 0x01], Some(RefLocation::Compressed { stream_id: 2, index: 1}))]
+    #[case(&[0x02, 0x00, 0x02, 0x02], Some(RefLocation::Compressed { stream_id: 2, index: 2}))]
+    #[case(&[0x02, 0x00, 0x02, 0x03], Some(RefLocation::Compressed { stream_id: 2, index: 3}))]
+    #[case(&[0x02, 0x00, 0x02, 0x04], Some(RefLocation::Compressed { stream_id: 2, index: 4}))]
+    #[case(&[0x02, 0x00, 0x02, 0x05], Some(RefLocation::Compressed { stream_id: 2, index: 5}))]
+    #[case(&[0x02, 0x00, 0x02, 0x06], Some(RefLocation::Compressed { stream_id: 2, index: 6}))]
+    #[case(&[0x02, 0x00, 0x02, 0x07], Some(RefLocation::Compressed { stream_id: 2, index: 7}))]
+    #[case(&[0x01, 0x13, 0x23, 0x00], Some(RefLocation::Plain(4899)))]
+    fn extraction(#[case] input: &[u8], #[case] expected: Option<RefLocation>) {
+        let mut w = FieldSize {
+            f1: 1,
+            f2: NonZeroU8::new(2).unwrap(),
+            f3: 1,
+        };
+        let result = w.parse_next(&mut input.as_ref()).unwrap();
+        assert_eq!(expected, result);
+    }
 }
