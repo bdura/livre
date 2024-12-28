@@ -10,7 +10,7 @@ use crate::extraction::{extract, Extract};
 use super::{
     map::Map,
     name::Name,
-    reference::Reference,
+    refs::Reference,
     stream::Stream,
     strings::{HexadecimalString, LiteralString},
 };
