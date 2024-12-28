@@ -1,4 +1,5 @@
 //! Filters for PDF stream objects.
+
 use enum_dispatch::enum_dispatch;
 use std::io::Read;
 use winnow::{
@@ -10,11 +11,9 @@ use flate2::read::ZlibDecoder;
 
 use crate::extraction::{extract, Extract, Name};
 
-#[enum_dispatch]
-pub trait Filtering {
-    fn decode(&self, bytes: &[u8]) -> Result<Vec<u8>, ()>;
-}
-
+/// Main filter objects, that represents any kind of PDF filter.
+///
+/// This is the only type you should need for PDF parsing.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[enum_dispatch(Filtering)]
 pub enum Filter {
@@ -28,6 +27,14 @@ pub enum Filter {
     // DCTDecode,
     // JPXDecode,
     // Crypt,
+}
+
+/// Filters are used in [PDF streams](crate::extraction::Stream) to define and configure
+/// processing steps such as the compression algorithm used to generate the stream content
+/// (if any), the encryption scheme, etc.
+#[enum_dispatch]
+pub trait Filtering {
+    fn decode(&self, bytes: &[u8]) -> Result<Vec<u8>, ()>;
 }
 
 impl Extract<'_> for Filter {
