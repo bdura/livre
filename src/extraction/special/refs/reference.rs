@@ -6,7 +6,7 @@ use winnow::{
 };
 
 use super::ReferenceId;
-use crate::extraction::{extract, Builder, Extract, Indirect};
+use crate::extraction::Extract;
 
 /// A PDF reference to an *indirect object*.
 ///
@@ -68,27 +68,6 @@ impl<T> From<(usize, u16)> for Reference<T> {
     }
 }
 
-impl<'de, T> Reference<T>
-where
-    T: Extract<'de>,
-{
-    pub fn instantiate<B>(self, builder: &B) -> PResult<T>
-    where
-        B: Builder<'de>,
-    {
-        builder.build_reference(self)
-    }
-
-    pub fn build_indirect_object(&self, input: &mut &'de BStr) -> PResult<T> {
-        let Indirect { id, inner } = extract(input)?;
-        debug_assert_eq!(
-            self.id, id,
-            "the indirect object should have the expected id"
-        );
-        Ok(inner)
-    }
-}
-
 /// An optional reference, i.e. a type that may be represented directly of via a reference.
 ///
 /// Many properties in the PDF specification are optionally represented through an indirect object,
@@ -97,24 +76,6 @@ where
 pub enum OptRef<T> {
     Ref(Reference<T>),
     Direct(T),
-}
-
-impl<'de, T> OptRef<T>
-where
-    T: Extract<'de>,
-{
-    /// Like the [`Reference`] type, [`OptRef`] declares an `instantiate` method to instantiate
-    /// the underlying object, either by returning it directly (if the object was directly defined)
-    /// or by having a [`Builder`] follow the reference.
-    pub fn instantiate<B>(self, builder: &mut B) -> PResult<T>
-    where
-        B: Builder<'de>,
-    {
-        match self {
-            Self::Ref(reference) => reference.instantiate(builder),
-            Self::Direct(inner) => Ok(inner),
-        }
-    }
 }
 
 impl<'de, T> Extract<'de> for OptRef<T>
@@ -149,21 +110,6 @@ mod tests {
     fn reference(#[case] input: &[u8], #[case] expected: impl Into<Reference<()>>) {
         let result = extract(&mut input.as_ref()).unwrap();
         assert_eq!(expected.into(), result);
-    }
-
-    #[rstest]
-    #[case(b"0 0 R", b"0 0 obj\n10\nendobj", 10)]
-    #[case(b"0 0 R", b"0 0 obj\ntrue\nendobj", true)]
-    #[case(b"10 0 R", b"10 0 obj\n 10  true \nendobj", (10, true))]
-    fn extraction<'de, T>(#[case] input: &[u8], #[case] source: &'de [u8], #[case] expected: T)
-    where
-        T: Extract<'de> + Debug + PartialEq,
-    {
-        let reference = Reference::extract(&mut input.as_ref()).unwrap();
-        let extracted = reference
-            .build_indirect_object(&mut source.as_ref())
-            .unwrap();
-        assert_eq!(expected, extracted)
     }
 
     #[rstest]
