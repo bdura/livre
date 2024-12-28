@@ -156,7 +156,7 @@ pub trait Builder<'de>: Sized {
 
 /// Generalisation on the [`Extract`] trait, which allows the extraction logic to follow references.
 pub trait Build<'de>: Sized {
-    /// Build an object that rely on a reference, which would be instantiated with the help of the
+    /// Build an object that relies on a reference, which would be instantiated with the help of the
     /// supplied `builder`.
     ///
     /// The [`Build`] trait, like the [`Extract`] trait, is a linear parser above all, hence we
