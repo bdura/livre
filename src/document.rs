@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use winnow::BStr;
 
 use crate::{
-    extraction::{extract, Builder, Extract, Reference, ReferenceId},
+    builder::Builder,
+    extraction::{extract, Extract, Reference, ReferenceId},
     pdf::{RefLocation, StartXRef, Trailer, XRefTrailerBlock},
 };
 
