@@ -10,17 +10,23 @@ use crate::extraction::{extract, Builder, Extract, Indirect};
 
 /// A PDF reference to an *indirect object*.
 ///
+/// In Livre, the `Reference` object is generic over the type of the indirect object, making the
+/// entire interface type-safe. You can "opt out" of type safety by using an
+/// [`Object`](crate::extraction::Object) type, which can represent any PDF object.
+///
 /// PDF documents resort to a "random access" strategy to limit repetition and split large objects
-/// into smaller atoms.
+/// into smaller atoms. Indirect objects are also used when a property cannot be known in advance.
+/// For instance, in the general case a PDF generator may choose to represent the `Length` key in
+/// the [`Stream` dictionary](crate::extraction::Stream) with an indirect object to allow writing
+/// the content to disk without having to know the serialised length in advance.
 ///
-/// To that end, some objects will be represented by a `Reference`, indicating the object ID as
-/// well as the generation number.
+/// To that end, some objects are represented by a `Reference`, indicating the object ID
+/// as well as the generation number. These are represented together in Livre, through the
+/// [`ReferenceId`] type.
 ///
-/// ## Note
-///
-/// I have still to understand what that means in practice... Although the definition is quite
-/// simple, it looks like the generation number only takes two values: 0 or 65535.
-/// Be that as it may, the `Reference` object in Livre proposes a type-safe implementation.
+/// In practice, it looks like the generation number is not useful unless we are interested in
+/// retrieving the PDF history. Livre tracks it in case we want to develop that capability down the
+/// line.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Reference<T> {
     pub id: ReferenceId,
@@ -75,12 +81,18 @@ where
 
     pub fn build_indirect_object(&self, input: &mut &'de BStr) -> PResult<T> {
         let Indirect { id, inner } = extract(input)?;
-        debug_assert_eq!(self.id, id, "the indirect id should be the expected id");
+        debug_assert_eq!(
+            self.id, id,
+            "the indirect object should have the expected id"
+        );
         Ok(inner)
     }
 }
 
 /// An optional reference, i.e. a type that may be represented directly of via a reference.
+///
+/// Many properties in the PDF specification are optionally represented through an indirect object,
+/// making this type extremely valuable.
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum OptRef<T> {
     Ref(Reference<T>),

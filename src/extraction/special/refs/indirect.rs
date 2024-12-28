@@ -8,7 +8,7 @@ use crate::extraction::{extract, Extract};
 
 use super::ReferenceId;
 
-/// The source for an indirect object, which can be referenced in the PDF using a
+/// The source for an indirect object, in the PDF body. It can be referenced in the PDF using a
 /// [`Reference`](super::Reference).
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Indirect<T> {
