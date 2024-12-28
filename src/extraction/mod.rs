@@ -128,6 +128,14 @@ pub trait Builder<'de>: Sized {
     /// is unknown to the builder.
     fn follow_reference(&self, reference_id: ReferenceId) -> Option<&'de BStr>;
 
+    /// Build an object from the input. Direct analogue to the [`extract`] function.
+    fn build<T>(&self, input: &mut &'de BStr) -> PResult<T>
+    where
+        T: Build<'de>,
+    {
+        T::build(input, self)
+    }
+
     /// Follow a reference and extract it directly.
     ///
     /// This method checks that the reference is known to the builder, and returns a parsing error
@@ -151,6 +159,34 @@ pub trait Builder<'de>: Sized {
         debug_assert_eq!(reference_id, id);
 
         T::build(&mut input, self)
+    }
+}
+
+pub trait ParserBuilder: Sized {
+    fn as_parser(&self) -> LivreBuilder<'_, Self> {
+        LivreBuilder(self)
+    }
+}
+
+impl<'de, B> ParserBuilder for B where B: Builder<'de> {}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct LivreBuilder<'b, B>(pub &'b B);
+
+impl<'de, T, B> Parser<&'de BStr, T, ContextError> for LivreBuilder<'_, B>
+where
+    B: Builder<'de>,
+    T: Build<'de>,
+{
+    fn parse_next(&mut self, input: &mut &'de BStr) -> PResult<T, ContextError> {
+        T::build(input, self.0)
+    }
+}
+
+/// The dummy builder, which does not follow references at all.
+impl<'de> Builder<'de> for () {
+    fn follow_reference(&self, _reference_id: ReferenceId) -> Option<&'de BStr> {
+        None
     }
 }
 
