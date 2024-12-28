@@ -1,7 +1,5 @@
 mod id;
 mod indirect;
-
-#[allow(clippy::module_inception)]
 mod reference;
 
 pub use id::ReferenceId;
