@@ -1,5 +1,5 @@
-//! A set of primitives to follow references and extract indirect object in order to "build" more
-//! complex PDF objects.
+//! A set of primitives that extend the [`extraction` module](crate::extraction) to follow references
+//! and extract indirect objects in order to "build" more complex PDF structures.
 //!
 //! ## Primer on what the [`Build`] trait aims to solve
 //!
