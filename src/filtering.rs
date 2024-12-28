@@ -38,11 +38,12 @@ impl Extract<'_> for Filter {
             b"FlateDecode" => Ok(Self::FlateDecode(FlateDecode)),
             b"ASCII85Decode" | b"ASCIIHexDecode" | b"LZWDecode" | b"RunLengthDecode"
             | b"CCITTFaxDecode" | b"JBIG2Decode" | b"DCTDecode" | b"JPXDecode" | b"Crypt" => {
-                todo!(
-                    "{} filter is not handled by Livre yet. Consider opening an issue, or better yet, submitting a PR!",
-                    // SAFETY: we just matched `value` against an UTF8-encoded string.
-                    unsafe { std::str::from_utf8_unchecked(value.as_slice()) }
-                )
+                Err(ErrMode::Backtrack(ContextError::new()))
+                //todo!(
+                //    "{} filter is not handled by Livre yet. Consider opening an issue, or better yet, submitting a PR!",
+                //    // SAFETY: we just matched `value` against an UTF8-encoded string.
+                //    unsafe { std::str::from_utf8_unchecked(value.as_slice()) }
+                //)
             }
             _ => Err(ErrMode::Backtrack(ContextError::new())),
         }
