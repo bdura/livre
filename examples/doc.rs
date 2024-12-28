@@ -1,5 +1,5 @@
 use livre::{
-    extraction::{Builder, Extract},
+    extraction::{Builder, Extract, Object, Reference},
     InMemoryDocument,
 };
 use winnow::BStr;
@@ -12,11 +12,14 @@ fn main() {
     let doc = InMemoryDocument::extract(&mut letter).unwrap();
 
     for &ref_id in doc.xrefs.keys() {
-        println!(
-            "{:?}: {:?}",
-            ref_id,
-            &doc.follow_reference(ref_id).unwrap()[..50]
-        )
+        let reference: Reference<Object> = ref_id.into();
+        if let Ok(object) = doc.build_reference(reference) {
+            let mut debug = format!("{:?}", object);
+            debug.truncate(100);
+            println!("{:?}\n{:}\n", reference.id, debug);
+        } else {
+            println!("Issue while trying to build ref {:?}", reference)
+        }
     }
 
     //let catalog = doc.build_reference(doc.catalog).unwrap();
