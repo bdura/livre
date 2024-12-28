@@ -6,7 +6,8 @@ use winnow::{
 };
 
 use crate::{
-    extraction::{extract, Build, Builder, FromRawDict, MaybeArray, Name, RawDict, Reference},
+    builder::{Build, Builder},
+    extraction::{extract, FromRawDict, MaybeArray, Name, RawDict, Reference},
     Rectangle,
 };
 

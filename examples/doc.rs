@@ -1,7 +1,4 @@
-use livre::{
-    extraction::{Builder, Extract},
-    InMemoryDocument,
-};
+use livre::{builder::Builder, extraction::Extract, InMemoryDocument};
 use winnow::BStr;
 
 fn main() {
