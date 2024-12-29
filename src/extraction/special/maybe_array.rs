@@ -7,6 +7,8 @@ use winnow::{
 
 use crate::extraction::Extract;
 
+/// `MaybeArray` helps represent in a type-safe way some PDF objects that may be represented
+/// by a single value, or an array of values.
 #[derive(Debug, PartialEq, Clone)]
 pub struct MaybeArray<T>(pub Vec<T>);
 
