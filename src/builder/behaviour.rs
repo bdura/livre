@@ -1,6 +1,6 @@
 use winnow::{
     error::{ContextError, ErrMode},
-    BStr, PResult, Parser,
+    BStr, PResult,
 };
 
 use super::BuilderParser;
