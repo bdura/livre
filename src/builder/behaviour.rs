@@ -1,11 +1,10 @@
 use winnow::{
-    ascii::multispace1,
-    combinator::terminated,
     error::{ContextError, ErrMode},
     BStr, PResult, Parser,
 };
 
-use crate::extraction::{extract, Extract, Reference, ReferenceId};
+use super::BuilderParser;
+use crate::extraction::{extract, Extract, Indirect, Reference, ReferenceId};
 
 /// Trait that can follow references.
 ///
@@ -38,19 +37,18 @@ pub trait Builder<'de>: Sized {
     where
         T: Build<'de>,
     {
-        let mut input = self
+        let input = &mut self
             .follow_reference(id)
             .ok_or(ErrMode::Cut(ContextError::new()))?;
 
-        // NOTE: we do not check the presence of `endobj` here... It's double-edged:
-        // - it is (usually marginally) faster
-        // - it removes a sanity check
-        let reference_id =
-            terminated(ReferenceId::extract, (b" obj", multispace1)).parse_next(&mut input)?;
+        let Indirect {
+            id: reference_id,
+            inner,
+        } = Indirect::parse(input, self.as_parser())?;
 
         debug_assert_eq!(reference_id, id);
 
-        T::build(&mut input, self)
+        Ok(inner)
     }
 }
 

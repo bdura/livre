@@ -28,7 +28,7 @@ impl<'de, T> Indirect<T> {
     ///
     /// This allows Livre to have `Indirect` be [`Extract`], and still support an ersatz of
     /// [`Build`](crate::builder::Build).
-    fn parse<P>(input: &mut &'de BStr, parser: P) -> PResult<Self>
+    pub fn parse<P>(input: &mut &'de BStr, parser: P) -> PResult<Self>
     where
         P: Parser<&'de BStr, T, ContextError>,
     {
