@@ -83,13 +83,13 @@ where
     T: Extract<'de>,
 {
     fn extract(input: &mut &'de BStr) -> PResult<Self> {
-        trace("livre-optref", move |i: &mut &'de BStr| {
+        trace(
+            "livre-optref",
             alt((
                 Reference::extract.map(Self::Ref),
                 T::extract.map(Self::Direct),
-            ))
-            .parse_next(i)
-        })
+            )),
+        )
         .parse_next(input)
     }
 }

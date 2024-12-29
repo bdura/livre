@@ -29,7 +29,7 @@ impl Extract<'_> for SubSection {
     }
 }
 
-/// The field size is declared by the `/W` key in the cross-reference stream dictionary.
+/// The field size is declared by the `W` key in the cross-reference stream dictionary.
 ///
 /// It describes how the references are described within the stream (more precisely, how many bytes
 /// are used to represent the entries). For instance, `[1 2 1]` means that the fields are one byte,
@@ -216,7 +216,7 @@ pub fn block(input: &mut &BStr) -> PResult<XRefTrailerBlock> {
     trace("livre-xref-stream", move |i: &mut &BStr| {
         let Indirect {
             inner: XRefStreamBlock(block),
-            ..
+            id: _,
         } = extract(i)?;
 
         Ok(block)

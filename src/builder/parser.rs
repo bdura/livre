@@ -6,6 +6,8 @@ use super::{Build, Builder};
 ///
 /// With this trait in scope, any builder can become a parser. The `as_parser` method takes a
 /// shared reference to self, so you can re-use it multiple times.
+///
+/// This is not added to the `Builder` trait directly, to keep it object-safe.
 pub trait BuilderParser: Sized {
     fn as_parser(&self) -> LivreBuilder<'_, Self> {
         LivreBuilder(self)
