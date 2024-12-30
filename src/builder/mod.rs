@@ -44,6 +44,8 @@
 mod behaviour;
 mod builders;
 mod parser;
+mod primitive;
 
 pub use behaviour::{Build, Builder};
 pub use parser::{BuilderParser, LivreBuilder};
+pub use primitive::Built;
