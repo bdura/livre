@@ -1,10 +1,11 @@
 use winnow::{
+    combinator::trace,
     error::{ContextError, ErrMode},
-    BStr, PResult,
+    BStr, PResult, Parser,
 };
 
 use super::BuilderParser;
-use crate::extraction::{extract, Extract, Indirect, Reference, ReferenceId};
+use crate::extraction::{extract, Extract, Indirect, OptRef, Reference, ReferenceId};
 
 /// Trait that can follow references.
 ///
@@ -75,5 +76,29 @@ where
         B: Builder<'de>,
     {
         extract(input)
+    }
+}
+
+/// An eager build primitive. By wrapping a type into `Built`, you signal to Livre that the
+/// associated field may be an reference that should be followed.
+pub struct Built<T>(pub T);
+
+impl<'de, T> Build<'de> for Built<T>
+where
+    T: Build<'de>,
+{
+    fn build<B>(input: &mut &'de BStr, builder: &B) -> PResult<Self>
+    where
+        B: Builder<'de>,
+    {
+        trace("livre-built", move |i: &mut &'de BStr| {
+            let optref = OptRef::parse(i, builder.as_parser())?;
+
+            match optref {
+                OptRef::Direct(value) => Ok(value),
+                OptRef::Ref(reference) => builder.build_reference(reference),
+            }
+        })
+        .parse_next(input)
     }
 }

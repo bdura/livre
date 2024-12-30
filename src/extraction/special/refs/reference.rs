@@ -2,11 +2,12 @@ use std::marker::PhantomData;
 
 use winnow::{
     combinator::{alt, terminated, trace},
+    error::ContextError,
     BStr, PResult, Parser,
 };
 
 use super::ReferenceId;
-use crate::extraction::Extract;
+use crate::extraction::{extract, Extract};
 
 /// A PDF reference to an *indirect object*.
 ///
@@ -78,19 +79,25 @@ pub enum OptRef<T> {
     Direct(T),
 }
 
+impl<'de, T> OptRef<T> {
+    pub fn parse<P>(input: &mut &'de BStr, parser: P) -> PResult<Self>
+    where
+        P: Parser<&'de BStr, T, ContextError>,
+    {
+        trace(
+            "livre-optref",
+            alt((Reference::extract.map(Self::Ref), parser.map(Self::Direct))),
+        )
+        .parse_next(input)
+    }
+}
+
 impl<'de, T> Extract<'de> for OptRef<T>
 where
     T: Extract<'de>,
 {
     fn extract(input: &mut &'de BStr) -> PResult<Self> {
-        trace(
-            "livre-optref",
-            alt((
-                Reference::extract.map(Self::Ref),
-                T::extract.map(Self::Direct),
-            )),
-        )
-        .parse_next(input)
+        Self::parse(input, extract)
     }
 }
 
