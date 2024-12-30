@@ -8,12 +8,6 @@ use crate::{
     pdf::{RefLocation, StartXRef, Trailer, XRefTrailerBlock},
 };
 
-impl<'de> Builder<'de> for HashMap<ReferenceId, &'de BStr> {
-    fn follow_reference(&self, reference_id: ReferenceId) -> Option<&'de BStr> {
-        self.get(&reference_id).copied()
-    }
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct InMemoryDocument<'de> {
     pub catalog: Reference<()>,

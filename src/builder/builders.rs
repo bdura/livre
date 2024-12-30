@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use winnow::BStr;
 
 use crate::extraction::ReferenceId;
@@ -9,5 +11,11 @@ use super::Builder;
 impl<'de> Builder<'de> for () {
     fn follow_reference(&self, _reference_id: ReferenceId) -> Option<&'de BStr> {
         None
+    }
+}
+
+impl<'de> Builder<'de> for HashMap<ReferenceId, &'de BStr> {
+    fn follow_reference(&self, reference_id: ReferenceId) -> Option<&'de BStr> {
+        self.get(&reference_id).copied()
     }
 }
