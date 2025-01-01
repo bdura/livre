@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with support for cross-reference tables & streams. Such a block is described by the new
   `XRefTrailerBlock` type.
 
+### Changed
+
+- Move PDF-specific datastructures from a dedicated `structures` module to `extraction/special`.
+
 ## [0.1.0] - 2024-12-23
 
 ### Added
