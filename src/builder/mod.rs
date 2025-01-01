@@ -48,4 +48,4 @@ mod primitive;
 
 pub use behaviour::{Build, Builder};
 pub use parser::{BuilderParser, LivreBuilder};
-pub use primitive::Built;
+pub use primitive::{Built, BuiltStruct};

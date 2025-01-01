@@ -4,7 +4,7 @@ use winnow::{
 };
 
 use super::BuilderParser;
-use crate::extraction::{extract, Extract, Indirect, Reference, ReferenceId};
+use crate::extraction::{extract, Extract, Indirect, RawDict, Reference, ReferenceId};
 
 /// Trait that can follow references.
 ///
@@ -76,4 +76,14 @@ where
     {
         extract(input)
     }
+}
+
+/// The `BuildFromRawDict` trait is the exact equivalent of
+/// [`FromRawDict`](crate::extraction::FromRawDict), only for types that are [`Build`].
+///
+/// This type allows Livre to define potentially flattened datastructures.
+pub trait BuildFromRawDict<'de>: Sized {
+    fn build_from_raw_dict<B>(dict: &mut RawDict<'de>, builder: &B) -> PResult<Self>
+    where
+        B: Builder<'de>;
 }
