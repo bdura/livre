@@ -6,8 +6,8 @@ use winnow::{
 };
 
 use crate::{
-    builder::{Build, Builder},
     extraction::{extract, FromRawDict, MaybeArray, Name, RawDict, Rectangle, Reference},
+    follow_refs::{Build, Builder},
 };
 
 /// Page resources.

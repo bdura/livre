@@ -1,10 +1,11 @@
 use winnow::{
     error::{ContextError, ErrMode},
-    BStr, PResult,
+    BStr, PResult, Parser,
 };
 
-use super::BuilderParser;
-use crate::extraction::{extract, Extract, Indirect, Reference, ReferenceId};
+use crate::extraction::{Indirect, Reference, ReferenceId};
+
+use super::Build;
 
 /// Trait that can follow references.
 ///
@@ -52,28 +53,44 @@ pub trait Builder<'de>: Sized {
     }
 }
 
-/// Generalisation on the [`Extract`] trait, which allows the extraction logic to follow references.
-pub trait Build<'de>: Sized {
-    /// Build an object that rely on a reference, which would be instantiated with the help of the
-    /// supplied `builder`.
-    ///
-    /// The [`Build`] trait, like the [`Extract`] trait, is a linear parser above all, hence we
-    /// supply an `input`. References found during parsing, if any, are first parsed as such, and
-    /// then instantiated by the `builder`.
-    fn build<B>(input: &mut &'de BStr, builder: &B) -> PResult<Self>
-    where
-        B: Builder<'de>;
+/// The unit type is a context-less builder, making `().as_parser` somewhat equivalent to
+/// `extact`: it will simply error if there is any reference to instantiate.
+impl<'de> Builder<'de> for () {
+    fn follow_reference(&self, _reference_id: ReferenceId) -> Option<&'de BStr> {
+        None
+    }
 }
 
-/// [`Extract`] types are trivially [`Build`], since there is no reference to follow.
-impl<'de, T> Build<'de> for T
+/// Extension trait for the [`Builder`] trait, declaring the `as_parser` method.
+///
+/// With this trait in scope, any builder can become a parser. The `as_parser` method takes a
+/// shared reference to self, so you can re-use it multiple times.
+///
+/// This is not added to the `Builder` trait directly, to keep it object-safe.
+pub trait BuilderParser: Sized {
+    fn as_parser(&self) -> LivreBuilder<'_, Self> {
+        LivreBuilder(self)
+    }
+}
+
+/// Actual implementation of the [`BuilderParser`] trait on [`Builder`].
+impl<'de, B> BuilderParser for B where B: Builder<'de> {}
+
+/// `LivreBuilder` wraps a generic [`Builder`] type to make it implement [winnow's `Parser`](Parser) trait.
+/// You should not have to create this type yourself. Instead, call [`as_parser`](BuilderParser::as_parser)
+/// on the builder.
+///
+/// `LivreBuilder` merely defers parsing to the wrapped builder. Its value is in making it
+/// compatible with the rest of the winnow ecosystem.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct LivreBuilder<'b, B>(&'b B);
+
+impl<'de, T, B> Parser<&'de BStr, T, ContextError> for LivreBuilder<'_, B>
 where
-    T: Extract<'de>,
+    B: Builder<'de>,
+    T: Build<'de>,
 {
-    fn build<B>(input: &mut &'de BStr, _: &B) -> PResult<Self>
-    where
-        B: Builder<'de>,
-    {
-        extract(input)
+    fn parse_next(&mut self, input: &mut &'de BStr) -> PResult<T, ContextError> {
+        self.0.build(input)
     }
 }
