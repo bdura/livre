@@ -1,4 +1,4 @@
-use crate::{extraction::{FromRawDict, Reference}, Id};
+use crate::extraction::{FromRawDict, Reference, Id};
 
 /// PDF file trailer.
 ///

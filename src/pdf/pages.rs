@@ -7,8 +7,7 @@ use winnow::{
 
 use crate::{
     builder::{Build, Builder},
-    extraction::{extract, FromRawDict, MaybeArray, Name, RawDict, Reference},
-    Rectangle,
+    extraction::{extract, FromRawDict, MaybeArray, Name, RawDict, Rectangle, Reference},
 };
 
 /// Page resources.
