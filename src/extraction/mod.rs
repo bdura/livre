@@ -44,6 +44,6 @@ mod utilities;
 pub use behaviour::{extract, Extract, FromRawDict};
 
 pub use special::{
-    multicomment0, multicomment1, Comment, HexadecimalString, Indirect, LiteralString, MaybeArray,
-    Name, Nil, Object, OptRef, RawDict, Reference, ReferenceId, Stream,
+    multicomment0, multicomment1, Comment, HexadecimalString, Id, Indirect, LiteralString,
+    MaybeArray, Name, Nil, Object, OptRef, RawDict, Rectangle, Reference, ReferenceId, Stream,
 };

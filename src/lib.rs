@@ -7,7 +7,5 @@ pub mod pdf;
 
 mod document;
 mod filtering;
-mod structures;
 
 pub use document::InMemoryDocument;
-pub use structures::{Id, Rectangle};
