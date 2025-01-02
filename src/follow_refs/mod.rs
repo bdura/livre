@@ -44,7 +44,9 @@
 mod build;
 mod builder;
 mod from_raw_dict;
+mod primitive;
 
 pub use build::Build;
 pub use builder::{Builder, BuilderParser, LivreBuilder};
 pub use from_raw_dict::BuildFromRawDict;
+pub use primitive::Built;

@@ -6,7 +6,10 @@ use winnow::{
 };
 
 use super::ReferenceId;
-use crate::extraction::Extract;
+use crate::{
+    extraction::Extract,
+    follow_refs::{Build, BuilderParser},
+};
 
 /// A PDF reference to an *indirect object*.
 ///
@@ -88,6 +91,25 @@ where
             alt((
                 Reference::extract.map(Self::Ref),
                 T::extract.map(Self::Direct),
+            )),
+        )
+        .parse_next(input)
+    }
+}
+
+impl<'de, T> Build<'de> for OptRef<T>
+where
+    T: Build<'de>,
+{
+    fn build<B>(input: &mut &'de BStr, builder: &B) -> PResult<Self>
+    where
+        B: crate::follow_refs::Builder<'de>,
+    {
+        trace(
+            "livre-optref",
+            alt((
+                Reference::extract.map(Self::Ref),
+                builder.as_parser().map(Self::Direct),
             )),
         )
         .parse_next(input)
