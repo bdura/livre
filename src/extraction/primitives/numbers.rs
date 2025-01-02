@@ -19,7 +19,7 @@ where
     T: From<u8> + MulAssign<T> + AddAssign<T>,
 {
     // Convert each byte to T
-    let mut digits = digits.into_iter().map(|byte| T::from(byte - b'0'));
+    let mut digits = digits.iter().map(|byte| T::from(byte - b'0'));
 
     let mut result = digits
         .next()
@@ -49,7 +49,7 @@ where
 {
     // Convert each byte to T
     let mut digits = digits
-        .into_iter()
+        .iter()
         .copied()
         .map(|byte| -((byte - b'0') as i8))
         .map(T::from);
@@ -179,7 +179,7 @@ impl Extract<'_> for NonZeroU8 {
 #[cfg(test)]
 mod tests {
 
-    use std::{fmt::Debug, i16, u16};
+    use std::fmt::Debug;
 
     use rstest::rstest;
 

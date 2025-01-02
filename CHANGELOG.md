@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Move PDF-specific datastructures from a dedicated `structures` module to `extraction/special`.
+- Refactor the `Build` trait (and friends):
+  - rename module `follow_refs`
+  - drop blanket implementation for `Extract` types, allowing more flexibility - in particular
+    with `Indirect` and `OptRef`
 
 ## [0.2.0] - 2024-12-26
 

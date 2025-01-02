@@ -34,14 +34,16 @@
 //!
 //! These two types are [`Extract`]. However, this module does not define any mechanism
 //! to follow the reference and extract an indirect object. See the
-//! [`builder` module](crate::builder) for that.
+//! [`follow_refs` module](crate::follow_refs) for that.
 
-mod behaviour;
+mod extract;
+mod from_raw_dict;
 mod primitives;
 mod special;
 mod utilities;
 
-pub use behaviour::{extract, Extract, FromRawDict};
+pub use extract::{extract, Extract};
+pub use from_raw_dict::FromRawDict;
 
 pub use special::{
     multicomment0, multicomment1, Comment, HexadecimalString, Id, Indirect, LiteralString,

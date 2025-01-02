@@ -1,4 +1,4 @@
-use livre::{builder::Builder, extraction::Extract, InMemoryDocument};
+use livre::{extraction::Extract, follow_refs::Builder, InMemoryDocument};
 use winnow::BStr;
 
 fn main() {

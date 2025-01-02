@@ -41,9 +41,12 @@
 //! a PDF document, regardless of whether some fields may be represented as references in the
 //! serialisation.
 
-mod behaviour;
-mod builders;
-mod parser;
+mod build;
+mod builder;
+mod from_raw_dict;
+mod primitive;
 
-pub use behaviour::{Build, Builder};
-pub use parser::{BuilderParser, LivreBuilder};
+pub use build::Build;
+pub use builder::{Builder, BuilderParser, LivreBuilder};
+pub use from_raw_dict::BuildFromRawDict;
+pub use primitive::Built;
