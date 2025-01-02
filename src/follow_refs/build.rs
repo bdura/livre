@@ -1,11 +1,18 @@
+use std::ptr;
+
 use paste::paste;
-use winnow::{BStr, PResult};
+
+use winnow::{
+    ascii::{multispace0, multispace1},
+    combinator::{alt, delimited, preceded, repeat, trace},
+    BStr, PResult, Parser,
+};
 
 use crate::extraction::{
     extract, Extract, HexadecimalString, Id, LiteralString, MaybeArray, Name, Object, Rectangle,
 };
 
-use super::Builder;
+use super::{Builder, BuilderParser};
 
 /// Generalisation on the [`Extract`](crate::extraction::Extract) trait, which allows the
 /// extraction logic to follow references.
@@ -51,57 +58,120 @@ impl_build_for_primitive!(
   Rectangle
 );
 
-macro_rules! impl_container {
-    ($($t:ty)+) => {
-        paste!{
-            $(
-                impl<'de, T> Build<'de> for $t<T>
-                where
-                    T: Extract<'de>,
-                {
-                    fn build<B>(input: &mut &'de BStr, _builder: &B) -> PResult<Self>
-                    where
-                        B: Builder<'de>,
-                    {
-                        extract(input)
-                    }
-                }
-            )+
-
-        }
-    };
-}
-
-impl_container!(
-  Vec
-  MaybeArray
-  Option
-);
-
-impl<'de, T, const N: usize> Build<'de> for [T; N]
+impl<'de, T> Build<'de> for Option<T>
 where
-    T: Extract<'de>,
+    T: Build<'de>,
 {
-    fn build<B>(input: &mut &'de BStr, _builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &'de BStr, builder: &B) -> PResult<Self>
     where
         B: Builder<'de>,
     {
-        extract(input)
+        alt((builder.as_parser().map(Some), b"null".map(|_| None))).parse_next(input)
+    }
+}
+
+impl<'de, T> Build<'de> for MaybeArray<T>
+where
+    T: Build<'de>,
+{
+    fn build<B>(input: &mut &'de BStr, builder: &B) -> PResult<Self>
+    where
+        B: Builder<'de>,
+    {
+        trace(
+            "livre-vec",
+            alt((
+                builder.as_parser().map(|value| vec![value]),
+                builder.as_parser(),
+            )),
+        )
+        .map(Self)
+        .parse_next(input)
+    }
+}
+
+impl<'de, T> Build<'de> for Vec<T>
+where
+    T: Build<'de>,
+{
+    fn build<B>(input: &mut &'de BStr, builder: &B) -> PResult<Self>
+    where
+        B: Builder<'de>,
+    {
+        trace(
+            "livre-vec",
+            delimited(
+                b'[',
+                repeat(0.., preceded(multispace0, builder.as_parser())),
+                (multispace0, b']'),
+            ),
+        )
+        .parse_next(input)
+    }
+}
+
+impl<'de, T, const N: usize> Build<'de> for [T; N]
+where
+    T: Build<'de>,
+{
+    fn build<B>(input: &mut &'de BStr, builder: &B) -> PResult<Self>
+    where
+        B: Builder<'de>,
+    {
+        trace(
+            concat!("livre-{N}-array"),
+            delimited(
+                b'[',
+                repeat(N, preceded(multispace0, builder.as_parser())),
+                (multispace0, b']'),
+            ),
+        )
+        .map(|mut vec: Vec<T>| {
+            // NOTE: the following transformation from a `Vec` (of the correct length)
+            // to an array is taken from
+            // <https://doc.rust-lang.org/1.80.1/src/alloc/vec/mod.rs.html#3540>
+            // This allows to remove the Debug trait bound...
+            // FIXME: find an alternative design that either a) does not use unsafe and/or b) does
+            // not allocate a `Vec` to begin with.
+
+            // SAFETY: `.set_len(0)` is always sound.
+            unsafe { vec.set_len(0) };
+
+            // SAFETY: A `Vec`'s pointer is always aligned properly, and
+            // the alignment the array needs is the same as the items.
+            // We checked earlier that we have sufficient items.
+            // The items will not double-drop as the `set_len`
+            // tells the `Vec` not to also drop them.
+            unsafe { ptr::read(vec.as_ptr() as *const [T; N]) }
+        })
+        .parse_next(input)
     }
 }
 
 macro_rules! impl_tuple {
     ($len:literal: $first:ident, $($ty:ident),+) => {
-        impl<'de, $first, $($ty),+> Build<'de> for ($first, $($ty),+)
-        where
-            $first: Extract<'de>,
-            $( $ty: Extract<'de>),+
-        {
-            fn build<B>(input: &mut &'de BStr, _builder: &B) -> PResult<Self>
+        paste!{
+            impl<'de, $first, $($ty),+> Build<'de> for ($first, $($ty),+)
             where
-                B: Builder<'de>,
+                $first: Build<'de>,
+                $( $ty: Build<'de>),+
             {
-                extract(input)
+                fn build<B>(input: &mut &'de BStr, builder: &B) -> PResult<Self>
+                where
+                    B: Builder<'de>,
+                {
+                    trace(concat!("livre-{}-tuple", $len), move |i: &mut &'de BStr| {
+                        let [<$first:lower>] = $first::build(i, builder)?;
+                        $(
+                            multispace1(i)?;
+                            let [<$ty:lower>] = $ty::build(i, builder)?;
+                        )*
+
+                        let t = ([<$first:lower>], $([<$ty:lower>]),+);
+
+                        Ok(t)
+                    }).parse_next(input)
+                }
             }
         }
     }
