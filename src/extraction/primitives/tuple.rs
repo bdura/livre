@@ -15,7 +15,7 @@ macro_rules! impl_tuple {
                 $( $ty: Extract<'de>),+
             {
                 fn extract(input: &mut &'de BStr) -> PResult<Self> {
-                    trace(format!("livre-{}-tuple", $len), move |i: &mut &'de BStr| {
+                    trace(concat!("livre-{}-tuple", $len), move |i: &mut &'de BStr| {
                         let [<$first:lower>] = $first::extract(i)?;
                         $(
                             multispace1(i)?;

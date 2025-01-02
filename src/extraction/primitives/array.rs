@@ -13,7 +13,7 @@ where
     T: Extract<'de>,
 {
     fn extract(input: &mut &'de BStr) -> PResult<Self> {
-        trace(format!("livre-{N}-array"), move |i: &mut &'de BStr| {
+        trace(concat!("livre-{N}-array"), move |i: &mut &'de BStr| {
             let mut vec: Vec<T> = delimited(
                 b'[',
                 repeat(0.., preceded(multispace0, T::extract)),
