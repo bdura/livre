@@ -6,7 +6,7 @@ use super::RawDict;
 /// The [`Extract`] trait marks a type as extractable from a stream of bytes.
 ///
 /// To cope with the presence of *indirect objects*, complex objects may implement the
-/// [`Build`](crate::builder::Build) trait instead, if their components may include references.
+/// [`Build`](crate::follow_refs::Build) trait instead, if their components may include references.
 pub trait Extract<'de>: Sized {
     fn extract(input: &mut &'de BStr) -> PResult<Self>;
 

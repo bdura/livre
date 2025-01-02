@@ -20,7 +20,8 @@ pub trait Builder<'de>: Sized {
     /// is unknown to the builder.
     fn follow_reference(&self, reference_id: ReferenceId) -> Option<&'de BStr>;
 
-    /// Build an object from the input. Direct analogue to the [`extract`] function.
+    /// Build an object from the input. Direct analogue to the
+    /// [`extract`](crate::extraction::extract) function.
     fn build<T>(&self, input: &mut &'de BStr) -> PResult<T>
     where
         T: Build<'de>,

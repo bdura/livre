@@ -86,13 +86,13 @@ mod tests {
     #[case(b"0 0 obj\n10    true\nendobj", Indirect{id: (0, 0).into(), inner: (10i32, true)})]
     fn extraction_and_build<'de, T>(#[case] input: &'de [u8], #[case] expected: Indirect<T>)
     where
-        T: Extract<'de> + Debug + PartialEq,
+        T: Extract<'de> + Build<'de> + Debug + PartialEq,
     {
         let result = extract(&mut input.as_ref()).unwrap();
         assert_eq!(expected, result);
 
-        //// The unit type is the context-less builder.
-        //let result = Indirect::parse(&mut input.as_ref(), ().as_parser()).unwrap();
-        //assert_eq!(expected, result);
+        // The unit type is the context-less builder.
+        let result = Indirect::parse(&mut input.as_ref(), ().as_parser()).unwrap();
+        assert_eq!(expected, result);
     }
 }

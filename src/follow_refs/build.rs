@@ -3,7 +3,6 @@ use winnow::{BStr, PResult};
 
 use crate::extraction::{
     extract, Extract, HexadecimalString, Id, LiteralString, MaybeArray, Name, Object, Rectangle,
-    Stream,
 };
 
 use super::Builder;
