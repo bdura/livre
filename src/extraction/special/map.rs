@@ -8,10 +8,13 @@ use winnow::{
     BStr, PResult, Parser,
 };
 
-use crate::extraction::{
-    extract,
-    utilities::{Angles, Brackets, DoubleAngles, Parentheses},
-    Extract, FromRawDict,
+use crate::{
+    extraction::{
+        extract,
+        utilities::{Angles, Brackets, DoubleAngles, Parentheses},
+        Extract, FromRawDict,
+    },
+    follow_refs::{Build, BuildFromRawDict, Builder},
 };
 
 use super::name::Name;
@@ -74,6 +77,15 @@ impl<'de> RawValue<'de> {
         T: Extract<'de>,
     {
         extract(&mut self.0)
+    }
+
+    /// Build the raw value into a strongly typed object.
+    pub fn build<T, B>(mut self, builder: &B) -> PResult<T>
+    where
+        T: Build<'de>,
+        B: Builder<'de>,
+    {
+        T::build(&mut self.0, builder)
     }
 }
 
@@ -138,6 +150,15 @@ impl<'de> RawDict<'de> {
         let value = self.pop(key)?;
         Some(value.extract())
     }
+
+    pub fn pop_and_build<T, B>(&mut self, key: &Name, builder: &B) -> Option<PResult<T>>
+    where
+        T: Build<'de>,
+        B: Builder<'de>,
+    {
+        let value = self.pop(key)?;
+        Some(value.build(builder))
+    }
 }
 
 impl<'de> Extract<'de> for RawDict<'de> {
@@ -192,6 +213,15 @@ pub struct Nil;
 impl FromRawDict<'_> for Nil {
     fn from_raw_dict(_: &mut crate::extraction::special::RawDict<'_>) -> PResult<Self> {
         Ok(Nil)
+    }
+}
+
+impl<'de> BuildFromRawDict<'de> for Nil {
+    fn build_from_raw_dict<B>(_dict: &mut RawDict<'de>, _builder: &B) -> PResult<Self>
+    where
+        B: Builder<'de>,
+    {
+        Ok(Self)
     }
 }
 
