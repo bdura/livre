@@ -9,11 +9,18 @@ use winnow::{
 use crate::{
     extraction::{extract, Extract, FromRawDict},
     filtering::{Filter, Filtering},
-    follow_refs::{Build, BuildFromRawDict, Builder, Built},
+    follow_refs::{Build, BuildFromRawDict, Builder, BuilderParser, Built},
 };
 
 use super::{MaybeArray, Nil, RawDict};
 
+/// The `StreamConfig` contains everything needed to read the stream content, starting with the
+/// `length` of the encoded content, and the filters that should be apply for decoding.
+///
+/// The full stream dictionary is represented by the [`StreamDict`] instance.
+///
+/// Since `StreamConfig` is needed to extract the content of a stream, Livre implements [`Parser`]
+/// for it.
 #[derive(Debug, PartialEq, Eq, FromRawDict)]
 pub struct StreamConfig {
     length: usize,
@@ -39,6 +46,14 @@ impl Parser<&BStr, Vec<u8>, ContextError> for StreamConfig {
     }
 }
 
+/// Represents the dictionary part of the stream. A PDF stream is made of two parts:
+///
+/// 1. A dictionary that contains stream-specific properties (e.g. length of the encoded content,
+///    filters, etc)
+/// 2. The encoded stream content itself. You'll need the former to extract it, in particular the
+///    `length` field.
+///
+/// In Livre, `StreamDict<T>` is a generic container for the former.
 #[derive(Debug, PartialEq, Eq, FromRawDict)]
 struct StreamDict<T> {
     #[livre(flatten)]
@@ -85,37 +100,16 @@ where
 ///
 /// - store page content (any dictionary data may contain indirect objects)
 /// - store cross-references (no references)
+///
+/// In Livre, PDF-specific structured properties are considered implementation details, and an
+/// extracted stream only contains what you need, that is:
+///
+/// - the structured data, if any
+/// - the actual, decoded content
 #[derive(Debug, PartialEq, Clone)]
 pub struct Stream<T> {
     pub structured: T,
     pub content: Vec<u8>,
-}
-
-impl<'de, T> Stream<T>
-where
-    T: FromRawDict<'de>,
-{
-    /// Extract the stream, and returns the partially consumed dictionary for later use.
-    pub fn extract_with_dict(input: &mut &'de BStr) -> PResult<(Self, RawDict<'de>)> {
-        trace("livre-stream-dict", move |i: &mut &'de BStr| {
-            let mut dict: RawDict = extract(i)?;
-            let StreamDict {
-                mut config,
-                structured,
-            } = StreamDict::from_raw_dict(&mut dict)?;
-
-            let content = config.parse_next(i)?;
-
-            Ok((
-                Self {
-                    structured,
-                    content,
-                },
-                dict,
-            ))
-        })
-        .parse_next(input)
-    }
 }
 
 impl<'de, T> Extract<'de> for Stream<T>
@@ -124,8 +118,18 @@ where
 {
     fn extract(input: &mut &'de BStr) -> PResult<Self> {
         trace("livre-stream", move |i: &mut &'de BStr| {
-            let (stream, _) = Self::extract_with_dict(i)?;
-            Ok(stream)
+            let mut dict: RawDict = extract(i)?;
+            let StreamDict {
+                mut config,
+                structured,
+            } = StreamDict::from_raw_dict(&mut dict)?;
+
+            let content = config.parse_next(i)?;
+
+            Ok(Self {
+                structured,
+                content,
+            })
         })
         .parse_next(input)
     }
@@ -176,21 +180,15 @@ impl<'de> Build<'de> for Stream<()> {
     where
         B: Builder<'de>,
     {
-        trace("livre-stream", move |i: &mut &'de BStr| {
-            let mut dict: RawDict = extract(i)?;
-            let StreamDict {
-                mut config,
-                structured: Nil,
-            } = StreamDict::build_from_raw_dict(&mut dict, builder)?;
+        let Stream {
+            structured: Nil,
+            content,
+        } = builder.as_parser().parse_next(input)?;
 
-            let content = config.parse_next(i)?;
-
-            Ok(Self {
-                structured: (),
-                content,
-            })
+        Ok(Self {
+            structured: (),
+            content,
         })
-        .parse_next(input)
     }
 }
 
