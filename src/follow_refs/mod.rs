@@ -37,9 +37,19 @@
 //! The difficulty arises when you decide you actually want to get a complete object, rather than
 //! one filled with references that are of no particular value themselves.
 //!
-//! This is what the `Build` trait aims to solve: a mechanism for type to be extracted from
+//! This is what the [`Build`] trait aims to solve: a mechanism for type to be extracted from
 //! a PDF document, regardless of whether some fields may be represented as references in the
 //! serialisation.
+//!
+//! ## Livre's solution
+//!
+//! To do that, Livre provides a separate trait, [`Builder`], which describes types that have the
+//! ability to "follow" a reference and instantiate the underlying object. We can implement
+//! different strategies for a `Builder`, which most likely involve a mapping of some kind to get
+//! from a reference to the relevant data - be that the raw byte stream or some pre-parsed object.
+//!
+//! Beside [`Build`] and [`Builder`], Livre provides the [`BuildFromRawDict`] trait, which helps
+//! define a derivable way of building composite objects (derive macro pending).
 
 mod build;
 mod builder;

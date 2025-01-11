@@ -9,7 +9,7 @@ use winnow::{
 };
 
 use crate::extraction::{
-    extract, Extract, HexadecimalString, Id, LiteralString, MaybeArray, Name, Object, Rectangle,
+    extract, HexadecimalString, Id, LiteralString, MaybeArray, Name, Object, Rectangle,
 };
 
 use super::{Builder, BuilderParser, Built};
@@ -18,7 +18,9 @@ use super::{Builder, BuilderParser, Built};
 /// extraction logic to follow references.
 ///
 /// Although most `Extract` types trivially implement `Build`, we cannot use a blanket
-/// implementation because of the [`OptRef`](crate::extraction::OptRef) type.
+/// implementation because of the [`OptRef`](crate::extraction::OptRef) type. Moreover,
+/// this would disallow implementing `Build` for [`BuildFromRawDict`](super::BuildFromRawDict),
+/// because the compiler would mark them as competing implementations.
 pub trait Build<'de>: Sized {
     /// Build an object that rely on a reference, which would be instantiated with the help of the
     /// supplied `builder`.
