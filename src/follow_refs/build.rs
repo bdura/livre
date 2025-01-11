@@ -1,4 +1,4 @@
-use std::ptr;
+use std::fmt::Debug;
 
 use paste::paste;
 
@@ -9,23 +9,25 @@ use winnow::{
 };
 
 use crate::extraction::{
-    extract, Extract, HexadecimalString, Id, LiteralString, MaybeArray, Name, Object, Rectangle,
+    extract, HexadecimalString, Id, LiteralString, MaybeArray, Name, Object, Rectangle,
 };
 
-use super::{Builder, BuilderParser};
+use super::{Builder, BuilderParser, Built};
 
 /// Generalisation on the [`Extract`](crate::extraction::Extract) trait, which allows the
 /// extraction logic to follow references.
 ///
 /// Although most `Extract` types trivially implement `Build`, we cannot use a blanket
-/// implementation because of the [`OptRef`](crate::extraction::OptRef) type.
+/// implementation because of the [`OptRef`](crate::extraction::OptRef) type. Moreover,
+/// this would disallow implementing `Build` for [`BuildFromRawDict`](super::BuildFromRawDict),
+/// because the compiler would mark them as competing implementations.
 pub trait Build<'de>: Sized {
     /// Build an object that rely on a reference, which would be instantiated with the help of the
     /// supplied `builder`.
     ///
-    /// The [`Build`] trait, like the [`Extract`] trait, is a linear parser above all, hence we
-    /// supply an `input`. References found during parsing, if any, are first parsed as such, and
-    /// then instantiated by the `builder`.
+    /// The [`Build`] trait, like the [`Extract`](crate::extraction::Extract) trait, is a linear
+    /// parser above all, hence we supply an `input`. References found during parsing, if any,
+    /// are first parsed as such, and then instantiated by the `builder`.
     fn build<B>(input: &mut &'de BStr, builder: &B) -> PResult<Self>
     where
         B: Builder<'de>;
@@ -66,7 +68,11 @@ where
     where
         B: Builder<'de>,
     {
-        alt((builder.as_parser().map(Some), b"null".map(|_| None))).parse_next(input)
+        alt((
+            builder.as_parser().map(|Built(value)| Some(value)),
+            b"null".map(|_| None),
+        ))
+        .parse_next(input)
     }
 }
 
@@ -81,7 +87,7 @@ where
         trace(
             "livre-vec",
             alt((
-                builder.as_parser().map(|value| vec![value]),
+                builder.as_parser().map(|Built(value)| vec![value]),
                 builder.as_parser(),
             )),
         )
@@ -102,7 +108,10 @@ where
             "livre-vec",
             delimited(
                 b'[',
-                repeat(0.., preceded(multispace0, builder.as_parser())),
+                repeat(
+                    0..,
+                    preceded(multispace0, builder.as_parser().map(|Built(item)| item)),
+                ),
                 (multispace0, b']'),
             ),
         )
@@ -112,7 +121,7 @@ where
 
 impl<'de, T, const N: usize> Build<'de> for [T; N]
 where
-    T: Build<'de>,
+    T: Build<'de> + Debug,
 {
     fn build<B>(input: &mut &'de BStr, builder: &B) -> PResult<Self>
     where
@@ -122,27 +131,15 @@ where
             concat!("livre-{N}-array"),
             delimited(
                 b'[',
-                repeat(N, preceded(multispace0, builder.as_parser())),
+                repeat(
+                    N,
+                    preceded(multispace0, builder.as_parser().map(|Built(value)| value)),
+                ),
                 (multispace0, b']'),
             ),
         )
-        .map(|mut vec: Vec<T>| {
-            // NOTE: the following transformation from a `Vec` (of the correct length)
-            // to an array is taken from
-            // <https://doc.rust-lang.org/1.80.1/src/alloc/vec/mod.rs.html#3540>
-            // This allows to remove the Debug trait bound...
-            // FIXME: find an alternative design that either a) does not use unsafe and/or b) does
-            // not allocate a `Vec` to begin with.
-
-            // SAFETY: `.set_len(0)` is always sound.
-            unsafe { vec.set_len(0) };
-
-            // SAFETY: A `Vec`'s pointer is always aligned properly, and
-            // the alignment the array needs is the same as the items.
-            // We checked earlier that we have sufficient items.
-            // The items will not double-drop as the `set_len`
-            // tells the `Vec` not to also drop them.
-            unsafe { ptr::read(vec.as_ptr() as *const [T; N]) }
+        .map(|values: Vec<T>| {
+            <[T; N]>::try_from(values).expect("correct number of elements by construction")
         })
         .parse_next(input)
     }

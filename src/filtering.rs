@@ -9,7 +9,10 @@ use winnow::{
 
 use flate2::read::ZlibDecoder;
 
-use crate::extraction::{extract, Extract, Name};
+use crate::{
+    extraction::{extract, Extract, Name},
+    follow_refs::{Build, Builder},
+};
 
 /// Main filter objects, that represents any kind of PDF filter.
 ///
@@ -53,6 +56,15 @@ impl Extract<'_> for Filter {
             }
             _ => Err(ErrMode::Backtrack(ContextError::new())),
         }
+    }
+}
+
+impl<'de> Build<'de> for Filter {
+    fn build<B>(input: &mut &'_ BStr, _builder: &B) -> PResult<Self>
+    where
+        B: Builder<'de>,
+    {
+        extract(input)
     }
 }
 

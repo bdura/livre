@@ -16,6 +16,8 @@
 //! Livre can represent those as generic [`HashMap`](std::collections::HashMap)s,
 //! or extract them as structured types using the [`FromRawDict`] trait.
 //!
+//! Using this trait instead of [`Extract`] directly lets us use more complex extraction patterns.
+//!
 //! ## Derivability
 //!
 //! Through the [`livre_derive`] helper crate, Livre provides (and uses) a derive macro

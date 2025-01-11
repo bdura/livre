@@ -82,7 +82,7 @@ impl<'de, B> BuilderParser for B where B: Builder<'de> {}
 /// on the builder.
 ///
 /// `LivreBuilder` merely defers parsing to the wrapped builder. Its value is in making it
-/// compatible with the rest of the winnow ecosystem.
+/// compatible with the rest of the [`winnow`] ecosystem.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct LivreBuilder<'b, B>(&'b B);
 
