@@ -1,4 +1,4 @@
-use std::{fmt::Debug, ptr};
+use std::fmt::Debug;
 
 use paste::paste;
 
@@ -25,9 +25,9 @@ pub trait Build<'de>: Sized {
     /// Build an object that rely on a reference, which would be instantiated with the help of the
     /// supplied `builder`.
     ///
-    /// The [`Build`] trait, like the [`Extract`] trait, is a linear parser above all, hence we
-    /// supply an `input`. References found during parsing, if any, are first parsed as such, and
-    /// then instantiated by the `builder`.
+    /// The [`Build`] trait, like the [`Extract`](crate::extraction::Extract) trait, is a linear
+    /// parser above all, hence we supply an `input`. References found during parsing, if any,
+    /// are first parsed as such, and then instantiated by the `builder`.
     fn build<B>(input: &mut &'de BStr, builder: &B) -> PResult<Self>
     where
         B: Builder<'de>;

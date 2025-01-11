@@ -98,7 +98,7 @@ where
 ///
 /// PDF streams can be used to:
 ///
-/// - store page content (any dictionary data may contain indirect objects)
+/// - store page content (any dictionary field may contain point to an indirect object)
 /// - store cross-references (no references)
 ///
 /// In Livre, PDF-specific structured properties are considered implementation details, and an
