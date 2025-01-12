@@ -158,3 +158,46 @@ impl<'de> BuildFromRawDict<'de> for ObjectStreamDict {
         Ok(Self { n, first, extends })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use indoc::indoc;
+
+    #[test]
+    fn object_stream() {
+        let input = indoc! {b"
+            <<
+                /Type /ObjStm
+                /Length 30
+                /N 3
+                /First 15
+            >>
+            stream
+            11 0 12 5 13 8
+            true
+            42
+            (test)
+            endstream
+        "}
+        .as_slice();
+
+        let stream: ObjectStream = ().as_parser().parse_next(&mut input.as_ref()).unwrap();
+        let expected = ObjectStream {
+            map: vec![((11usize, 0u16), 0usize), ((12, 0), 5), ((13, 0), 8)]
+                .into_iter()
+                .map(|(a, b)| (a.into(), b))
+                .collect(),
+            content: indoc! {b"
+                true
+                42
+                (test)
+            "}
+            .into(),
+            extends: None,
+        };
+
+        assert_eq!(stream, expected);
+    }
+}
