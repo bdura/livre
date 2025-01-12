@@ -7,7 +7,7 @@ use winnow::{
 
 use crate::{
     extraction::{Extract, ReferenceId},
-    pdf::Trailer,
+    structure::Trailer,
 };
 
 use super::{plain, stream, RefLocation};
