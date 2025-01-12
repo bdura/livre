@@ -34,6 +34,7 @@ use crate::{
 /// is wrong, we keep the PDF reference around to instantiate it if need be. Note that this option
 /// is only available to owned types (see [`build_owned_object`](Self::build_owned_object)) for
 /// more detail.
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ObjectStream {
     /// Mapping from ReferenceId to byte offset within the content
     map: HashMap<ReferenceId, usize>,
@@ -140,12 +141,12 @@ impl<'de> BuildFromRawDict<'de> for ObjectStreamDict {
         B: Builder<'de>,
     {
         let Built(n) = dict
-            .pop_and_build(&b"N".into(), builder)
-            .ok_or(ErrMode::Backtrack(ContextError::new()))??;
+            .pop_and_build(&b"N".into(), builder)?
+            .ok_or(ErrMode::Backtrack(ContextError::new()))?;
 
         let Built(first) = dict
-            .pop_and_build(&b"first".into(), builder)
-            .ok_or(ErrMode::Backtrack(ContextError::new()))??;
+            .pop_and_build(&b"First".into(), builder)?
+            .ok_or(ErrMode::Backtrack(ContextError::new()))?;
 
         let extends = if let Some(result) = dict.pop_and_extract(&b"Extends".into()) {
             let extends = result?;

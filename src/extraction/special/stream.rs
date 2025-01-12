@@ -68,12 +68,15 @@ impl<'de> BuildFromRawDict<'de> for StreamConfig {
         B: Builder<'de>,
     {
         let Built(length) = dict
-            .pop_and_build(&b"Length".into(), builder)
-            .ok_or(ErrMode::Backtrack(ContextError::new()))??;
+            .pop_and_build(&b"Length".into(), builder)?
+            .ok_or(ErrMode::Backtrack(ContextError::new()))?;
 
-        let Built(filter) = dict
-            .pop_and_build(&b"Filter".into(), builder)
-            .ok_or(ErrMode::Backtrack(ContextError::new()))??;
+        let filter = dict
+            .pop_and_build::<Built<MaybeArray<Filter>>, _>(&b"Filter".into(), builder)?
+            .map(|Built(filter)| filter)
+            .unwrap_or_default();
+
+        let filter = filter.into();
 
         Ok(Self { length, filter })
     }
