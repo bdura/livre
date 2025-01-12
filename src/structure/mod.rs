@@ -42,8 +42,8 @@
 //! 2. Iterate through the Pages dictionary.
 
 mod content;
-mod stream;
+mod object_stream;
 mod trailer_block;
 
-pub use stream::ObjectStream;
+pub use object_stream::ObjectStream;
 pub use trailer_block::{RefLocation, StartXRef, Trailer, XRefTrailerBlock};
