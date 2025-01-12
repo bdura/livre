@@ -9,7 +9,7 @@ use winnow::{
 
 use crate::{
     extraction::{extract, Extract, FromRawDict, Indirect, ReferenceId, Stream},
-    pdf::Trailer,
+    structure::Trailer,
 };
 
 use super::{RefLocation, XRefTrailerBlock};

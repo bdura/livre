@@ -47,9 +47,12 @@ fn parse_key_value<'de, T>(input: &mut &'de BStr) -> PResult<(Name, T)>
 where
     T: Extract<'de>,
 {
-    terminated(
-        separated_pair(Name::extract, multispace0, T::extract),
-        multispace0,
+    trace(
+        "livre-key-value",
+        terminated(
+            separated_pair(Name::extract, multispace0, T::extract),
+            multispace0,
+        ),
     )
     .parse_next(input)
 }
@@ -151,13 +154,12 @@ impl<'de> RawDict<'de> {
         Some(value.extract())
     }
 
-    pub fn pop_and_build<T, B>(&mut self, key: &Name, builder: &B) -> Option<PResult<T>>
+    pub fn pop_and_build<T, B>(&mut self, key: &Name, builder: &B) -> PResult<Option<T>>
     where
         T: Build<'de>,
         B: Builder<'de>,
     {
-        let value = self.pop(key)?;
-        Some(value.build(builder))
+        self.pop(key).map(|value| value.build(builder)).transpose()
     }
 }
 

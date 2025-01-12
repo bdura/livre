@@ -3,7 +3,7 @@
 
 pub mod extraction;
 pub mod follow_refs;
-pub mod pdf;
+pub mod structure;
 
 mod document;
 mod filtering;

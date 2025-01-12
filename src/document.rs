@@ -5,7 +5,7 @@ use winnow::BStr;
 use crate::{
     extraction::{extract, Extract, Reference, ReferenceId},
     follow_refs::Builder,
-    pdf::{RefLocation, StartXRef, Trailer, XRefTrailerBlock},
+    structure::{RefLocation, StartXRef, Trailer, XRefTrailerBlock},
 };
 
 impl<'de> Builder<'de> for HashMap<ReferenceId, &'de BStr> {
