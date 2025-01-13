@@ -53,12 +53,12 @@ impl ObjectStream {
     }
 }
 
-impl<'de> ObjectStream {
+impl ObjectStream {
     /// Build an object contained within the `ObjectStream`. Returns an error if the key is absent.
-    pub fn build_object<B, T>(&'de self, reference: &ReferenceId, builder: &B) -> PResult<T>
+    pub fn build_object<B, T>(&self, reference: &ReferenceId, builder: &B) -> PResult<T>
     where
-        T: Build<'de>,
-        B: Builder<'de>,
+        T: Build,
+        B: Builder,
     {
         let mut input = self
             .get_data(reference)
@@ -75,8 +75,8 @@ impl ObjectStream {
     /// instantiate transient objects that cannot be referenced into.
     pub fn build_owned_object<B, T>(&self, reference: &ReferenceId, builder: &B) -> PResult<T>
     where
-        T: for<'de> Build<'de>,
-        B: for<'de> Builder<'de>,
+        T: Build,
+        B: Builder,
     {
         if let Some(mut input) = self.get_data(reference) {
             builder.as_parser().parse_next(&mut input)
@@ -92,12 +92,12 @@ impl ObjectStream {
     }
 }
 
-impl<'de> Build<'de> for ObjectStream {
-    fn build<B>(input: &mut &'de BStr, builder: &B) -> PResult<Self>
+impl Build for ObjectStream {
+    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
     where
-        B: Builder<'de>,
+        B: Builder,
     {
-        trace("livre-object-stream", move |i: &mut &'de BStr| {
+        trace("livre-object-stream", move |i: &mut &BStr| {
             let Stream {
                 structured: ObjectStreamDict { n, first, extends },
                 content,
@@ -135,10 +135,10 @@ struct ObjectStreamDict {
     pub extends: Option<Reference<ObjectStream>>,
 }
 
-impl<'de> BuildFromRawDict<'de> for ObjectStreamDict {
-    fn build_from_raw_dict<B>(dict: &mut RawDict<'de>, builder: &B) -> PResult<Self>
+impl BuildFromRawDict for ObjectStreamDict {
+    fn build_from_raw_dict<'de, B>(dict: &mut RawDict<'de>, builder: &B) -> PResult<Self>
     where
-        B: Builder<'de>,
+        B: Builder,
     {
         let Built(n) = dict
             .pop_and_build(&b"N".into(), builder)?

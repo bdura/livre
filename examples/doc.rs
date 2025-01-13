@@ -1,4 +1,8 @@
-use livre::{extraction::Extract, follow_refs::Builder, InMemoryDocument};
+use livre::{
+    extraction::{Extract, Object},
+    follow_refs::Builder,
+    InMemoryDocument,
+};
 use winnow::BStr;
 
 fn main() {
@@ -12,7 +16,7 @@ fn main() {
         println!(
             "{:?}: {:?}",
             ref_id,
-            &doc.follow_reference(ref_id).unwrap()[..50]
+            &doc.build_reference::<Object>(ref_id.into()).unwrap()
         )
     }
 

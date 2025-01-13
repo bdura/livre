@@ -59,10 +59,10 @@ impl Extract<'_> for Filter {
     }
 }
 
-impl<'de> Build<'de> for Filter {
-    fn build<B>(input: &mut &'_ BStr, _builder: &B) -> PResult<Self>
+impl Build for Filter {
+    fn build<B>(input: &mut &BStr, _builder: &B) -> PResult<Self>
     where
-        B: Builder<'de>,
+        B: Builder,
     {
         extract(input)
     }

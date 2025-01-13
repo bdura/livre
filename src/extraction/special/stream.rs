@@ -62,10 +62,10 @@ struct StreamDict<T> {
     structured: T,
 }
 
-impl<'de> BuildFromRawDict<'de> for StreamConfig {
-    fn build_from_raw_dict<B>(dict: &mut RawDict<'de>, builder: &B) -> PResult<Self>
+impl BuildFromRawDict for StreamConfig {
+    fn build_from_raw_dict<'de, B>(dict: &mut RawDict<'de>, builder: &B) -> PResult<Self>
     where
-        B: Builder<'de>,
+        B: Builder,
     {
         let Built(length) = dict
             .pop_and_build(&b"Length".into(), builder)?
@@ -82,13 +82,13 @@ impl<'de> BuildFromRawDict<'de> for StreamConfig {
     }
 }
 
-impl<'de, T> BuildFromRawDict<'de> for StreamDict<T>
+impl<T> BuildFromRawDict for StreamDict<T>
 where
-    T: BuildFromRawDict<'de>,
+    T: BuildFromRawDict,
 {
-    fn build_from_raw_dict<B>(dict: &mut RawDict<'de>, builder: &B) -> PResult<Self>
+    fn build_from_raw_dict<'de, B>(dict: &mut RawDict<'de>, builder: &B) -> PResult<Self>
     where
-        B: Builder<'de>,
+        B: Builder,
     {
         let config = StreamConfig::build_from_raw_dict(dict, builder)?;
         let structured = T::build_from_raw_dict(dict, builder)?;
@@ -138,15 +138,15 @@ where
     }
 }
 
-impl<'de, T> Build<'de> for Stream<T>
+impl<T> Build for Stream<T>
 where
-    T: BuildFromRawDict<'de>,
+    T: BuildFromRawDict,
 {
-    fn build<B>(input: &mut &'de BStr, builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
     where
-        B: Builder<'de>,
+        B: Builder,
     {
-        trace("livre-stream", move |i: &mut &'de BStr| {
+        trace("livre-stream", move |i: &mut &BStr| {
             let mut dict: RawDict = extract(i)?;
             let StreamDict {
                 mut config,
@@ -178,10 +178,10 @@ impl Extract<'_> for Stream<()> {
     }
 }
 
-impl<'de> Build<'de> for Stream<()> {
-    fn build<B>(input: &mut &'de BStr, builder: &B) -> PResult<Self>
+impl Build for Stream<()> {
+    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
     where
-        B: Builder<'de>,
+        B: Builder,
     {
         let Stream {
             structured: Nil,

@@ -85,8 +85,8 @@ impl<'de> RawValue<'de> {
     /// Build the raw value into a strongly typed object.
     pub fn build<T, B>(mut self, builder: &B) -> PResult<T>
     where
-        T: Build<'de>,
-        B: Builder<'de>,
+        T: Build,
+        B: Builder,
     {
         T::build(&mut self.0, builder)
     }
@@ -156,8 +156,8 @@ impl<'de> RawDict<'de> {
 
     pub fn pop_and_build<T, B>(&mut self, key: &Name, builder: &B) -> PResult<Option<T>>
     where
-        T: Build<'de>,
-        B: Builder<'de>,
+        T: Build,
+        B: Builder,
     {
         self.pop(key).map(|value| value.build(builder)).transpose()
     }
@@ -218,10 +218,10 @@ impl FromRawDict<'_> for Nil {
     }
 }
 
-impl<'de> BuildFromRawDict<'de> for Nil {
-    fn build_from_raw_dict<B>(_dict: &mut RawDict<'de>, _builder: &B) -> PResult<Self>
+impl BuildFromRawDict for Nil {
+    fn build_from_raw_dict<'de, B>(_dict: &mut RawDict<'de>, _builder: &B) -> PResult<Self>
     where
-        B: Builder<'de>,
+        B: Builder,
     {
         Ok(Self)
     }

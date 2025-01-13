@@ -1,4 +1,4 @@
-use winnow::PResult;
+use winnow::{BStr, PResult};
 
 use crate::extraction::{extract, RawDict};
 
@@ -12,23 +12,23 @@ use super::{Build, Builder};
 /// strategies, in particular derivable ones. Since a `BuildFromRawDict` type merely pops relevant
 /// keys from a mutable reference to a [`RawDict`], we give more structure to otherwise flat
 /// dictionary structures.
-pub trait BuildFromRawDict<'de>: Sized {
-    fn build_from_raw_dict<B>(dict: &mut RawDict<'de>, builder: &B) -> PResult<Self>
+pub trait BuildFromRawDict: Sized {
+    fn build_from_raw_dict<'de, B>(dict: &mut RawDict<'de>, builder: &B) -> PResult<Self>
     where
-        B: Builder<'de>;
+        B: Builder;
 }
 
 /// [`BuildFromRawDict`] types are trivially [`Build`]:
 ///
 /// 1. Extract the underlying [`RawDict`]
 /// 2. Use it to build the type
-impl<'de, T> Build<'de> for T
+impl<T> Build for T
 where
-    T: BuildFromRawDict<'de>,
+    T: BuildFromRawDict,
 {
-    fn build<B>(input: &mut &'de winnow::BStr, builder: &B) -> winnow::PResult<Self>
+    fn build<B>(input: &mut &BStr, builder: &B) -> winnow::PResult<Self>
     where
-        B: Builder<'de>,
+        B: Builder,
     {
         let mut dict = extract(input)?;
         Self::build_from_raw_dict(&mut dict, builder)

@@ -12,19 +12,12 @@ use super::Build;
 /// A `Builder` holds every information to follow references and extract indirect objects.
 /// It usually involves a mapping between [`ReferenceId`]s and their locations within the
 /// input file.
-pub trait Builder<'de>: Sized {
-    /// Follow a reference and provide an (optional) pointer to the start of the indirect object.
-    ///
-    /// This is the entrypoint for the builder. This method provides the stream slice
-    /// that describes the referenced entity. It returns an optional in case the reference
-    /// is unknown to the builder.
-    fn follow_reference(&self, reference_id: ReferenceId) -> Option<&'de BStr>;
-
+pub trait Builder: Sized {
     /// Build an object from the input. Direct analogue to the
     /// [`extract`](crate::extraction::extract) function.
-    fn build<T>(&self, input: &mut &'de BStr) -> PResult<T>
+    fn build<T>(&self, input: &mut &BStr) -> PResult<T>
     where
-        T: Build<'de>,
+        T: Build,
     {
         T::build(input, self)
     }
@@ -35,30 +28,33 @@ pub trait Builder<'de>: Sized {
     /// if that is not the case. It includes the mechanism to extract a *indirect object*.
     ///
     /// This method is usually the one that is used in practice.
-    fn build_reference<T>(&self, Reference { id, .. }: Reference<T>) -> PResult<T>
+    fn build_reference<T>(&self, reference: Reference<T>) -> PResult<T>
     where
-        T: Build<'de>,
-    {
-        let input = &mut self
-            .follow_reference(id)
-            .ok_or(ErrMode::Cut(ContextError::new()))?;
-
-        let Indirect {
-            id: reference_id,
-            inner,
-        } = Indirect::parse(input, self.as_parser())?;
-
-        debug_assert_eq!(reference_id, id);
-
-        Ok(inner)
-    }
+        T: Build;
+    //{
+    //    let input = &mut self
+    //        .follow_reference(id)
+    //        .ok_or(ErrMode::Cut(ContextError::new()))?;
+    //
+    //    let Indirect {
+    //        id: reference_id,
+    //        inner,
+    //    } = Indirect::parse(input, self.as_parser())?;
+    //
+    //    debug_assert_eq!(reference_id, id);
+    //
+    //    Ok(inner)
+    //}
 }
 
 /// The unit type is a context-less builder, making `().as_parser` somewhat equivalent to
 /// `extact`: it will simply error if there is any reference to instantiate.
-impl<'de> Builder<'de> for () {
-    fn follow_reference(&self, _reference_id: ReferenceId) -> Option<&'de BStr> {
-        None
+impl Builder for () {
+    fn build_reference<T>(&self, _: Reference<T>) -> PResult<T>
+    where
+        T: Build,
+    {
+        Err(ErrMode::Backtrack(ContextError::new()))
     }
 }
 
@@ -75,7 +71,7 @@ pub trait BuilderParser: Sized {
 }
 
 /// Actual implementation of the [`BuilderParser`] trait on [`Builder`].
-impl<'de, B> BuilderParser for B where B: Builder<'de> {}
+impl<'de, B> BuilderParser for B where B: Builder {}
 
 /// `LivreBuilder` wraps a generic [`Builder`] type to make it implement [winnow's `Parser`](Parser) trait.
 /// You should not have to create this type yourself. Instead, call [`as_parser`](BuilderParser::as_parser)
@@ -86,12 +82,12 @@ impl<'de, B> BuilderParser for B where B: Builder<'de> {}
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct LivreBuilder<'b, B>(&'b B);
 
-impl<'de, T, B> Parser<&'de BStr, T, ContextError> for LivreBuilder<'_, B>
+impl<T, B> Parser<&BStr, T, ContextError> for LivreBuilder<'_, B>
 where
-    B: Builder<'de>,
-    T: Build<'de>,
+    B: Builder,
+    T: Build,
 {
-    fn parse_next(&mut self, input: &mut &'de BStr) -> PResult<T, ContextError> {
+    fn parse_next(&mut self, input: &mut &BStr) -> PResult<T, ContextError> {
         self.0.build(input)
     }
 }
