@@ -3,6 +3,7 @@ use std::{borrow::Cow, fmt::Debug, ops::Deref};
 use winnow::{
     ascii::hex_uint,
     combinator::{preceded, trace},
+    error::StrContext,
     token::{take, take_till},
     BStr, PResult, Parser,
 };
@@ -52,6 +53,7 @@ impl<'de> Extract<'de> for Name {
                 .map(|name| Self(name.to_vec()))
                 .parse_next(&mut content.as_ref())
         })
+        .context(StrContext::Label("name"))
         .parse_next(input)
     }
 }
