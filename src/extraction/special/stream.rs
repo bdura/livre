@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use winnow::{
     ascii::{line_ending, multispace0},
     combinator::{delimited, trace},
@@ -109,10 +111,24 @@ where
 ///
 /// - the structured data, if any
 /// - the actual, decoded content
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct Stream<T> {
     pub structured: T,
     pub content: Vec<u8>,
+}
+
+impl<T> Debug for Stream<T>
+where
+    T: Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let utfish = String::from_utf8_lossy(&self.content[..100.min(self.content.len())]);
+
+        f.debug_struct("Stream")
+            .field("structured", &self.structured)
+            .field("content", &utfish)
+            .finish()
+    }
 }
 
 impl<'de, T> Extract<'de> for Stream<T>
