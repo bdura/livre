@@ -14,9 +14,9 @@ fn main() {
 
     for &ref_id in doc.xrefs.keys() {
         println!(
-            "{:?}: {:?}",
+            "{:?}\n{:#?}\n\n",
             ref_id,
-            &doc.build_reference::<Object>(ref_id.into()).unwrap()
+            &doc.build_reference::<Object>(ref_id.into())
         )
     }
 
