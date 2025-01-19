@@ -36,7 +36,7 @@ pub enum Object {
     Integer(i32),
     Real(f32),
     String(Vec<u8>),
-    Name(Vec<u8>),
+    Name(Name),
     Array(Vec<Object>),
     Dictionary(Map<Object>),
     Stream(Stream<Map<Object>>),
@@ -68,8 +68,8 @@ impl From<LiteralString<'_>> for Object {
 }
 
 impl From<Name> for Object {
-    fn from(Name(inner): Name) -> Self {
-        Self::Name(inner)
+    fn from(value: Name) -> Self {
+        Self::Name(value)
     }
 }
 
