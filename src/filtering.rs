@@ -3,8 +3,9 @@
 use enum_dispatch::enum_dispatch;
 use std::io::Read;
 use winnow::{
-    error::{ContextError, ErrMode},
-    BStr, PResult,
+    combinator::fail,
+    error::{ContextError, ErrMode, StrContext},
+    BStr, PResult, Parser,
 };
 
 use flate2::read::ZlibDecoder;
@@ -47,22 +48,18 @@ impl Extract<'_> for Filter {
         match value.as_slice() {
             b"FlateDecode" => Ok(Self::FlateDecode(FlateDecode)),
             b"ASCII85Decode" | b"ASCIIHexDecode" | b"LZWDecode" | b"RunLengthDecode"
-            | b"CCITTFaxDecode" | b"JBIG2Decode" | b"DCTDecode" | b"JPXDecode" | b"Crypt" => {
-                todo!(
-                    "{} filter is not handled by Livre yet. Consider opening an issue, or better yet, submitting a PR!",
-                    // SAFETY: we just matched `value` against an UTF8-encoded string.
-                    unsafe { std::str::from_utf8_unchecked(value.as_slice()) }
-                )
-            }
+            | b"CCITTFaxDecode" | b"JBIG2Decode" | b"DCTDecode" | b"JPXDecode" | b"Crypt" => fail
+                .context(StrContext::Label("unsupported filter"))
+                .parse_next(input),
             _ => Err(ErrMode::Backtrack(ContextError::new())),
         }
     }
 }
 
-impl<'de> Build<'de> for Filter {
-    fn build<B>(input: &mut &'_ BStr, _builder: &B) -> PResult<Self>
+impl Build for Filter {
+    fn build<B>(input: &mut &BStr, _builder: &B) -> PResult<Self>
     where
-        B: Builder<'de>,
+        B: Builder,
     {
         extract(input)
     }

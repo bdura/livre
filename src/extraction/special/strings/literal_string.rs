@@ -39,29 +39,41 @@ use crate::extraction::{
 /// (This string contains \245two octal characters\307.)
 /// ```
 #[derive(Clone, PartialEq, Eq)]
-pub struct LiteralString<'de>(pub Cow<'de, [u8]>);
+pub struct LiteralString(pub Vec<u8>);
 
-impl Debug for LiteralString<'_> {
+impl Debug for LiteralString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "LiteralString({})", String::from_utf8_lossy(&self.0))?;
         Ok(())
     }
 }
 
-impl From<String> for LiteralString<'static> {
+impl From<String> for LiteralString {
     fn from(value: String) -> Self {
-        Self(Cow::Owned(value.into()))
+        Self(value.into_bytes())
     }
 }
 
-impl<'a> From<&'a str> for LiteralString<'a> {
+impl<'a> From<&'a str> for LiteralString {
     fn from(value: &'a str) -> Self {
-        Self(Cow::Borrowed(value.as_bytes()))
+        Self(value.as_bytes().to_vec())
     }
 }
 
-impl<'de> Extract<'de> for LiteralString<'de> {
-    fn extract(input: &mut &'de BStr) -> PResult<Self> {
+impl<'a> From<Cow<'a, str>> for LiteralString {
+    fn from(value: Cow<'a, str>) -> Self {
+        Self(value.as_bytes().to_vec())
+    }
+}
+
+impl<'a> From<Cow<'a, [u8]>> for LiteralString {
+    fn from(value: Cow<'a, [u8]>) -> Self {
+        Self(value.to_vec())
+    }
+}
+
+impl Extract<'_> for LiteralString {
+    fn extract(input: &mut &BStr) -> PResult<Self> {
         // NOTE: we have to parse the entire sequence first, otherwise we would not
         // know what to do with a closing parenthesis.
         // This contrast with the extraction strategy for `Vec<T>` for instance,
@@ -71,7 +83,7 @@ impl<'de> Extract<'de> for LiteralString<'de> {
 
         trace(
             "livre-literal-string",
-            escaped_sequence(take_till(0.., b'\\'), b'\\'.void(), escape_string).map(Self),
+            escaped_sequence(take_till(0.., b'\\'), b'\\'.void(), escape_string).map(Self::from),
         )
         .parse_next(&mut inner)
     }
@@ -155,16 +167,13 @@ mod tests {
     #[case(b"(te\\\nst)", b"test")]
     fn literal_string(#[case] input: &[u8], #[case] expected: &[u8]) {
         let LiteralString(inner) = extract(&mut input.as_ref()).unwrap();
-        assert_eq!(expected, inner.as_ref());
+        assert_eq!(expected, &inner);
     }
 
     #[rstest]
     #[case("abcd", "LiteralString(abcd)")]
     #[case("test", "LiteralString(test)")]
-    fn literal_string_debug<'a, T: Into<LiteralString<'a>>>(
-        #[case] input: T,
-        #[case] expected: &'a str,
-    ) {
+    fn literal_string_debug<T: Into<LiteralString>>(#[case] input: T, #[case] expected: &str) {
         let result = input.into();
         assert_eq!(format!("{result:?}"), expected);
     }

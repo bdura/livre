@@ -21,25 +21,25 @@ use super::{Builder, BuilderParser, Built};
 /// implementation because of the [`OptRef`](crate::extraction::OptRef) type. Moreover,
 /// this would disallow implementing `Build` for [`BuildFromRawDict`](super::BuildFromRawDict),
 /// because the compiler would mark them as competing implementations.
-pub trait Build<'de>: Sized {
+pub trait Build: Sized {
     /// Build an object that rely on a reference, which would be instantiated with the help of the
     /// supplied `builder`.
     ///
     /// The [`Build`] trait, like the [`Extract`](crate::extraction::Extract) trait, is a linear
     /// parser above all, hence we supply an `input`. References found during parsing, if any,
     /// are first parsed as such, and then instantiated by the `builder`.
-    fn build<B>(input: &mut &'de BStr, builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
     where
-        B: Builder<'de>;
+        B: Builder;
 }
 
 macro_rules! impl_build_for_primitive {
     ($($t:ty)+) => {
         $(
-            impl<'de> Build<'de> for $t {
-                fn build<B>(input: &mut &'de BStr, _builder: &B) -> PResult<Self>
+            impl Build for $t {
+                fn build<B>(input: &mut &BStr, _builder: &B) -> PResult<Self>
                 where
-                    B: Builder<'de>,
+                    B: Builder,
                 {
                     extract(input)
                 }
@@ -53,20 +53,20 @@ impl_build_for_primitive!(
   u8 u16 u32 u64 u128 usize
   f32 f64
   bool
-  LiteralString<'de> HexadecimalString
+  LiteralString HexadecimalString
   Id
   Name
   Object
   Rectangle
 );
 
-impl<'de, T> Build<'de> for Option<T>
+impl<T> Build for Option<T>
 where
-    T: Build<'de>,
+    T: Build,
 {
-    fn build<B>(input: &mut &'de BStr, builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
     where
-        B: Builder<'de>,
+        B: Builder,
     {
         alt((
             builder.as_parser().map(|Built(value)| Some(value)),
@@ -76,13 +76,13 @@ where
     }
 }
 
-impl<'de, T> Build<'de> for MaybeArray<T>
+impl<T> Build for MaybeArray<T>
 where
-    T: Build<'de>,
+    T: Build,
 {
-    fn build<B>(input: &mut &'de BStr, builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
     where
-        B: Builder<'de>,
+        B: Builder,
     {
         trace(
             "livre-vec",
@@ -96,13 +96,13 @@ where
     }
 }
 
-impl<'de, T> Build<'de> for Vec<T>
+impl<T> Build for Vec<T>
 where
-    T: Build<'de>,
+    T: Build,
 {
-    fn build<B>(input: &mut &'de BStr, builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
     where
-        B: Builder<'de>,
+        B: Builder,
     {
         trace(
             "livre-vec",
@@ -119,13 +119,13 @@ where
     }
 }
 
-impl<'de, T, const N: usize> Build<'de> for [T; N]
+impl<T, const N: usize> Build for [T; N]
 where
-    T: Build<'de> + Debug,
+    T: Build + Debug,
 {
-    fn build<B>(input: &mut &'de BStr, builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
     where
-        B: Builder<'de>,
+        B: Builder,
     {
         trace(
             concat!("livre-{N}-array"),
@@ -148,16 +148,16 @@ where
 macro_rules! impl_tuple {
     ($len:literal: $first:ident, $($ty:ident),+) => {
         paste!{
-            impl<'de, $first, $($ty),+> Build<'de> for ($first, $($ty),+)
+            impl<$first, $($ty),+> Build for ($first, $($ty),+)
             where
-                $first: Build<'de>,
-                $( $ty: Build<'de>),+
+                $first: Build,
+                $( $ty: Build),+
             {
-                fn build<B>(input: &mut &'de BStr, builder: &B) -> PResult<Self>
+                fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
                 where
-                    B: Builder<'de>,
+                    B: Builder,
                 {
-                    trace(concat!("livre-{}-tuple", $len), move |i: &mut &'de BStr| {
+                    trace(concat!("livre-{}-tuple", $len), move |i: &mut &BStr| {
                         let [<$first:lower>] = $first::build(i, builder)?;
                         $(
                             multispace1(i)?;

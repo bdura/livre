@@ -21,7 +21,8 @@
 //! ## Derivability
 //!
 //! Through the [`livre_derive`] helper crate, Livre provides (and uses) a derive macro
-//! for [`FromRawDict`], making the derived type [`Extract`].
+//! for [`FromRawDict`], making the derived type indirectly [`Extract`] through a blanket
+//! implementation.
 //!
 //! ## Indirect objects
 //!

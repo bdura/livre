@@ -1,16 +1,34 @@
 use std::collections::HashMap;
 
-use winnow::BStr;
-
-use crate::{
-    extraction::{extract, Extract, Reference, ReferenceId},
-    follow_refs::Builder,
-    structure::{RefLocation, StartXRef, Trailer, XRefTrailerBlock},
+use winnow::{
+    error::{ContextError, ErrMode},
+    BStr, PResult,
 };
 
-impl<'de> Builder<'de> for HashMap<ReferenceId, &'de BStr> {
-    fn follow_reference(&self, reference_id: ReferenceId) -> Option<&'de BStr> {
-        self.get(&reference_id).copied()
+use crate::{
+    extraction::{extract, Extract, Indirect, Reference, ReferenceId},
+    follow_refs::{Build, Builder, BuilderParser},
+    structure::{ObjectStream, RefLocation, StartXRef, Trailer, XRefTrailerBlock},
+};
+
+impl Builder for HashMap<ReferenceId, &BStr> {
+    fn build_reference<T>(&self, Reference { id, .. }: Reference<T>) -> PResult<T>
+    where
+        T: Build,
+    {
+        let input = &mut self
+            .get(&id)
+            .copied()
+            .ok_or(ErrMode::Cut(ContextError::new()))?;
+
+        let Indirect {
+            id: reference_id,
+            inner,
+        } = Indirect::parse(input, self.as_parser())?;
+
+        debug_assert_eq!(reference_id, id);
+
+        Ok(inner)
     }
 }
 
@@ -20,17 +38,45 @@ pub struct InMemoryDocument<'de> {
     /// The entire input slice
     input: &'de BStr,
     /// The cross-reference table
-    /// TODO: add stream support: some references can be put behind a stream.
     pub xrefs: HashMap<ReferenceId, RefLocation>,
 }
 
-impl<'de> Builder<'de> for InMemoryDocument<'de> {
-    fn follow_reference(&self, reference_id: ReferenceId) -> Option<&'de BStr> {
-        let &offset = self.xrefs.get(&reference_id)?;
+impl Builder for InMemoryDocument<'_> {
+    fn build_reference<T>(&self, Reference { id, .. }: Reference<T>) -> PResult<T>
+    where
+        T: Build,
+    {
+        let &offset = self
+            .xrefs
+            .get(&id)
+            .ok_or(ErrMode::Backtrack(ContextError::new()))?;
 
         match offset {
-            RefLocation::Plain(offset) => self.input.get(offset..).map(|s| s.as_ref()),
-            _ => todo!("We focus on *vanilla* refs for now."),
+            RefLocation::Plain(offset) => {
+                let input = &mut self
+                    .input
+                    .get(offset..)
+                    .ok_or(ErrMode::Backtrack(ContextError::new()))?
+                    .as_ref();
+
+                let Indirect {
+                    id: reference_id,
+                    inner,
+                } = Indirect::parse(input, self.as_parser())?;
+
+                debug_assert_eq!(reference_id, id);
+
+                Ok(inner)
+            }
+            RefLocation::Compressed {
+                stream_id,
+                // `index` is already contained within the stream.
+                index: _,
+            } => {
+                let stream: ObjectStream =
+                    self.build_reference(ReferenceId::first(stream_id).into())?;
+                stream.build_object(&id, self)
+            }
         }
     }
 }
@@ -73,6 +119,8 @@ impl<'de> Extract<'de> for InMemoryDocument<'de> {
 
             prev = previous;
         }
+
+        println!("{cross_references:?}");
 
         Ok(Self {
             catalog: root,

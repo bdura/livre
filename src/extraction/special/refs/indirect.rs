@@ -7,7 +7,7 @@ use winnow::{
 
 use crate::{
     extraction::{extract, Extract},
-    follow_refs::{Build, BuilderParser},
+    follow_refs::{Build, Builder, BuilderParser},
 };
 
 use super::ReferenceId;
@@ -59,13 +59,13 @@ where
     }
 }
 
-impl<'de, T> Build<'de> for Indirect<T>
+impl<T> Build for Indirect<T>
 where
-    T: Build<'de>,
+    T: Build,
 {
-    fn build<B>(input: &mut &'de BStr, builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
     where
-        B: crate::follow_refs::Builder<'de>,
+        B: Builder,
     {
         Self::parse(input, builder.as_parser())
     }
@@ -86,7 +86,7 @@ mod tests {
     #[case(b"0 0 obj\n10    true\nendobj", Indirect{id: (0, 0).into(), inner: (10i32, true)})]
     fn extraction_and_build<'de, T>(#[case] input: &'de [u8], #[case] expected: Indirect<T>)
     where
-        T: Extract<'de> + Build<'de> + Debug + PartialEq,
+        T: Extract<'de> + Build + Debug + PartialEq,
     {
         let result = extract(&mut input.as_ref()).unwrap();
         assert_eq!(expected, result);
