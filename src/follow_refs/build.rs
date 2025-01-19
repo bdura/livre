@@ -53,7 +53,7 @@ impl_build_for_primitive!(
   u8 u16 u32 u64 u128 usize
   f32 f64
   bool
-  HexadecimalString
+  LiteralString HexadecimalString
   Id
   Name
   Object
