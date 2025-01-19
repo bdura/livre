@@ -61,9 +61,9 @@ impl From<f32> for Object {
     }
 }
 
-impl From<LiteralString<'_>> for Object {
+impl From<LiteralString> for Object {
     fn from(LiteralString(inner): LiteralString) -> Self {
-        Self::String(inner.to_vec())
+        Self::String(inner)
     }
 }
 
