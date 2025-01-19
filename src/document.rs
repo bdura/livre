@@ -11,7 +11,7 @@ use crate::{
     structure::{ObjectStream, RefLocation, StartXRef, Trailer, XRefTrailerBlock},
 };
 
-impl<'de> Builder for HashMap<ReferenceId, &'de BStr> {
+impl Builder for HashMap<ReferenceId, &BStr> {
     fn build_reference<T>(&self, Reference { id, .. }: Reference<T>) -> PResult<T>
     where
         T: Build,
@@ -41,7 +41,7 @@ pub struct InMemoryDocument<'de> {
     pub xrefs: HashMap<ReferenceId, RefLocation>,
 }
 
-impl<'de> Builder for InMemoryDocument<'de> {
+impl Builder for InMemoryDocument<'_> {
     fn build_reference<T>(&self, Reference { id, .. }: Reference<T>) -> PResult<T>
     where
         T: Build,
