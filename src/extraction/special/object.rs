@@ -206,7 +206,7 @@ mod tests {
     #[case(42, Object::Integer(42))]
     #[case(-42.0, Object::Real(-42.0))]
     #[case("test".to_string(), Object::String("test".into()))]
-    #[case(Name::from("test"), Object::Name(vec![0x74, 0x65, 0x73, 0x74]))]
+    #[case(Name::from("test"), Object::Name([0x74, 0x65, 0x73, 0x74].into()))]
     #[case(vec![0, 0], Object::Array(vec![Object::Integer(0), Object::Integer(0)]))]
     fn into_object<T>(#[case] v: T, #[case] expected: Object)
     where
