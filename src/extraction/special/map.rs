@@ -219,7 +219,7 @@ impl FromRawDict<'_> for Nil {
 }
 
 impl BuildFromRawDict for Nil {
-    fn build_from_raw_dict<'de, B>(_dict: &mut RawDict<'de>, _builder: &B) -> PResult<Self>
+    fn build_from_raw_dict<B>(_dict: &mut RawDict<'_>, _builder: &B) -> PResult<Self>
     where
         B: Builder,
     {

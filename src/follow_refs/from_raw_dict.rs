@@ -13,7 +13,7 @@ use super::{Build, Builder};
 /// keys from a mutable reference to a [`RawDict`], we give more structure to otherwise flat
 /// dictionary structures.
 pub trait BuildFromRawDict: Sized {
-    fn build_from_raw_dict<'de, B>(dict: &mut RawDict<'de>, builder: &B) -> PResult<Self>
+    fn build_from_raw_dict<B>(dict: &mut RawDict<'_>, builder: &B) -> PResult<Self>
     where
         B: Builder;
 }

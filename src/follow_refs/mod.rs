@@ -8,7 +8,7 @@
 //! PDF documents resort to a "random-access" architecture to be able to reuse elements and split
 //! complex objects into more atomic subparts. To that end, the PDF body is an enumeration of
 //! "indirect objects", which can be referenced into from other objects. PDF references thus form
-//! a directed acyclic graph (DAG) since referenced object may contain reference themselves.
+//! a directed acyclic graph (DAG) since a referenced object may itself contain references.
 //!
 //! Let's provide an example coming from the specification. In the following snippet, the indirect
 //! object with ID `12 0` contains a string ("Brillig"):

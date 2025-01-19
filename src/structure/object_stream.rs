@@ -136,7 +136,7 @@ struct ObjectStreamDict {
 }
 
 impl BuildFromRawDict for ObjectStreamDict {
-    fn build_from_raw_dict<'de, B>(dict: &mut RawDict<'de>, builder: &B) -> PResult<Self>
+    fn build_from_raw_dict<B>(dict: &mut RawDict<'_>, builder: &B) -> PResult<Self>
     where
         B: Builder,
     {

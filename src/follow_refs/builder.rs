@@ -3,7 +3,7 @@ use winnow::{
     BStr, PResult, Parser,
 };
 
-use crate::extraction::{Indirect, Reference, ReferenceId};
+use crate::extraction::Reference;
 
 use super::Build;
 
@@ -71,7 +71,7 @@ pub trait BuilderParser: Sized {
 }
 
 /// Actual implementation of the [`BuilderParser`] trait on [`Builder`].
-impl<'de, B> BuilderParser for B where B: Builder {}
+impl<B> BuilderParser for B where B: Builder {}
 
 /// `LivreBuilder` wraps a generic [`Builder`] type to make it implement [winnow's `Parser`](Parser) trait.
 /// You should not have to create this type yourself. Instead, call [`as_parser`](BuilderParser::as_parser)
