@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0](https://github.com/bdura/livre/compare/livre-v0.2.0...livre-v0.3.0) - 2025-01-20
+
+### Added
+
+- owned builder (#35)
+- object stream (#34)
+- implement `Build` for `Stream`s (#33)
+- implement Parser for Builders (#29)
+- cleaner `builder` module (#28)
+
+### Fixed
+
+- build containers (#32)
+
+### Other
+
+- update changelog (#38)
+- add `release-plz` (#36)
+- reorganise Build traits (#31)
+- fix changelog...
+- move structures into `extraction/special` (#30)
+- filtering (#27)
+- create a dedicated `references` submodule (#24)
+
 ### Changed
 
 - Move PDF-specific datastructures from a dedicated `structures` module to `extraction/special`.
