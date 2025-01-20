@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - rename module `follow_refs`
   - drop blanket implementation for `Extract` types, allowing more flexibility - in particular
     with `Indirect` and `OptRef`
+  - drop `Build` support for types that reference into the input data, simplifying reference-
+    following traits.
+  - add a `BuildFromRawDict` trait, that implements `Build`.
+- Modify `LiteralString` to own its data
 
 ## [0.2.0] - 2024-12-26
 
