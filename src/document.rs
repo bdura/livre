@@ -8,7 +8,7 @@ use winnow::{
 use crate::{
     extraction::{extract, Extract, Indirect, Reference, ReferenceId},
     follow_refs::{Build, Builder, BuilderParser},
-    structure::{ObjectStream, RefLocation, StartXRef, Trailer, XRefTrailerBlock},
+    structure::{Catalog, ObjectStream, RefLocation, StartXRef, Trailer, XRefTrailerBlock},
 };
 
 impl Builder for HashMap<ReferenceId, &BStr> {
@@ -33,15 +33,14 @@ impl Builder for HashMap<ReferenceId, &BStr> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct InMemoryDocument<'de> {
-    pub catalog: Reference<()>,
+pub struct InMemoryBuilder<'de> {
     /// The entire input slice
     input: &'de BStr,
     /// The cross-reference table
     pub xrefs: HashMap<ReferenceId, RefLocation>,
 }
 
-impl Builder for InMemoryDocument<'_> {
+impl Builder for InMemoryBuilder<'_> {
     fn build_reference<T>(&self, Reference { id, .. }: Reference<T>) -> PResult<T>
     where
         T: Build,
@@ -79,6 +78,11 @@ impl Builder for InMemoryDocument<'_> {
             }
         }
     }
+}
+
+pub struct InMemoryDocument<'de> {
+    pub catalog: Catalog,
+    pub builder: InMemoryBuilder<'de>,
 }
 
 impl<'de> Extract<'de> for InMemoryDocument<'de> {
@@ -120,12 +124,22 @@ impl<'de> Extract<'de> for InMemoryDocument<'de> {
             prev = previous;
         }
 
-        println!("{cross_references:?}");
-
-        Ok(Self {
-            catalog: root,
+        let builder = InMemoryBuilder {
             input,
             xrefs: cross_references.into_iter().collect(),
-        })
+        };
+
+        let catalog = builder.build_reference(root)?;
+
+        Ok(Self { catalog, builder })
+    }
+}
+
+impl Builder for InMemoryDocument<'_> {
+    fn build_reference<T>(&self, reference: Reference<T>) -> PResult<T>
+    where
+        T: Build,
+    {
+        self.builder.build_reference(reference)
     }
 }
