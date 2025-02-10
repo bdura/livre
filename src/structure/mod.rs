@@ -43,7 +43,9 @@
 
 mod content;
 mod object_stream;
+mod pages;
 mod trailer_block;
 
 pub use object_stream::ObjectStream;
+pub use pages::{InheritablePageProperties, PageProperties, Pages};
 pub use trailer_block::{RefLocation, StartXRef, Trailer, XRefTrailerBlock};
