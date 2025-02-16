@@ -91,6 +91,8 @@ impl Extract<'_> for PageMode {
     }
 }
 
+/// The document catalog contains references to other objects defining the content of the
+/// document's content.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Catalog {
     // pub version: Option<Name>,
@@ -144,13 +146,9 @@ impl Build for Catalog {
 
 #[cfg(test)]
 mod tests {
+    use std::fmt::Debug;
 
-    use std::{collections::HashMap, fmt::Debug, iter::once};
-
-    use indoc::indoc;
     use rstest::rstest;
-
-    use crate::{extraction::ReferenceId, structure::RefLocation};
 
     use super::*;
 
