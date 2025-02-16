@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0](https://github.com/bdura/livre/compare/livre-v0.3.0...livre-v0.4.0) - 2025-02-16
+
+### Added
+
+- Page extraction & iteration (#39)
+
 ## [0.3.0](https://github.com/bdura/livre/compare/livre-v0.2.0...livre-v0.3.0) - 2025-01-20
 
 ### Added
