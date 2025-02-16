@@ -8,6 +8,11 @@ use winnow::{
 use crate::extraction::Extract;
 
 /// Standard date used in PDF, with a bespoke format.
+///
+/// Note that could use the type system to differenciate at compile time between specific
+/// levels of guarantees regarding the presence or absence of a field.
+/// For the time being, Livre does not try to be clever about that aspect, and represents
+/// every fied (except `year`) with an optional.
 #[derive(Debug, Default, PartialEq, Clone, Copy)]
 pub struct Date {
     pub year: u16,
@@ -19,7 +24,7 @@ pub struct Date {
     pub offset: Option<i16>,
 }
 
-fn utc_diff_minutes(input: &mut &BStr) -> PResult<i16> {
+fn utc_diff_as_minutes(input: &mut &BStr) -> PResult<i16> {
     let mut minutes = take(2usize)
         .parse_to()
         .map(|n: i16| n * 60)
@@ -37,8 +42,8 @@ fn utc_diff_minutes(input: &mut &BStr) -> PResult<i16> {
 fn utc_diff(input: &mut &BStr) -> PResult<i16> {
     dispatch! {any;
         b'Z' => opt(b"00'".and_then(opt(b"00"))).value(0),
-        b'+' => utc_diff_minutes,
-        b'-' => utc_diff_minutes.map(|m| -m),
+        b'+' => utc_diff_as_minutes,
+        b'-' => utc_diff_as_minutes.map(|m| -m),
         _ => fail,
     }
     .parse_next(input)
