@@ -8,7 +8,7 @@ fn main() {
 
     let doc = InMemoryDocument::extract(&mut letter).unwrap();
 
-    for page in doc.catalog.pages.iter() {
+    for page in doc.pages().unwrap().iter() {
         println!(
             "{}",
             String::from_utf8_lossy(&page.build_content(&doc).unwrap())
