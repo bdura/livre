@@ -4,9 +4,12 @@ use winnow::{
     BStr, PResult, Parser,
 };
 
-use crate::extraction::{extract, Build, Extract, Name, RawDict, Reference};
+use crate::{
+    extraction::{extract, Extract, Name, RawDict, Reference},
+    follow_refs::{Build, Builder},
+};
 
-use super::pages::Pages;
+use super::pages::PageTreeNode;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
 pub enum PageLayout {
@@ -88,25 +91,26 @@ impl Extract<'_> for PageMode {
     }
 }
 
+/// The document catalog contains references to other objects defining the content of the
+/// document's content.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Catalog {
-    // pub version: Option<Name>,
-    // pub extensions
-    /// The root [page tree node](Pages).
-    pub pages: Pages,
+    /// The root [page tree node](PageTreeNode).
+    pub pages: PageTreeNode,
 
     /// A name object ([PageLayout]) specifying the page layout
     /// shall be used when the document is opened
     pub page_layout: PageLayout,
+
     /// A name object ([PageMode]) specifying how the document
     /// shall be displayed when opened
     pub page_mode: PageMode,
 }
 
-impl<'de> Build<'de> for Catalog {
-    fn build<B>(input: &mut &'de BStr, builder: &B) -> PResult<Self>
+impl Build for Catalog {
+    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
     where
-        B: crate::extraction::Builder<'de>,
+        B: Builder,
     {
         let mut dict: RawDict = extract(input)?;
 
@@ -115,13 +119,14 @@ impl<'de> Build<'de> for Catalog {
             .map(|value| value.extract())
             .transpose()?
             .unwrap_or_default();
+
         let page_mode = dict
             .pop(&"PageMode".into())
             .map(|value| value.extract())
             .transpose()?
             .unwrap_or_default();
 
-        let pages: Reference<Pages> = dict
+        let pages: Reference<PageTreeNode> = dict
             .pop(&"Pages".into())
             .ok_or(ErrMode::Cut(ContextError::new()))?
             .extract()
@@ -139,13 +144,9 @@ impl<'de> Build<'de> for Catalog {
 
 #[cfg(test)]
 mod tests {
-
     use std::fmt::Debug;
 
-    //use indoc::indoc;
     use rstest::rstest;
-
-    //use crate::extraction::Builder;
 
     use super::*;
 
@@ -172,14 +173,32 @@ mod tests {
         assert_eq!(expected, res)
     }
 
-    //struct DummyBuilder<'de>(&'de BStr);
+    //struct DummyBuilder(HashMap<ReferenceId, &'static BStr>);
     //
-    //impl<'de> Builder<'de> for DummyBuilder<'de> {
-    //    fn follow_reference(&self, _: crate::extraction::ReferenceId) -> Option<&'de BStr> {
-    //        Some(self.0)
+    //impl DummyBuilder {
+    //    fn new_simple<I: Into<ReferenceId>>(key: I, value: &'static BStr) -> Self {
+    //        let mut map = HashMap::new();
+    //        map.insert(key.into(), value);
+    //
+    //        Self(map)
     //    }
     //}
-
+    //
+    //impl Builder for DummyBuilder {
+    //    fn build_reference<T>(&self, reference: Reference<T>) -> PResult<T>
+    //    where
+    //        T: Build,
+    //    {
+    //        let mut input = self
+    //            .0
+    //            .get(&reference.id)
+    //            .copied()
+    //            .ok_or(ErrMode::Cut(ContextError::new()))?;
+    //
+    //        self.build(&mut input)
+    //    }
+    //}
+    //
     //#[rstest]
     //#[case(
     //    indoc! {b"
@@ -192,13 +211,14 @@ mod tests {
     //    Catalog {
     //        page_mode: PageMode::UseOutlines,
     //        page_layout: PageLayout::default(),
+    //        pages: Pages(vec![])
     //    }
     //)]
-    //fn building<'de, T>(#[case] input: &'de [u8], #[case] expected: T)
+    //fn building<T>(#[case] input: &[u8], #[case] expected: T)
     //where
-    //    T: Build<'de> + Debug + PartialEq,
+    //    T: Build + Debug + PartialEq,
     //{
-    //    let builder = DummyBuilder(input.as_ref());
+    //    let builder = DummyBuilder::new_simple((2, 0), b"".as_ref().into());
     //    let res = T::build(&mut input.as_ref(), &builder).unwrap();
     //
     //    assert_eq!(expected, res);

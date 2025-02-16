@@ -41,9 +41,15 @@
 //!       cross-reference table.
 //! 2. Iterate through the Pages dictionary.
 
+mod catalog;
 mod content;
 mod object_stream;
+mod pages;
 mod trailer_block;
 
+pub use catalog::{Catalog, PageLayout, PageMode};
 pub use object_stream::ObjectStream;
+pub use pages::{
+    IndividualPageProperties, InheritablePageProperties, Page, PageTreeNode, Resources,
+};
 pub use trailer_block::{RefLocation, StartXRef, Trailer, XRefTrailerBlock};

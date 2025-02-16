@@ -49,6 +49,7 @@ pub use extract::{extract, Extract};
 pub use from_raw_dict::FromRawDict;
 
 pub use special::{
-    multicomment0, multicomment1, Comment, HexadecimalString, Id, Indirect, LiteralString,
-    MaybeArray, Name, Nil, Object, OptRef, RawDict, Rectangle, Reference, ReferenceId, Stream,
+    multicomment0, multicomment1, Comment, Date, HexadecimalString, Id, Indirect, LiteralString,
+    Map, MaybeArray, Name, Nil, Object, OptRef, RawDict, Rectangle, Reference, ReferenceId, Stream,
+    Todo,
 };

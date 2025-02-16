@@ -1,4 +1,4 @@
-use crate::extraction::{FromRawDict, Reference, Id};
+use crate::{extraction::{FromRawDict, Id, Reference}, structure::Catalog};
 
 /// PDF file trailer.
 ///
@@ -24,7 +24,7 @@ pub struct Trailer {
     pub prev: Option<usize>,
 
     /// Reference to the PDF catalog.
-    pub root: Reference<()>,
+    pub root: Reference<Catalog>,
 
     // pub encrypt: Encrypt,
     // The PDF file’s [information dictionary](Info).

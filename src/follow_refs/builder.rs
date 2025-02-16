@@ -10,8 +10,8 @@ use super::Build;
 /// Trait that can follow references.
 ///
 /// A `Builder` holds every information to follow references and extract indirect objects.
-/// It usually involves a mapping between [`ReferenceId`]s and their locations within the
-/// input file.
+/// It usually involves a mapping between [`ReferenceId`](crate::extraction::ReferenceId)s
+/// and their locations within the input file.
 pub trait Builder: Sized {
     /// Build an object from the input. Direct analogue to the
     /// [`extract`](crate::extraction::extract) function.
