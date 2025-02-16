@@ -7,15 +7,13 @@ use winnow::{
 
 use crate::{
     extraction::{
-        extract, Extract, FromRawDict, MaybeArray, Name, OptRef, RawDict, Rectangle, Reference,
-        Stream,
+        extract, Date, Extract, FromRawDict, Id, Map, MaybeArray, Name, OptRef, RawDict, Rectangle,
+        Reference, Stream, Todo,
     },
     follow_refs::{Build, Builder},
 };
 
 /// Page resources.
-///
-/// Livre focuses on fonts for now.
 #[derive(Debug, PartialEq, Clone, FromRawDict)]
 pub struct Resources {
     /// Font dictionary.
@@ -54,14 +52,108 @@ impl Build for RotationAngle {
     }
 }
 
+/// Page properties that cannot be inherited.
+#[derive(Debug, PartialEq, Clone, FromRawDict)]
+pub struct IndividualPageProperties {
+    /// The date and time when the page's contents were most recently modified.
+    pub last_modified: Option<Date>,
+    /// A rectangle, expressed in default user space units, that shall define the region
+    /// to which the contents of the page shall be clipped when output in a production
+    /// environment.
+    ///
+    /// Default value: the value of [`CropBox`](InheritablePageProperties::crop_box).
+    pub bleed_box: Option<Rectangle>,
+    /// A rectangle, expressed in default user space units, that shall define the intended
+    /// dimensions of the finished page after trimming.
+    ///
+    /// Default value: the value of [`CropBox`](InheritablePageProperties::crop_box).
+    pub trim_box: Option<Rectangle>,
+    /// A rectangle, expressed in default user space units, that shall define the extent
+    /// of the page’s meaningful content (including potential white-space) as intended
+    /// by the page’s creator.
+    ///
+    /// Default value: the value of [`CropBox`](InheritablePageProperties::crop_box).
+    pub art_box: Option<Rectangle>,
+    /// A box colour information dictionary that shall specify the colours and other
+    /// visual characteristics that should be used in displaying guidelines on the screen
+    /// for the various page boundaries.
+    ///
+    /// If this entry is absent, the application shall use its own current default settings.
+    pub box_color_info: Option<Map<Todo>>,
+    /// A group attributes dictionary that shall specify the attributes of the page’s
+    /// page group for use in the transparent imaging model.
+    pub group: Option<Map<Todo>>,
+    /// A stream object that shall define the page’s thumbnail image.
+    pub thumb: Option<Reference<Todo>>,
+    /// An array that shall contain indirect references to all article beads appearing
+    /// on the page. The beads shall be listed in the array in natural reading order.
+    ///
+    /// Template pages do no have a `B` key. This field is "recommended if the page contains
+    /// article beads".
+    #[livre(rename = "B")]
+    pub beads: Option<Vec<Reference<Todo>>>,
+    /// The page’s display duration (also called its advance timing): the maximum
+    /// length of time, in seconds, that the page shall be displayed during presentations
+    /// before the viewer application shall automatically advance to the next page.
+    /// By default, the viewer shall not advance automatically.
+    pub dur: Option<f64>,
+    /// A transition dictionary describing the transition effect that shall be used when
+    /// displaying the page during presentations.
+    pub trans: Option<Map<Todo>>,
+    /// An array of annotation dictionaries that shall contain indirect references to all
+    /// annotations associated with the page.
+    pub annots: Option<Vec<Reference<Todo>>>,
+    /// A metadata stream that shall contain metadata for the page.
+    #[livre(rename = "AA")]
+    pub additional_annotations: Option<Map<Reference<Todo>>>,
+    /// A metadata stream that shall contain metadata for the page.
+    pub metadata: Option<Reference<Stream<()>>>,
+    /// A page-piece dictionary associated with the page.
+    pub piece_info: Option<Map<Todo>>,
+    /// The integer key of the page’s entry in the structural parent tree.
+    pub struct_parents: Option<Todo>,
+    /// The digital identifier of the page’s parent Web Capture content set.
+    #[livre(rename = "ID")]
+    pub id: Option<Id>,
+    /// The page’s preferred zoom (magnification) factor: the factor by which it shall
+    /// be scaled to achieve the natural display magnification.
+    #[livre(rename = "PZ")]
+    pub preferred_zoom: Option<f64>,
+    /// A separation dictionary that shall contain information needed to generate colour
+    /// separations for the page.
+    pub separation_info: Option<Map<Todo>>,
+    /// A name specifying the tab order that shall be used for annotations on the page.
+    ///
+    /// Possible values: `R` (row order), `C` (column order) or `S` (structure order).
+    pub tabs: Option<Name>,
+    /// The name of the originating page object.
+    ///
+    /// Required if this page was created from a named page object.
+    pub template_instantiated: Option<Name>,
+    /// A navigation node dictionary that shall represent the first node on the page.
+    pub pres_steps: Option<Map<Todo>>,
+    /// An array of viewport dictionaries that shall specify rectangular regions of the page.
+    #[livre(rename = "VP")]
+    pub viewport_dictionaries: Option<Vec<Reference<()>>>,
+    /// An array of one or more file specification dictionaries which denote the associated
+    /// files for this page.
+    #[livre(rename = "AF")]
+    pub associated_files: Option<Vec<Reference<()>>>,
+    /// An array of output intent dictionaries that shall specify the colour characteristics
+    /// of output devices on which this page might be rendered
+    pub output_indents: Option<Vec<Reference<Todo>>>,
+    /// An indirect reference to the DPart dictionary whose range of pages includes this page
+    /// object
+    ///
+    /// Required, if this page is within the range of a DPart, not permitted otherwise
+    #[livre(rename = "DPart")]
+    pub dpart: Option<Reference<()>>,
+}
+
 /// Inheritable page properties. Each attribute shall be inherited as-is, without merging.
 ///
-/// Thus for instance the [Resources] dictionary for a page shall be
-/// found by searching the [PageLeaf](super::PageLeaf) object and then
-/// each [PageNode](super::PageNode) object encountered by following
-/// `Parent`` links up the pages tree from the Page towards the Catalog object.
-/// When the first Resources dictionary is found the search shall be stopped
-/// and that Resources dictionary shall be used in its entirety.
+/// Due to their inheritable nature, every field is wrapped in an [`Option`], whether
+/// they are optional or not in the final properties dictionary.
 #[derive(Debug, PartialEq, Clone, FromRawDict)]
 pub struct InheritablePageProperties {
     /// A dictionary containing any resources required by the page contents.
@@ -93,20 +185,23 @@ impl InheritablePageProperties {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, FromRawDict)]
-pub struct PageProperties {
-    /// A positive number that shall give the size of default user space units, in multiples
-    /// of 1 ⁄ 72 inch. The range of supported values shall be implementation-dependent.
-    ///
-    /// Default value: 1.0 (user space unit is 1 ⁄ 72 inch).
-    #[livre(default)]
-    pub user_unit: f32,
-}
-
+/// Intermediate page nodes, and the type of the `Pages` element in the document's
+/// [`Catalog`](super::Catalog).
+///
+/// From the PDF specification:
+///
+/// > The simplest structure can consist of a single page tree node that references
+/// > all of the document’s page objects directly. However, to optimise application performance,
+/// > a PDF writer can construct trees of a particular form, known as balanced trees.
+///
+/// In Livre, the page tree is immediately transformed into a vector of [`Page`]s for simplicity.
+/// Hence this type, along with other low-level types, are made public for reference only.
 #[derive(Debug, FromRawDict, Clone, PartialEq)]
-struct PageTreeNode {
+pub struct PageTreeNode {
+    /// Properties that can be passed down to `Kids` pages.
     #[livre(flatten)]
     props: InheritablePageProperties,
+    /// Array of indirect references other pages.
     #[livre(from = MaybeArray<Reference<PageElement>>)]
     kids: Vec<Reference<PageElement>>,
 }
@@ -138,10 +233,32 @@ impl PageTreeNode {
 pub struct Page {
     #[livre(flatten)]
     pub inheritable_props: InheritablePageProperties,
-    #[livre(flatten)]
-    pub props: PageProperties,
+    //#[livre(flatten)]
+    //pub individual_props: IndividualPageProperties,
+    /// From the specification:
+    ///
+    /// > A content stream that shall describe the contents of this page. If this entry is absent,
+    /// > the page shall be empty. The value shall be either a single stream or an array
+    /// > of streams. If the value is an array, the effect shall be as if all of the streams
+    /// > in the array were concatenated with at least one white-space character added between
+    /// > the streams’ data, in order, to form a single stream. PDF writers can create image
+    /// > objects and other resources as they occur, even though they interrupt the content
+    /// > stream.
+    /// >
+    /// > The division between streams may occur only at the boundaries between lexical tokens
+    /// > but shall be unrelated to the page’s logical content or organisation. Applications
+    /// > that consume or produce PDF files need not preserve the existing structure of the
+    /// > Contents array.
+    /// >
+    /// > PDF writers shall not create a Contents array containing no elements.
     #[livre(default, from = MaybeArray<Reference<Stream<()>>>)]
     pub contents: Vec<Reference<Stream<()>>>,
+    /// A positive number that shall give the size of default user space units, in multiples
+    /// of 1 ⁄ 72 inch. The range of supported values shall be implementation-dependent.
+    ///
+    /// Default value: 1.0 (user space unit is 1 ⁄ 72 inch).
+    #[livre(default)]
+    pub user_unit: f32,
 }
 
 impl Page {
@@ -165,6 +282,10 @@ impl Page {
 }
 
 /// Element from the page tree node.
+#[allow(
+    clippy::large_enum_variant,
+    reason = "This enumeration is meant to be transient."
+)]
 #[derive(Debug, Clone, PartialEq)]
 enum PageElement {
     Page(Page),
