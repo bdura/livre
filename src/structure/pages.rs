@@ -206,8 +206,17 @@ pub struct PageTreeNode {
     kids: Vec<Reference<PageElement>>,
 }
 
+impl Build for PageTreeNode {
+    fn build<B>(input: &mut &BStr, _: &B) -> PResult<Self>
+    where
+        B: Builder,
+    {
+        extract(input)
+    }
+}
+
 impl PageTreeNode {
-    fn list_pages<B>(self, builder: &B) -> PResult<Vec<Page>>
+    pub fn list_pages<B>(&self, builder: &B) -> PResult<Vec<Page>>
     where
         B: Builder,
     {
@@ -215,9 +224,9 @@ impl PageTreeNode {
 
         let mut result = Vec::new();
 
-        for kid in kids {
+        for &kid in kids {
             let mut element = builder.build_reference(kid)?;
-            element.merge_props(&props);
+            element.merge_props(props);
 
             match element {
                 PageElement::Page(p) => result.push(p),
@@ -323,28 +332,6 @@ impl Build for PageElement {
         B: Builder,
     {
         extract(input)
-    }
-}
-
-/// An abstraction over PDF pages. This type does not actually reflect any PDF object.
-/// Rather, it is constructed from the PDF page tree to obtain a "linearised" list of pages.
-#[derive(Debug, PartialEq, Clone)]
-pub struct Pages(pub Vec<Page>);
-
-impl Build for Pages {
-    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
-    where
-        B: Builder,
-    {
-        let top_level: PageTreeNode = extract(input)?;
-        let pages = top_level.list_pages(builder)?;
-        Ok(Self(pages))
-    }
-}
-
-impl Pages {
-    pub fn iter(&self) -> impl Iterator<Item = &Page> {
-        self.0.iter()
     }
 }
 

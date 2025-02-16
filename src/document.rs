@@ -8,7 +8,7 @@ use winnow::{
 use crate::{
     extraction::{extract, Extract, Indirect, Reference, ReferenceId},
     follow_refs::{Build, Builder, BuilderParser},
-    structure::{Catalog, ObjectStream, RefLocation, StartXRef, Trailer, XRefTrailerBlock},
+    structure::{Catalog, ObjectStream, Page, RefLocation, StartXRef, Trailer, XRefTrailerBlock},
 };
 
 impl Builder for HashMap<ReferenceId, &BStr> {
@@ -141,5 +141,11 @@ impl Builder for InMemoryDocument<'_> {
         T: Build,
     {
         self.builder.build_reference(reference)
+    }
+}
+
+impl InMemoryDocument<'_> {
+    pub fn pages(&self) -> PResult<Vec<Page>> {
+        self.catalog.pages.list_pages(self)
     }
 }

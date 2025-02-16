@@ -9,7 +9,7 @@ use crate::{
     follow_refs::{Build, Builder},
 };
 
-use super::pages::Pages;
+use super::pages::PageTreeNode;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
 pub enum PageLayout {
@@ -95,10 +95,8 @@ impl Extract<'_> for PageMode {
 /// document's content.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Catalog {
-    // pub version: Option<Name>,
-    // pub extensions
-    /// The root [page tree node](Pages).
-    pub pages: Pages,
+    /// The root [page tree node](PageTreeNode).
+    pub pages: PageTreeNode,
 
     /// A name object ([PageLayout]) specifying the page layout
     /// shall be used when the document is opened
@@ -128,7 +126,7 @@ impl Build for Catalog {
             .transpose()?
             .unwrap_or_default();
 
-        let pages: Reference<Pages> = dict
+        let pages: Reference<PageTreeNode> = dict
             .pop(&"Pages".into())
             .ok_or(ErrMode::Cut(ContextError::new()))?
             .extract()
