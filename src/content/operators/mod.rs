@@ -1,3 +1,4 @@
+mod accumulator;
 mod text;
 
 use text::{
@@ -7,6 +8,8 @@ use text::{
     SetTextRise, SetWordSpacing, ShowText, ShowTextArray,
 };
 
+#[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum Operator {
     SetCharacterSpacing(SetCharacterSpacing),
     SetWordSpacing(SetWordSpacing),
@@ -25,4 +28,37 @@ pub enum Operator {
     MoveToNextLineAndShowText(MoveToNextLineAndShowText),
     MoveToNextLineAndShowTextWithSpacing(MoveToNextLineAndShowTextWithSpacing),
     ShowTextArray(ShowTextArray),
+    NotImplemented,
 }
+
+macro_rules! impl_from {
+    ($($t:ident,)+) => {
+        $(
+            impl From<$t> for Operator {
+                fn from(value: $t) -> Self {
+                    Self::$t(value)
+                }
+            }
+        )+
+    };
+}
+
+impl_from!(
+    SetCharacterSpacing,
+    SetWordSpacing,
+    SetHorizontalScaling,
+    SetTextLeading,
+    SetFontAndFontSize,
+    SetTextRenderingMode,
+    SetTextRise,
+    BeginText,
+    EndText,
+    MoveByOffset,
+    MoveByOffsetAndSetLeading,
+    SetTextMatrix,
+    MoveToNextLine,
+    ShowText,
+    MoveToNextLineAndShowText,
+    MoveToNextLineAndShowTextWithSpacing,
+    ShowTextArray,
+);

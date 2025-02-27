@@ -5,6 +5,7 @@ use crate::extraction::LiteralString;
 /// Move to the start of the next line, offset from the start of the current line
 /// by `(tx, ty)`. `tx` and `ty` shall denote numbers expressed in unscaled
 /// text space units
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MoveByOffset {
     x: f32,
     y: f32,
@@ -20,9 +21,11 @@ pub struct MoveByOffset {
 /// -ty TL
 /// tx ty Td
 /// ```
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MoveByOffsetAndSetLeading(f32, f32);
 
 /// `Tm` operator.
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SetTextMatrix(f32, f32, f32, f32, f32, f32);
 
 /// `T*` operator
@@ -36,9 +39,11 @@ pub struct SetTextMatrix(f32, f32, f32, f32, f32, f32);
 /// where `T_l` denotes the current leading parameter in the text state.
 /// The negative of T l is used here because T l is the text leading expressed
 /// as a positive number. Going to the next line entails decreasing the y coordinate.
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MoveToNextLine;
 
 /// `Tj` operator. Show a text string.
+#[derive(Debug, Clone, PartialEq)]
 pub struct ShowText(LiteralString);
 
 /// `'` operator. Equivalent to:
@@ -47,6 +52,7 @@ pub struct ShowText(LiteralString);
 /// T*
 /// string Tj
 /// ```
+#[derive(Debug, Clone, PartialEq)]
 pub struct MoveToNextLineAndShowText(LiteralString);
 
 /// `"` operator.
@@ -54,6 +60,7 @@ pub struct MoveToNextLineAndShowText(LiteralString);
 /// Move to the next line and show a text string, using `aw` as the word spacing and
 /// `ac` as the character spacing (setting the corresponding parameters in the text state).
 /// `aw` and `ac` shall be numbers expressed in unscaled text space units.
+#[derive(Debug, Clone, PartialEq)]
 pub struct MoveToNextLineAndShowTextWithSpacing(f32, f32, LiteralString);
 
 /// `TJ` operator.
@@ -67,4 +74,5 @@ pub struct MoveToNextLineAndShowTextWithSpacing(f32, f32, LiteralString);
 ///   text space.
 ///   That amount is substracted from the current "selected coordinate",
 ///   depending on the writing mode.
+#[derive(Debug, Clone, PartialEq)]
 pub struct ShowTextArray; // TODO: add argument.

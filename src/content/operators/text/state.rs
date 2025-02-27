@@ -1,5 +1,6 @@
 use crate::extraction::Name;
 
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RenderingMode {
     /// Fill text.
     Fill,
@@ -21,23 +22,30 @@ pub enum RenderingMode {
 
 /// `Tc` operator.
 /// Set the caracter spacing, $T_c$, to a number expressed in unscaled text space units.
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SetCharacterSpacing(f32);
 
 /// `Tw` operator.
 /// Unscaled text space units.
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SetWordSpacing(f32);
 
 /// `Tz` operator.
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SetHorizontalScaling(f32);
 
 /// `TL` operator.
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SetTextLeading(f32);
 
 /// `Tf` operator.
+#[derive(Debug, Clone, PartialEq)]
 pub struct SetFontAndFontSize(Name, f32);
 
 /// `Tr` operator.
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SetTextRenderingMode(RenderingMode);
 
 /// `Ts` operator.
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SetTextRise(f32);
