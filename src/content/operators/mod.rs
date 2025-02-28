@@ -1,14 +1,21 @@
 mod accumulator;
 mod text;
 
+use thiserror::Error;
+
 use text::{
     BeginText, EndText, MoveByOffset, MoveByOffsetAndSetLeading, MoveToNextLine,
     MoveToNextLineAndShowText, MoveToNextLineAndShowTextWithSpacing, SetCharacterSpacing,
     SetFontAndFontSize, SetHorizontalScaling, SetTextLeading, SetTextMatrix, SetTextRenderingMode,
     SetTextRise, SetWordSpacing, ShowText, ShowTextArray,
 };
+use winnow::error::{ContextError, ErrMode};
 
-#[derive(Debug, Clone)]
+use crate::extraction::Name;
+
+use super::arguments::Object;
+
+#[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub enum Operator {
     SetCharacterSpacing(SetCharacterSpacing),
@@ -62,3 +69,50 @@ impl_from!(
     MoveToNextLineAndShowTextWithSpacing,
     ShowTextArray,
 );
+
+#[derive(Error, Debug)]
+pub enum OperatorError {
+    #[error("invalid object")]
+    InvalidObject,
+    #[error("missing operand")]
+    MissingOperand,
+    #[error("eyre error")]
+    Eyre,
+}
+
+impl From<OperatorError> for ErrMode<ContextError> {
+    fn from(_: OperatorError) -> Self {
+        ErrMode::Cut(ContextError::new())
+    }
+}
+
+macro_rules! impl_try_from {
+    ($($t:ty | $name:ident),+) => {
+        $(
+            impl TryFrom<Object> for $t {
+                type Error = OperatorError;
+
+                fn try_from(value: Object) -> Result<Self, Self::Error> {
+                    if let Object::$name(inner) = value {
+                        Ok(inner)
+                    } else {
+                        Err(OperatorError::InvalidObject)
+                    }
+                }
+            }
+        )+
+    };
+}
+
+impl_try_from!(
+    bool | Boolean,
+    f32 | Real,
+    i32 | Integer,
+    Name | Name,
+    Vec<u8> | String,
+    Vec<Object> | Array
+);
+
+trait FromArgs: Sized {
+    fn from_args(arguments: &mut Vec<Object>) -> Result<Self, OperatorError>;
+}

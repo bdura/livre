@@ -10,6 +10,6 @@ pub use positioning::{
     MoveToNextLineAndShowTextWithSpacing, SetTextMatrix, ShowText, ShowTextArray,
 };
 pub use state::{
-    SetCharacterSpacing, SetFontAndFontSize, SetHorizontalScaling, SetTextLeading,
+    RenderingMode, SetCharacterSpacing, SetFontAndFontSize, SetHorizontalScaling, SetTextLeading,
     SetTextRenderingMode, SetTextRise, SetWordSpacing,
 };

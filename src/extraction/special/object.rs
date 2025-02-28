@@ -1,3 +1,4 @@
+use eyre::Error;
 use winnow::{
     combinator::{alt, fail, peek},
     dispatch,
