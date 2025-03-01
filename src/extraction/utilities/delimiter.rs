@@ -1,7 +1,7 @@
 use winnow::{
     combinator::{delimited, fail, terminated, trace},
     error::ContextError,
-    token::{any, take},
+    token::{any, take, take_till},
     BStr, PResult, Parser,
 };
 
@@ -65,6 +65,18 @@ impl<'a> Parser<&'a BStr, &'a [u8], ContextError> for WithinBalancedParser {
         // Delimiters are imbalances, we can just fail at this point.
         fail(input)
     }
+}
+
+/// All PDF delimiters.
+static DELIMITERS: &[u8] = b"()<>[]{}/% \t\r\n";
+
+/// Useful for recognizing elements.
+pub(crate) fn take_till_delimiter<'a>(input: &mut &'a BStr) -> PResult<&'a BStr> {
+    trace(
+        "livre-till-delimiter",
+        take_till(1.., DELIMITERS).map(|r: &[u8]| r.as_ref()),
+    )
+    .parse_next(input)
 }
 
 /// Consume the inside of a balanced delimited input.
