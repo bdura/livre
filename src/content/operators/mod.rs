@@ -9,7 +9,7 @@ use text::{
 
 use winnow::{
     ascii::multispace0,
-    combinator::{fail, opt, preceded, trace},
+    combinator::{fail, opt, peek, preceded, trace},
     dispatch,
     error::{ContextError, ErrMode},
     token::any,
@@ -40,7 +40,7 @@ pub enum Operator {
     MoveToNextLineAndShowText(MoveToNextLineAndShowText),
     MoveToNextLineAndShowTextWithSpacing(MoveToNextLineAndShowTextWithSpacing),
     ShowTextArray(ShowTextArray),
-    NotImplemented,
+    NotImplemented(String),
 }
 
 macro_rules! impl_from {
@@ -175,7 +175,7 @@ impl Extract<'_> for Operator {
 
 /// Recognize an operand, without parsing it.
 fn recognize_operand<'de>(input: &mut &'de BStr) -> PResult<&'de [u8]> {
-    dispatch! {any;
+    dispatch! {peek(any);
         b'/' => Name::recognize,
         b'[' => Brackets::recognize,
         b'(' => Parentheses::recognize,
@@ -202,7 +202,7 @@ fn parse_operator(input: &mut &BStr) -> PResult<Operator> {
         arguments.push(i);
     }
 
-    let op = preceded(multispace0, take_till_delimiter(1..=2)).parse_next(input)?;
+    let op = preceded(multispace0, take_till_delimiter(1..)).parse_next(input)?;
 
     let operator = match op {
         // Text object operators
@@ -227,7 +227,7 @@ fn parse_operator(input: &mut &BStr) -> PResult<Operator> {
         b"TJ" => ShowTextArray::extract_operator(&mut arguments)?,
         _ => {
             arguments.clear();
-            Operator::NotImplemented
+            Operator::NotImplemented(String::from_utf8_lossy(op).to_string())
         }
     };
 
