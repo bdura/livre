@@ -1,0 +1,83 @@
+use winnow::{combinator::peek, dispatch, token::any, BStr, PResult, Parser};
+
+use crate::{
+    content::operators::FromArgs,
+    extract_tuple,
+    extraction::{extract, Extract, LiteralString},
+    impl_from_args,
+};
+
+/// `Tj` operator. Show a text string.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ShowText(LiteralString);
+
+extract_tuple!(ShowText: 1);
+impl_from_args!(ShowText: 1);
+
+/// `'` operator. Equivalent to:
+///
+/// ```raw
+/// T*
+/// string Tj
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct MoveToNextLineAndShowText(LiteralString);
+
+extract_tuple!(MoveToNextLineAndShowText: 1);
+impl_from_args!(MoveToNextLineAndShowText: 1);
+
+/// `"` operator.
+///
+/// Move to the next line and show a text string, using `aw` as the word spacing and
+/// `ac` as the character spacing (setting the corresponding parameters in the text state).
+/// `aw` and `ac` shall be numbers expressed in unscaled text space units.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MoveToNextLineAndShowTextWithSpacing(f32, f32, LiteralString);
+
+extract_tuple!(MoveToNextLineAndShowTextWithSpacing: 3);
+impl_from_args!(MoveToNextLineAndShowTextWithSpacing: 3);
+
+/// `TJ` operator.
+///
+/// Show zero or more text strings, allowing individual glyph positioning.
+/// Each element of the array is either a string or a number:
+///
+/// - in the case of a string, the operator shows the text;
+/// - in the case of a number, the operator adjust the text position by that
+///   amount (i.e. translate the text matrix). Expressed in **thousandths of a unit of
+///   text space.
+///   That amount is substracted from the current "selected coordinate",
+///   depending on the writing mode.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ShowTextArray(Vec<TextArrayElement>);
+
+extract_tuple!(ShowTextArray: 1);
+impl_from_args!(ShowTextArray: 1);
+
+#[derive(Debug, Clone, PartialEq)]
+enum TextArrayElement {
+    Text(LiteralString),
+    Offset(f32),
+}
+
+impl From<LiteralString> for TextArrayElement {
+    fn from(value: LiteralString) -> Self {
+        Self::Text(value)
+    }
+}
+
+impl From<f32> for TextArrayElement {
+    fn from(value: f32) -> Self {
+        Self::Offset(value)
+    }
+}
+
+impl Extract<'_> for TextArrayElement {
+    fn extract(input: &mut &BStr) -> PResult<Self> {
+        dispatch! {peek(any);
+            b'(' => extract.map(TextArrayElement::Text),
+            _ => extract.map(TextArrayElement::Offset),
+        }
+        .parse_next(input)
+    }
+}

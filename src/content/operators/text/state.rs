@@ -84,10 +84,10 @@ impl Extract<'_> for RenderingMode {
     }
 }
 
-extract_tuple!(1: SetCharacterSpacing);
-extract_tuple!(1: SetWordSpacing);
-extract_tuple!(1: SetHorizontalScaling);
-extract_tuple!(1: SetTextLeading);
-extract_tuple!(2: SetFontAndFontSize);
-extract_tuple!(1: SetTextRenderingMode);
-extract_tuple!(1: SetTextRise);
+extract_tuple!(SetCharacterSpacing: 1);
+extract_tuple!(SetWordSpacing: 1);
+extract_tuple!(SetHorizontalScaling: 1);
+extract_tuple!(SetTextLeading: 1);
+extract_tuple!(SetFontAndFontSize: 2);
+extract_tuple!(SetTextRenderingMode: 1);
+extract_tuple!(SetTextRise: 1);

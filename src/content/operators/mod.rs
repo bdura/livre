@@ -8,16 +8,13 @@ use text::{
 };
 use winnow::{
     ascii::multispace0,
-    combinator::{opt, preceded, terminated, trace},
+    combinator::{opt, trace},
     error::{ContextError, ErrMode},
-    stream::Stream,
     token::take_till,
     BStr, PResult, Parser,
 };
 
-use crate::extraction::{extract, Extract};
-
-use super::arguments::Object;
+use crate::extraction::{extract, Extract, Object};
 
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
@@ -123,18 +120,41 @@ macro_rules! impl_from_args {
 
 #[macro_export]
 macro_rules! extract_tuple {
-    (1: $name:ident) => {
+    ($name:ident: 0) => {
+        impl<'de> Extract<'de> for $name {
+            fn extract(_input: &mut &'_ winnow::BStr) -> winnow::PResult<Self> {
+                Ok(Self)
+            }
+        }
+    };
+    ($name:ident: 1) => {
         impl<'de> Extract<'de> for $name {
             fn extract(input: &mut &'_ winnow::BStr) -> winnow::PResult<Self> {
                 extract.map(Self).parse_next(input)
             }
         }
     };
-    (2: $name:ident) => {
+    ($name:ident: 2) => {
         impl<'de> Extract<'de> for $name {
             fn extract(input: &mut &'_ winnow::BStr) -> winnow::PResult<Self> {
                 let (a, b) = extract(input)?;
                 Ok(Self(a, b))
+            }
+        }
+    };
+    ($name:ident: 3) => {
+        impl<'de> Extract<'de> for $name {
+            fn extract(input: &mut &'_ winnow::BStr) -> winnow::PResult<Self> {
+                let (a, b, c) = extract(input)?;
+                Ok(Self(a, b, c))
+            }
+        }
+    };
+    ($name:ident: 6) => {
+        impl<'de> Extract<'de> for $name {
+            fn extract(input: &mut &'_ winnow::BStr) -> winnow::PResult<Self> {
+                let (a, b, c, d, e, f) = extract(input)?;
+                Ok(Self(a, b, c, d, e, f))
             }
         }
     };
@@ -166,6 +186,7 @@ fn parse_operator(input: &mut &BStr) -> PResult<Operator> {
     let operator = match op {
         b"BT" => BeginText.into(),
         b"ET" => EndText.into(),
+        // Text state operators
         b"Tc" => SetCharacterSpacing::extract_operator(&mut arguments)?,
         b"Tw" => SetWordSpacing::extract_operator(&mut arguments)?,
         b"Tz" => SetHorizontalScaling::extract_operator(&mut arguments)?,
@@ -173,6 +194,15 @@ fn parse_operator(input: &mut &BStr) -> PResult<Operator> {
         b"Tf" => SetFontAndFontSize::extract_operator(&mut arguments)?,
         b"Tr" => SetTextRenderingMode::extract_operator(&mut arguments)?,
         b"Ts" => SetTextRise::extract_operator(&mut arguments)?,
+        // Text positioning operators
+        b"Td" => MoveByOffset::extract_operator(&mut arguments)?,
+        b"TD" => MoveByOffsetAndSetLeading::extract_operator(&mut arguments)?,
+        b"Tm" => SetTextMatrix::extract_operator(&mut arguments)?,
+        b"T*" => MoveToNextLine::extract_operator(&mut arguments)?,
+        b"Tj" => ShowText::extract_operator(&mut arguments)?,
+        b"'" => MoveToNextLineAndShowText::extract_operator(&mut arguments)?,
+        b"\"" => MoveToNextLineAndShowTextWithSpacing::extract_operator(&mut arguments)?,
+        b"TJ" => ShowTextArray::extract_operator(&mut arguments)?,
         _ => {
             arguments.clear();
             Operator::NotImplemented
@@ -203,6 +233,39 @@ mod tests {
         ($x:literal Tw) => {
             SetWordSpacing($x)
         };
+        ($x:literal Tz) => {
+            SetHorizontalScaling($x)
+        };
+        ($x:literal TL) => {
+            SetTextLeading($x)
+        };
+        ($x:literal $y:literal Tf) => {
+            SetFontAndFontSize($x, $y)
+        };
+        ($x:literal Tf) => {
+            SetFontAndFontSize($x)
+        };
+        ($x:literal Tr) => {
+            SetTextRenderingMode($x)
+        };
+        ($x:literal Ts) => {
+            SetTextRise($x)
+        };
+        ($x:literal $y:literal Td) => {
+            MoveByOffset($x, $y)
+        };
+        ($x:literal $y:literal TD) => {
+            MoveByOffsetAndSetLeading($x, $y)
+        };
+        ($a:literal $b:literal $c:literal $d:literal $e:literal $f:literal Tm) => {
+            SetTextMatrix($a, $b, $c, $d, $e, $f)
+        };
+        (T*) => {
+            MoveToNextLine
+        };
+        ($x:literal Tj) => {
+            ShowText($x)
+        };
     }
 
     #[rstest]
@@ -210,6 +273,8 @@ mod tests {
     #[case(op!(ET), EndText)]
     #[case(op!(0.12 Tc), SetCharacterSpacing(0.12))]
     #[case(op!(1.12 Tw), SetWordSpacing(1.12))]
+    #[case(op!(T*), MoveToNextLine)]
+    #[case(op!(1.0 2.0 TD), MoveByOffsetAndSetLeading(1.0, 2.0))]
     fn test_macro<O>(#[case] input: O, #[case] expected: O)
     where
         O: PartialEq + Debug,
@@ -222,6 +287,7 @@ mod tests {
     #[case(b"ET", op!(ET))]
     #[case(b"0.12 Tc", op!(0.12 Tc))]
     #[case(b"1.0 Tw", op!(1.0 Tw))]
+    #[case(b"T*", MoveToNextLine)]
     fn units<O>(#[case] input: &[u8], #[case] expected: O)
     where
         O: Into<Operator>,

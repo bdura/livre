@@ -1,4 +1,11 @@
-use crate::extraction::LiteralString;
+use winnow::{BStr, PResult};
+
+use crate::{
+    content::operators::FromArgs,
+    extract_tuple,
+    extraction::{extract, Extract},
+    impl_from_args,
+};
 
 /// `Td` operator.
 ///
@@ -6,10 +13,10 @@ use crate::extraction::LiteralString;
 /// by `(tx, ty)`. `tx` and `ty` shall denote numbers expressed in unscaled
 /// text space units
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct MoveByOffset {
-    x: f32,
-    y: f32,
-}
+pub struct MoveByOffset(f32, f32);
+
+extract_tuple!(MoveByOffset: 2);
+impl_from_args!(MoveByOffset: 2);
 
 /// `TD` operator.
 ///
@@ -22,11 +29,17 @@ pub struct MoveByOffset {
 /// tx ty Td
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct MoveByOffsetAndSetLeading(f32, f32);
+pub struct MoveByOffsetAndSetLeading(pub(crate) f32, pub(crate) f32);
+
+extract_tuple!(MoveByOffsetAndSetLeading: 2);
+impl_from_args!(MoveByOffsetAndSetLeading: 2);
 
 /// `Tm` operator.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SetTextMatrix(f32, f32, f32, f32, f32, f32);
+
+extract_tuple!(SetTextMatrix: 6);
+impl_from_args!(SetTextMatrix: 6);
 
 /// `T*` operator
 ///
@@ -42,37 +55,11 @@ pub struct SetTextMatrix(f32, f32, f32, f32, f32, f32);
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MoveToNextLine;
 
-/// `Tj` operator. Show a text string.
-#[derive(Debug, Clone, PartialEq)]
-pub struct ShowText(LiteralString);
+extract_tuple!(MoveToNextLine: 0);
 
-/// `'` operator. Equivalent to:
-///
-/// ```raw
-/// T*
-/// string Tj
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct MoveToNextLineAndShowText(LiteralString);
-
-/// `"` operator.
-///
-/// Move to the next line and show a text string, using `aw` as the word spacing and
-/// `ac` as the character spacing (setting the corresponding parameters in the text state).
-/// `aw` and `ac` shall be numbers expressed in unscaled text space units.
-#[derive(Debug, Clone, PartialEq)]
-pub struct MoveToNextLineAndShowTextWithSpacing(f32, f32, LiteralString);
-
-/// `TJ` operator.
-///
-/// Show zero or more text strings, allowing individual glyph positioning.
-/// Each element of the array is either a string or a number:
-///
-/// - in the case of a string, the operator shows the text;
-/// - in the case of a number, the operator adjust the text position by that
-///   amount (i.e. translate the text matrix). Expressed in **thousandths of a unit of
-///   text space.
-///   That amount is substracted from the current "selected coordinate",
-///   depending on the writing mode.
-#[derive(Debug, Clone, PartialEq)]
-pub struct ShowTextArray; // TODO: add argument.
+impl FromArgs<'_> for MoveToNextLine {
+    const N_ARGS: usize = 0;
+    fn extract_operator(_: &mut Vec<&'_ BStr>) -> PResult<crate::content::Operator> {
+        Ok(Self.into())
+    }
+}
