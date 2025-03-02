@@ -1,6 +1,13 @@
+use winnow::{
+    error::{ContextError, ErrMode},
+    Parser,
+};
+
 use crate::{
-    content::operators::{FromArgs, OperatorError},
-    extraction::{Name, Object},
+    content::operators::FromArgs,
+    extract_tuple,
+    extraction::{extract, Extract, Name},
+    impl_from_args,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -53,61 +60,34 @@ pub struct SetTextRenderingMode(pub(crate) RenderingMode);
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SetTextRise(pub(crate) f32);
 
-impl FromArgs for SetTextRenderingMode {
-    fn from_args(arguments: &mut Vec<Object>) -> Result<Self, OperatorError> {
-        let value = arguments.pop().ok_or(OperatorError::MissingOperand)?;
-        let value: i32 = value.try_into()?;
-        let value = match value {
-            0 => RenderingMode::Fill,
-            1 => RenderingMode::Stroke,
-            2 => RenderingMode::FillThenStroke,
-            3 => RenderingMode::Invisible,
-            4 => RenderingMode::FillAndClip,
-            5 => RenderingMode::StrokeAndClip,
-            6 => RenderingMode::FillThenStrokeAndClip,
-            7 => RenderingMode::AddTextAndClip,
-            _ => return Err(OperatorError::InvalidObject),
-        };
-        Ok(Self(value))
+impl_from_args!(SetCharacterSpacing: 1);
+impl_from_args!(SetWordSpacing: 1);
+impl_from_args!(SetHorizontalScaling: 1);
+impl_from_args!(SetTextLeading: 1);
+impl_from_args!(SetFontAndFontSize: 2);
+impl_from_args!(SetTextRenderingMode: 1);
+impl_from_args!(SetTextRise: 1);
+
+impl Extract<'_> for RenderingMode {
+    fn extract(input: &mut &'_ winnow::BStr) -> winnow::PResult<Self> {
+        match u8::extract(input)? {
+            0 => Ok(Self::Fill),
+            1 => Ok(Self::Stroke),
+            2 => Ok(Self::FillThenStroke),
+            3 => Ok(Self::Invisible),
+            4 => Ok(Self::FillAndClip),
+            5 => Ok(Self::StrokeAndClip),
+            6 => Ok(Self::FillThenStrokeAndClip),
+            7 => Ok(Self::AddTextAndClip),
+            _ => Err(ErrMode::Backtrack(ContextError::new())),
+        }
     }
 }
 
-macro_rules! impl_from_args {
-    (1; $($t:ty),+) => {
-        $(
-            impl FromArgs for $t {
-                fn from_args(arguments: &mut Vec<Object>) -> Result<Self, OperatorError> {
-                    let value = arguments.pop().ok_or(OperatorError::MissingOperand)?;
-                    let value = value.try_into()?;
-                    Ok(Self(value))
-                }
-            }
-        )+
-    };
-    (2; $($t:ty),+) => {
-        $(
-            impl FromArgs for $t {
-                fn from_args(arguments: &mut Vec<Object>) -> Result<Self, OperatorError> {
-                    let value = arguments.pop().ok_or(OperatorError::MissingOperand)?;
-                    let value2 = value.try_into()?;
-
-                    let value = arguments.pop().ok_or(OperatorError::MissingOperand)?;
-                    let value1 = value.try_into()?;
-
-                    Ok(Self(value1, value2))
-                }
-            }
-        )+
-    };
-}
-
-impl_from_args!(1;
-    SetCharacterSpacing,
-    SetWordSpacing,
-    SetTextLeading,
-    SetTextRise,
-    SetHorizontalScaling
-);
-impl_from_args!(2;
-    SetFontAndFontSize
-);
+extract_tuple!(1: SetCharacterSpacing);
+extract_tuple!(1: SetWordSpacing);
+extract_tuple!(1: SetHorizontalScaling);
+extract_tuple!(1: SetTextLeading);
+extract_tuple!(2: SetFontAndFontSize);
+extract_tuple!(1: SetTextRenderingMode);
+extract_tuple!(1: SetTextRise);

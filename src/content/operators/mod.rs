@@ -1,7 +1,4 @@
-mod accumulator;
 mod text;
-
-use thiserror::Error;
 
 use text::{
     BeginText, EndText, MoveByOffset, MoveByOffsetAndSetLeading, MoveToNextLine,
@@ -9,9 +6,16 @@ use text::{
     SetFontAndFontSize, SetHorizontalScaling, SetTextLeading, SetTextMatrix, SetTextRenderingMode,
     SetTextRise, SetWordSpacing, ShowText, ShowTextArray,
 };
-use winnow::error::{ContextError, ErrMode};
+use winnow::{
+    ascii::multispace0,
+    combinator::{opt, preceded, terminated, trace},
+    error::{ContextError, ErrMode},
+    stream::Stream,
+    token::take_till,
+    BStr, PResult, Parser,
+};
 
-use crate::extraction::Name;
+use crate::extraction::{extract, Extract};
 
 use super::arguments::Object;
 
@@ -70,49 +74,160 @@ impl_from!(
     ShowTextArray,
 );
 
-#[derive(Error, Debug)]
-pub enum OperatorError {
-    #[error("invalid object")]
-    InvalidObject,
-    #[error("missing operand")]
-    MissingOperand,
-    #[error("eyre error")]
-    Eyre,
-}
+trait FromArgs<'a>: Extract<'a> + Into<Operator> {
+    /// The number of arguments needed to build the operator.
+    const N_ARGS: usize;
 
-impl From<OperatorError> for ErrMode<ContextError> {
-    fn from(_: OperatorError) -> Self {
-        ErrMode::Cut(ContextError::new())
+    /// Get the relevant context to build the operator.
+    ///
+    /// In the PDF specification, the operands are declared **before** the operator.
+    /// That means that we need to track the operands without knowledge of their type.
+    ///
+    /// To that end, we just skip over the operands until we reach the operator,
+    /// keeping track of their position in a `Vec<&'a BStr>`.
+    ///
+    /// A previous implementation used a `Vec<Object>` to store the operands, but that appoach
+    /// had signigicant drawbacks:
+    ///
+    /// - we needed to implement `From<Object>` for every type that could be an operand.
+    /// - building an [`Object`] is not cheap, since we need to try multiple suptypes.
+    ///   In comparision, skipping over an operand is much faster.
+    /// - we could not reuse the [`Extract`] trait.
+    fn get_arguments(arguments: &mut Vec<&'a BStr>) -> PResult<&'a BStr> {
+        arguments
+            .iter()
+            .rev()
+            .nth(Self::N_ARGS - 1)
+            .copied()
+            .ok_or(ErrMode::Cut(ContextError::new()))
+    }
+    /// Extract the operator from the arguments. Returns an error if not enough arguments were
+    /// found.
+    fn from_args(arguments: &mut Vec<&'a BStr>) -> PResult<Self> {
+        let input = &mut Self::get_arguments(arguments)?;
+        extract(input)
+    }
+    fn extract_operator(arguments: &mut Vec<&'a BStr>) -> PResult<Operator> {
+        Self::from_args(arguments).map(Into::into)
     }
 }
 
-macro_rules! impl_try_from {
-    ($($t:ty | $name:ident),+) => {
-        $(
-            impl TryFrom<Object> for $t {
-                type Error = OperatorError;
-
-                fn try_from(value: Object) -> Result<Self, Self::Error> {
-                    if let Object::$name(inner) = value {
-                        Ok(inner)
-                    } else {
-                        Err(OperatorError::InvalidObject)
-                    }
-                }
-            }
-        )+
+#[macro_export]
+macro_rules! impl_from_args {
+    ($t:ty: $n:literal) => {
+        impl FromArgs<'_> for $t {
+            const N_ARGS: usize = $n;
+        }
     };
 }
 
-impl_try_from!(
-    bool | Boolean,
-    f32 | Real,
-    i32 | Integer,
-    Name | Name,
-    Vec<u8> | String,
-    Vec<Object> | Array
-);
+#[macro_export]
+macro_rules! extract_tuple {
+    (1: $name:ident) => {
+        impl<'de> Extract<'de> for $name {
+            fn extract(input: &mut &'_ winnow::BStr) -> winnow::PResult<Self> {
+                extract.map(Self).parse_next(input)
+            }
+        }
+    };
+    (2: $name:ident) => {
+        impl<'de> Extract<'de> for $name {
+            fn extract(input: &mut &'_ winnow::BStr) -> winnow::PResult<Self> {
+                let (a, b) = extract(input)?;
+                Ok(Self(a, b))
+            }
+        }
+    };
+}
 
-trait FromArgs: Sized {
-    fn from_args(arguments: &mut Vec<Object>) -> Result<Self, OperatorError>;
+impl Extract<'_> for Operator {
+    fn extract(input: &mut &BStr) -> PResult<Self> {
+        trace("livre-operator", parse_operator).parse_next(input)
+    }
+}
+
+fn parse_operator(input: &mut &BStr) -> PResult<Operator> {
+    let mut arguments: Vec<&BStr> = Vec::with_capacity(4);
+
+    multispace0(input)?;
+    let mut cursor = *input;
+
+    // If the input can be parsed as an object, then it is an argument.
+    while opt(Object::recognize).parse_next(input)?.is_some() {
+        arguments.push(cursor);
+
+        multispace0(input)?;
+        cursor = *input;
+    }
+
+    multispace0(input)?;
+    let op = take_till(1..=2, b" \t\n\r").parse_next(input)?;
+
+    let operator = match op {
+        b"BT" => BeginText.into(),
+        b"ET" => EndText.into(),
+        b"Tc" => SetCharacterSpacing::extract_operator(&mut arguments)?,
+        b"Tw" => SetWordSpacing::extract_operator(&mut arguments)?,
+        b"Tz" => SetHorizontalScaling::extract_operator(&mut arguments)?,
+        b"TL" => SetTextLeading::extract_operator(&mut arguments)?,
+        b"Tf" => SetFontAndFontSize::extract_operator(&mut arguments)?,
+        b"Tr" => SetTextRenderingMode::extract_operator(&mut arguments)?,
+        b"Ts" => SetTextRise::extract_operator(&mut arguments)?,
+        _ => {
+            arguments.clear();
+            Operator::NotImplemented
+        }
+    };
+
+    Ok(operator)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fmt::Debug;
+
+    use rstest::rstest;
+
+    use super::*;
+
+    macro_rules! op {
+        (BT) => {
+            BeginText
+        };
+        (ET) => {
+            EndText
+        };
+        ($x:literal Tc) => {
+            SetCharacterSpacing($x)
+        };
+        ($x:literal Tw) => {
+            SetWordSpacing($x)
+        };
+    }
+
+    #[rstest]
+    #[case(op!(BT), BeginText)]
+    #[case(op!(ET), EndText)]
+    #[case(op!(0.12 Tc), SetCharacterSpacing(0.12))]
+    #[case(op!(1.12 Tw), SetWordSpacing(1.12))]
+    fn test_macro<O>(#[case] input: O, #[case] expected: O)
+    where
+        O: PartialEq + Debug,
+    {
+        assert_eq!(input, expected);
+    }
+
+    #[rstest]
+    #[case(b"BT", op!(BT))]
+    #[case(b"ET", op!(ET))]
+    #[case(b"0.12 Tc", op!(0.12 Tc))]
+    #[case(b"1.0 Tw", op!(1.0 Tw))]
+    fn units<O>(#[case] input: &[u8], #[case] expected: O)
+    where
+        O: Into<Operator>,
+    {
+        let result = extract(&mut input.as_ref()).unwrap();
+        let expected: Operator = expected.into();
+        assert_eq!(expected, result);
+    }
 }
