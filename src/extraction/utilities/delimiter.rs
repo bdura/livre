@@ -1,6 +1,7 @@
 use winnow::{
     combinator::{delimited, fail, terminated, trace},
     error::ContextError,
+    stream::Range,
     token::{any, take, take_till},
     BStr, PResult, Parser,
 };
@@ -71,8 +72,10 @@ impl<'a> Parser<&'a BStr, &'a [u8], ContextError> for WithinBalancedParser {
 static DELIMITERS: &[u8] = b"()<>[]{}/% \t\r\n";
 
 /// Useful for recognizing elements.
-pub fn take_till_delimiter<'a>(input: &mut &'a BStr) -> PResult<&'a [u8]> {
-    trace("livre-till-delimiter", take_till(1.., DELIMITERS)).parse_next(input)
+pub fn take_till_delimiter<'a>(
+    occurrences: impl Into<Range>,
+) -> impl Parser<&'a BStr, &'a [u8], ContextError> {
+    trace("livre-till-delimiter", take_till(occurrences, DELIMITERS))
 }
 
 /// Consume the inside of a balanced delimited input.

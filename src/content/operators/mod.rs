@@ -6,15 +6,19 @@ use text::{
     SetFontAndFontSize, SetHorizontalScaling, SetTextLeading, SetTextMatrix, SetTextRenderingMode,
     SetTextRise, SetWordSpacing, ShowText, ShowTextArray,
 };
+
 use winnow::{
     ascii::multispace0,
-    combinator::{opt, trace},
+    combinator::{fail, opt, preceded, trace},
+    dispatch,
     error::{ContextError, ErrMode},
-    token::take_till,
+    token::any,
     BStr, PResult, Parser,
 };
 
-use crate::extraction::{extract, Extract, Object};
+use crate::extraction::{
+    extract, take_till_delimiter, Angles, Brackets, Extract, Name, Parentheses,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
@@ -75,7 +79,7 @@ trait FromArgs<'a>: Extract<'a> + Into<Operator> {
     /// The number of arguments needed to build the operator.
     const N_ARGS: usize;
 
-    /// Get the relevant context to build the operator.
+    /// Get the relevant context to build the operator, and clear the arguments.
     ///
     /// In the PDF specification, the operands are declared **before** the operator.
     /// That means that we need to track the operands without knowledge of their type.
@@ -91,12 +95,14 @@ trait FromArgs<'a>: Extract<'a> + Into<Operator> {
     ///   In comparision, skipping over an operand is much faster.
     /// - we could not reuse the [`Extract`] trait.
     fn get_arguments(arguments: &mut Vec<&'a BStr>) -> PResult<&'a BStr> {
-        arguments
+        let args = arguments
             .iter()
             .rev()
             .nth(Self::N_ARGS - 1)
             .copied()
-            .ok_or(ErrMode::Cut(ContextError::new()))
+            .ok_or(ErrMode::Cut(ContextError::new()))?;
+        arguments.clear();
+        Ok(args)
     }
     /// Extract the operator from the arguments. Returns an error if not enough arguments were
     /// found.
@@ -104,6 +110,7 @@ trait FromArgs<'a>: Extract<'a> + Into<Operator> {
         let input = &mut Self::get_arguments(arguments)?;
         extract(input)
     }
+    /// Extract the operator from the arguments, and convert it to an [`Operator`].
     fn extract_operator(arguments: &mut Vec<&'a BStr>) -> PResult<Operator> {
         Self::from_args(arguments).map(Into::into)
     }
@@ -166,24 +173,39 @@ impl Extract<'_> for Operator {
     }
 }
 
+/// Recognize an operand, without parsing it.
+fn recognize_operand<'de>(input: &mut &'de BStr) -> PResult<&'de [u8]> {
+    dispatch! {any;
+        b'/' => Name::recognize,
+        b'[' => Brackets::recognize,
+        b'(' => Parentheses::recognize,
+        b'<' => Angles::recognize,
+        b'+' | b'-' | b'.' | b'0'..=b'9' => take_till_delimiter(0..),
+        _ => fail
+    }
+    .parse_next(input)
+}
+
+/// Recognize an operand and return it as an unbounded[^1] slice.
+///
+/// [^1]: **Unbounded** means that the slice is not limited to the input specific to the operand.
+///       Rather, it starts at the operand's position but includes the rest of the input.
+fn parse_operand<'de>(input: &mut &'de BStr) -> PResult<&'de BStr> {
+    let cursor = *input;
+    recognize_operand.value(cursor).parse_next(input)
+}
+
 fn parse_operator(input: &mut &BStr) -> PResult<Operator> {
     let mut arguments: Vec<&BStr> = Vec::with_capacity(4);
 
-    multispace0(input)?;
-    let mut cursor = *input;
-
-    // If the input can be parsed as an object, then it is an argument.
-    while opt(Object::recognize).parse_next(input)?.is_some() {
-        arguments.push(cursor);
-
-        multispace0(input)?;
-        cursor = *input;
+    while let Some(i) = opt(preceded(multispace0, parse_operand)).parse_next(input)? {
+        arguments.push(i);
     }
 
-    multispace0(input)?;
-    let op = take_till(1..=2, b" \t\n\r").parse_next(input)?;
+    let op = preceded(multispace0, take_till_delimiter(1..=2)).parse_next(input)?;
 
     let operator = match op {
+        // Text object operators
         b"BT" => BeginText.into(),
         b"ET" => EndText.into(),
         // Text state operators
