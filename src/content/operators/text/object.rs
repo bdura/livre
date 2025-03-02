@@ -1,4 +1,6 @@
-use crate::content::operators::FromArgs;
+use winnow::{BStr, PResult};
+
+use crate::extraction::Extract;
 
 /// `BT` operator.
 ///
@@ -14,18 +16,14 @@ pub struct BeginText;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EndText;
 
-impl FromArgs for BeginText {
-    fn from_args(
-        _: &mut Vec<crate::extraction::Object>,
-    ) -> Result<Self, crate::content::operators::OperatorError> {
-        Ok(BeginText)
+impl Extract<'_> for BeginText {
+    fn extract(_input: &mut &BStr) -> PResult<Self> {
+        Ok(Self)
     }
 }
 
-impl FromArgs for EndText {
-    fn from_args(
-        _: &mut Vec<crate::extraction::Object>,
-    ) -> Result<Self, crate::content::operators::OperatorError> {
-        Ok(EndText)
+impl Extract<'_> for EndText {
+    fn extract(_input: &mut &BStr) -> PResult<Self> {
+        Ok(Self)
     }
 }
