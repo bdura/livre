@@ -2,7 +2,7 @@ use livre::{content::Operator, extraction::Extract, InMemoryDocument};
 use winnow::{
     ascii::multispace0,
     combinator::{iterator, preceded},
-    BStr,
+    BStr, Parser,
 };
 
 fn main() {
@@ -19,11 +19,11 @@ fn main() {
 
         let mut it = iterator(
             content.as_slice().as_ref(),
-            preceded(multispace0, Operator::extract),
+            preceded(multispace0, Operator::extract.with_taken()),
         );
 
-        for operator in &mut it {
-            println!("{:?}", operator);
+        for (operator, slice) in &mut it {
+            println!("{:>20} {:?}", String::from_utf8_lossy(slice), operator);
         }
 
         it.finish().unwrap();
