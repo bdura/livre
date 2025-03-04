@@ -61,6 +61,10 @@ pub struct SetTextLeading(pub(crate) f32);
 pub struct SetFontAndFontSize(pub(crate) Name, pub(crate) f32);
 
 /// `Tr` operator.
+///
+/// ```raw
+/// 2 Tr
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SetTextRenderingMode(pub(crate) RenderingMode);
 
