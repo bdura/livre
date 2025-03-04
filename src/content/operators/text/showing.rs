@@ -43,6 +43,10 @@ extract_tuple!(MoveToNextLineAndShowTextWithSpacing: 3);
 ///   text space.
 ///   That amount is substracted from the current "selected coordinate",
 ///   depending on the writing mode.
+///
+/// ```raw
+/// [(5)-6(1)-6(,)-2( )-2(A)] TJ
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct ShowTextArray(Vec<TextArrayElement>);
 

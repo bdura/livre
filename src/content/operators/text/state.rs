@@ -30,6 +30,11 @@ pub enum RenderingMode {
 
 /// `Tc` operator.
 /// Set the caracter spacing, $T_c$, to a number expressed in unscaled text space units.
+///
+/// ```raw
+/// -0.024 Tc
+/// 0.03 Tc
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SetCharacterSpacing(pub(crate) f32);
 
@@ -47,6 +52,11 @@ pub struct SetHorizontalScaling(pub(crate) f32);
 pub struct SetTextLeading(pub(crate) f32);
 
 /// `Tf` operator.
+///
+/// ```raw
+/// /F6 9 Tf
+/// /F4 14.666667 Tf
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct SetFontAndFontSize(pub(crate) Name, pub(crate) f32);
 
