@@ -2,12 +2,16 @@ use winnow::{combinator::peek, dispatch, token::any, BStr, PResult, Parser};
 
 use crate::{
     extract_tuple,
-    extraction::{extract, Extract, LiteralString},
+    extraction::{extract, Extract, PDFString},
 };
 
 /// `Tj` operator. Show a text string.
+///
+/// ```raw
+/// <0052> Tj
+/// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct ShowText(LiteralString);
+pub struct ShowText(PDFString);
 
 extract_tuple!(ShowText: 1);
 
@@ -18,7 +22,7 @@ extract_tuple!(ShowText: 1);
 /// string Tj
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct MoveToNextLineAndShowText(LiteralString);
+pub struct MoveToNextLineAndShowText(PDFString);
 
 extract_tuple!(MoveToNextLineAndShowText: 1);
 
@@ -28,7 +32,7 @@ extract_tuple!(MoveToNextLineAndShowText: 1);
 /// `ac` as the character spacing (setting the corresponding parameters in the text state).
 /// `aw` and `ac` shall be numbers expressed in unscaled text space units.
 #[derive(Debug, Clone, PartialEq)]
-pub struct MoveToNextLineAndShowTextWithSpacing(f32, f32, LiteralString);
+pub struct MoveToNextLineAndShowTextWithSpacing(f32, f32, PDFString);
 
 extract_tuple!(MoveToNextLineAndShowTextWithSpacing: 3);
 
@@ -54,12 +58,12 @@ extract_tuple!(ShowTextArray: 1);
 
 #[derive(Debug, Clone, PartialEq)]
 enum TextArrayElement {
-    Text(LiteralString),
+    Text(PDFString),
     Offset(f32),
 }
 
-impl From<LiteralString> for TextArrayElement {
-    fn from(value: LiteralString) -> Self {
+impl From<PDFString> for TextArrayElement {
+    fn from(value: PDFString) -> Self {
         Self::Text(value)
     }
 }
