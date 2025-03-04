@@ -1,31 +1,43 @@
+use std::{fs::File, io::Read};
+
 use livre::{content::Operator, extraction::Extract, InMemoryDocument};
 use winnow::{
     ascii::multispace0,
     combinator::{iterator, preceded},
-    BStr, Parser,
+    Parser,
 };
 
+fn read_document(path: &str) -> InMemoryDocument {
+    let mut file = File::open(path).unwrap();
+    let mut buffer: Vec<u8> = Vec::new();
+    file.read_to_end(&mut buffer).unwrap();
+
+    InMemoryDocument::extract(&mut buffer.as_slice().as_ref()).unwrap()
+}
+
 fn main() {
-    let mut letter: &BStr = include_bytes!("../tests/resources/letter.pdf")
-        .as_slice()
-        .as_ref();
-    // let mut letter: &BStr = include_bytes!("../tests/text.pdf").as_slice().as_ref();
-    //let mut letter: &BStr = include_bytes!("../resource/ISO_32000-2-2020_sponsored.pdf").as_slice().as_ref();
+    let paths = &[
+        // "tests/resources/letter.pdf",
+        "tests/resources/text.pdf",
+        // "/Users/basile/Documents/Books/no-starch-press/pdf/ISO_32000-2_sponsored-ec2.pdf",
+    ];
 
-    let doc = InMemoryDocument::extract(&mut letter).unwrap();
+    for path in paths {
+        let doc = read_document(path);
 
-    for page in doc.pages().unwrap().iter() {
-        let content = page.build_content(&doc).unwrap();
+        for page in doc.pages().unwrap().iter() {
+            let content = page.build_content(&doc).unwrap();
 
-        let mut it = iterator(
-            content.as_slice().as_ref(),
-            preceded(multispace0, Operator::extract.with_taken()),
-        );
+            let mut it = iterator(
+                content.as_slice().as_ref(),
+                preceded(multispace0, Operator::extract.with_taken()),
+            );
 
-        for (operator, slice) in &mut it {
-            println!("{:>20} {:?}", String::from_utf8_lossy(slice), operator);
+            for (operator, slice) in &mut it {
+                println!("{:>20} {:?}", String::from_utf8_lossy(slice), operator);
+            }
+
+            it.finish().unwrap();
         }
-
-        it.finish().unwrap();
     }
 }
