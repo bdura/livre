@@ -1,10 +1,6 @@
-use winnow::{BStr, PResult};
-
 use crate::{
-    content::operators::FromArgs,
     extract_tuple,
     extraction::{extract, Extract},
-    impl_from_args,
 };
 
 /// `Td` operator.
@@ -16,7 +12,6 @@ use crate::{
 pub struct MoveByOffset(f32, f32);
 
 extract_tuple!(MoveByOffset: 2);
-impl_from_args!(MoveByOffset: 2);
 
 /// `TD` operator.
 ///
@@ -32,14 +27,12 @@ impl_from_args!(MoveByOffset: 2);
 pub struct MoveByOffsetAndSetLeading(pub(crate) f32, pub(crate) f32);
 
 extract_tuple!(MoveByOffsetAndSetLeading: 2);
-impl_from_args!(MoveByOffsetAndSetLeading: 2);
 
 /// `Tm` operator.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SetTextMatrix(f32, f32, f32, f32, f32, f32);
 
 extract_tuple!(SetTextMatrix: 6);
-impl_from_args!(SetTextMatrix: 6);
 
 /// `T*` operator
 ///
@@ -56,10 +49,3 @@ impl_from_args!(SetTextMatrix: 6);
 pub struct MoveToNextLine;
 
 extract_tuple!(MoveToNextLine: 0);
-
-impl FromArgs<'_> for MoveToNextLine {
-    const N_ARGS: usize = 0;
-    fn extract_operator(_: &mut Vec<&'_ BStr>) -> PResult<crate::content::Operator> {
-        Ok(Self.into())
-    }
-}

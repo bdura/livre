@@ -4,10 +4,8 @@ use winnow::{
 };
 
 use crate::{
-    content::operators::FromArgs,
     extract_tuple,
     extraction::{extract, Extract, Name},
-    impl_from_args,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -59,14 +57,6 @@ pub struct SetTextRenderingMode(pub(crate) RenderingMode);
 /// `Ts` operator.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SetTextRise(pub(crate) f32);
-
-impl_from_args!(SetCharacterSpacing: 1);
-impl_from_args!(SetWordSpacing: 1);
-impl_from_args!(SetHorizontalScaling: 1);
-impl_from_args!(SetTextLeading: 1);
-impl_from_args!(SetFontAndFontSize: 2);
-impl_from_args!(SetTextRenderingMode: 1);
-impl_from_args!(SetTextRise: 1);
 
 impl Extract<'_> for RenderingMode {
     fn extract(input: &mut &'_ winnow::BStr) -> winnow::PResult<Self> {

@@ -9,16 +9,13 @@ use text::{
 
 use winnow::{
     ascii::multispace0,
-    combinator::{fail, opt, peek, preceded, trace},
+    combinator::{fail, peek, preceded, repeat, trace},
     dispatch,
-    error::{ContextError, ErrMode},
     token::any,
     BStr, PResult, Parser,
 };
 
-use crate::extraction::{
-    extract, take_till_delimiter, Angles, Brackets, Extract, Name, Parentheses,
-};
+use crate::extraction::{take_till_delimiter, Angles, Brackets, Extract, Name, Parentheses};
 
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
@@ -75,56 +72,6 @@ impl_from!(
     ShowTextArray,
 );
 
-trait FromArgs<'a>: Extract<'a> + Into<Operator> {
-    /// The number of arguments needed to build the operator.
-    const N_ARGS: usize;
-
-    /// Get the relevant context to build the operator, and clear the arguments.
-    ///
-    /// In the PDF specification, the operands are declared **before** the operator.
-    /// That means that we need to track the operands without knowledge of their type.
-    ///
-    /// To that end, we just skip over the operands until we reach the operator,
-    /// keeping track of their position in a `Vec<&'a BStr>`.
-    ///
-    /// A previous implementation used a `Vec<Object>` to store the operands, but that appoach
-    /// had signigicant drawbacks:
-    ///
-    /// - we needed to implement `From<Object>` for every type that could be an operand.
-    /// - building an [`Object`] is not cheap, since we need to try multiple suptypes.
-    ///   In comparision, skipping over an operand is much faster.
-    /// - we could not reuse the [`Extract`] trait.
-    fn get_arguments(arguments: &mut Vec<&'a BStr>) -> PResult<&'a BStr> {
-        let args = arguments
-            .iter()
-            .rev()
-            .nth(Self::N_ARGS - 1)
-            .copied()
-            .ok_or(ErrMode::Cut(ContextError::new()))?;
-        arguments.clear();
-        Ok(args)
-    }
-    /// Extract the operator from the arguments. Returns an error if not enough arguments were
-    /// found.
-    fn from_args(arguments: &mut Vec<&'a BStr>) -> PResult<Self> {
-        let input = &mut Self::get_arguments(arguments)?;
-        extract(input)
-    }
-    /// Extract the operator from the arguments, and convert it to an [`Operator`].
-    fn extract_operator(arguments: &mut Vec<&'a BStr>) -> PResult<Operator> {
-        Self::from_args(arguments).map(Into::into)
-    }
-}
-
-#[macro_export]
-macro_rules! impl_from_args {
-    ($t:ty: $n:literal) => {
-        impl FromArgs<'_> for $t {
-            const N_ARGS: usize = $n;
-        }
-    };
-}
-
 #[macro_export]
 macro_rules! extract_tuple {
     ($name:ident: 0) => {
@@ -180,55 +127,52 @@ fn recognize_operand<'de>(input: &mut &'de BStr) -> PResult<&'de [u8]> {
         b'[' => Brackets::recognize,
         b'(' => Parentheses::recognize,
         b'<' => Angles::recognize,
-        b'+' | b'-' | b'.' | b'0'..=b'9' => take_till_delimiter(0..),
+        b'+' | b'-' | b'.' | b'0'..=b'9' => take_till_delimiter(1..),
         _ => fail
     }
     .parse_next(input)
 }
 
-/// Recognize an operand and return it as an unbounded[^1] slice.
-///
-/// [^1]: **Unbounded** means that the slice is not limited to the input specific to the operand.
-///       Rather, it starts at the operand's position but includes the rest of the input.
-fn parse_operand<'de>(input: &mut &'de BStr) -> PResult<&'de BStr> {
-    let cursor = *input;
-    recognize_operand.value(cursor).parse_next(input)
+/// Helper function that extracts an operator and converts it to [`Operator`].
+fn extract_operator<'a, T>(input: &mut &'a BStr) -> PResult<Operator>
+where
+    T: Extract<'a>,
+    Operator: From<T>,
+{
+    T::extract.map(Operator::from).parse_next(input)
 }
 
 fn parse_operator(input: &mut &BStr) -> PResult<Operator> {
-    let mut arguments: Vec<&BStr> = Vec::with_capacity(4);
+    let mut cursor = *input;
 
-    while let Some(i) = opt(preceded(multispace0, parse_operand)).parse_next(input)? {
-        arguments.push(i);
-    }
+    repeat(0.., preceded(multispace0, recognize_operand))
+        .map(|()| ())
+        .parse_next(input)?;
 
-    let op = preceded(multispace0, take_till_delimiter(1..)).parse_next(input)?;
+    let op = preceded(multispace0, take_till_delimiter(1..=3)).parse_next(input)?;
 
     let operator = match op {
         // Text object operators
         b"BT" => BeginText.into(),
         b"ET" => EndText.into(),
         // Text state operators
-        b"Tc" => SetCharacterSpacing::extract_operator(&mut arguments)?,
-        b"Tw" => SetWordSpacing::extract_operator(&mut arguments)?,
-        b"Tz" => SetHorizontalScaling::extract_operator(&mut arguments)?,
-        b"TL" => SetTextLeading::extract_operator(&mut arguments)?,
-        b"Tf" => SetFontAndFontSize::extract_operator(&mut arguments)?,
-        b"Tr" => SetTextRenderingMode::extract_operator(&mut arguments)?,
-        b"Ts" => SetTextRise::extract_operator(&mut arguments)?,
+        b"Tc" => extract_operator::<SetCharacterSpacing>(&mut cursor)?,
+        b"Tw" => extract_operator::<SetWordSpacing>(&mut cursor)?,
+        b"Tz" => extract_operator::<SetHorizontalScaling>(&mut cursor)?,
+        b"TL" => extract_operator::<SetTextLeading>(&mut cursor)?,
+        b"Tf" => extract_operator::<SetFontAndFontSize>(&mut cursor)?,
+        b"Tr" => extract_operator::<SetTextRenderingMode>(&mut cursor)?,
+        b"Ts" => extract_operator::<SetTextRise>(&mut cursor)?,
         // Text positioning operators
-        b"Td" => MoveByOffset::extract_operator(&mut arguments)?,
-        b"TD" => MoveByOffsetAndSetLeading::extract_operator(&mut arguments)?,
-        b"Tm" => SetTextMatrix::extract_operator(&mut arguments)?,
-        b"T*" => MoveToNextLine::extract_operator(&mut arguments)?,
-        b"Tj" => ShowText::extract_operator(&mut arguments)?,
-        b"'" => MoveToNextLineAndShowText::extract_operator(&mut arguments)?,
-        b"\"" => MoveToNextLineAndShowTextWithSpacing::extract_operator(&mut arguments)?,
-        b"TJ" => ShowTextArray::extract_operator(&mut arguments)?,
-        _ => {
-            arguments.clear();
-            Operator::NotImplemented(String::from_utf8_lossy(op).to_string())
-        }
+        b"Td" => extract_operator::<MoveByOffset>(&mut cursor)?,
+        b"TD" => extract_operator::<MoveByOffsetAndSetLeading>(&mut cursor)?,
+        b"Tm" => extract_operator::<SetTextMatrix>(&mut cursor)?,
+        b"T*" => extract_operator::<MoveToNextLine>(&mut cursor)?,
+        b"Tj" => extract_operator::<ShowText>(&mut cursor)?,
+        b"'" => extract_operator::<MoveToNextLineAndShowText>(&mut cursor)?,
+        b"\"" => extract_operator::<MoveToNextLineAndShowTextWithSpacing>(&mut cursor)?,
+        b"TJ" => extract_operator::<ShowTextArray>(&mut cursor)?,
+        _ => Operator::NotImplemented(String::from_utf8_lossy(op).to_string()),
     };
 
     Ok(operator)
@@ -239,6 +183,8 @@ mod tests {
     use std::fmt::Debug;
 
     use rstest::rstest;
+
+    use crate::extraction::extract;
 
     use super::*;
 

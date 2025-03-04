@@ -1,10 +1,8 @@
 use winnow::{combinator::peek, dispatch, token::any, BStr, PResult, Parser};
 
 use crate::{
-    content::operators::FromArgs,
     extract_tuple,
     extraction::{extract, Extract, LiteralString},
-    impl_from_args,
 };
 
 /// `Tj` operator. Show a text string.
@@ -12,7 +10,6 @@ use crate::{
 pub struct ShowText(LiteralString);
 
 extract_tuple!(ShowText: 1);
-impl_from_args!(ShowText: 1);
 
 /// `'` operator. Equivalent to:
 ///
@@ -24,7 +21,6 @@ impl_from_args!(ShowText: 1);
 pub struct MoveToNextLineAndShowText(LiteralString);
 
 extract_tuple!(MoveToNextLineAndShowText: 1);
-impl_from_args!(MoveToNextLineAndShowText: 1);
 
 /// `"` operator.
 ///
@@ -35,7 +31,6 @@ impl_from_args!(MoveToNextLineAndShowText: 1);
 pub struct MoveToNextLineAndShowTextWithSpacing(f32, f32, LiteralString);
 
 extract_tuple!(MoveToNextLineAndShowTextWithSpacing: 3);
-impl_from_args!(MoveToNextLineAndShowTextWithSpacing: 3);
 
 /// `TJ` operator.
 ///
@@ -52,7 +47,6 @@ impl_from_args!(MoveToNextLineAndShowTextWithSpacing: 3);
 pub struct ShowTextArray(Vec<TextArrayElement>);
 
 extract_tuple!(ShowTextArray: 1);
-impl_from_args!(ShowTextArray: 1);
 
 #[derive(Debug, Clone, PartialEq)]
 enum TextArrayElement {
