@@ -2,7 +2,7 @@ use winnow::{combinator::peek, dispatch, token::any, BStr, PResult, Parser};
 
 use crate::{
     extract_tuple,
-    extraction::{extract, Extract, PDFString},
+    extraction::{extract, Extract, HexadecimalString, LiteralString, PDFString},
 };
 
 /// `Tj` operator. Show a text string.
@@ -68,6 +68,18 @@ impl From<PDFString> for TextArrayElement {
     }
 }
 
+impl From<HexadecimalString> for TextArrayElement {
+    fn from(value: HexadecimalString) -> Self {
+        Self::Text(value.into())
+    }
+}
+
+impl From<LiteralString> for TextArrayElement {
+    fn from(value: LiteralString) -> Self {
+        Self::Text(value.into())
+    }
+}
+
 impl From<f32> for TextArrayElement {
     fn from(value: f32) -> Self {
         Self::Offset(value)
@@ -77,7 +89,8 @@ impl From<f32> for TextArrayElement {
 impl Extract<'_> for TextArrayElement {
     fn extract(input: &mut &BStr) -> PResult<Self> {
         dispatch! {peek(any);
-            b'(' => extract.map(TextArrayElement::Text),
+            b'(' => LiteralString::extract.map(TextArrayElement::from),
+            b'<' => HexadecimalString::extract.map(TextArrayElement::from),
             _ => extract.map(TextArrayElement::Offset),
         }
         .parse_next(input)
