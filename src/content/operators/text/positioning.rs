@@ -8,6 +8,11 @@ use crate::{
 /// Move to the start of the next line, offset from the start of the current line
 /// by `(tx, ty)`. `tx` and `ty` shall denote numbers expressed in unscaled
 /// text space units
+///
+/// ```raw
+/// 0 -13.2773438 Td
+/// 8.1511078 0 Td
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MoveByOffset(f32, f32);
 
@@ -29,6 +34,10 @@ pub struct MoveByOffsetAndSetLeading(pub(crate) f32, pub(crate) f32);
 extract_tuple!(MoveByOffsetAndSetLeading: 2);
 
 /// `Tm` operator.
+///
+/// ```raw
+/// 1 0 0 -1 370.70721 .47981739 Tm
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SetTextMatrix(f32, f32, f32, f32, f32, f32);
 

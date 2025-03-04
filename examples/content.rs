@@ -16,11 +16,7 @@ fn read_document(path: &str) -> InMemoryDocument {
 }
 
 fn main() {
-    let paths = &[
-        // "tests/resources/letter.pdf",
-        "tests/resources/text.pdf",
-        // "/Users/basile/Documents/Books/no-starch-press/pdf/ISO_32000-2_sponsored-ec2.pdf",
-    ];
+    let paths = &["tests/resources/letter.pdf", "tests/resources/text.pdf"];
 
     for path in paths {
         let doc = read_document(path);
