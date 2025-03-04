@@ -21,5 +21,5 @@ pub use object::Object;
 pub use rectangle::Rectangle;
 pub use refs::{Indirect, OptRef, Reference, ReferenceId};
 pub use stream::Stream;
-pub use strings::{HexadecimalString, LiteralString};
+pub use strings::{HexadecimalString, LiteralString, PDFString};
 pub use todo::Todo;
