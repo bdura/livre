@@ -4,7 +4,8 @@ use livre::{content::Operator, extraction::Extract, InMemoryDocument};
 use winnow::{
     ascii::multispace0,
     combinator::{iterator, preceded},
-    Parser,
+    error::ContextError,
+    BStr, Parser,
 };
 
 fn read_document(path: &str) -> InMemoryDocument {
@@ -33,7 +34,18 @@ fn main() {
                 println!("{:>20} {:?}", String::from_utf8_lossy(slice), operator);
             }
 
-            it.finish().unwrap();
+            let input = &mut it.finish().unwrap().0;
+
+            multispace0::<&BStr, ContextError>(input).unwrap();
+
+            if input.len() != 0 {
+                println!();
+                println!("Issue while parsing");
+                println!(
+                    "{}",
+                    String::from_utf8_lossy(&input[..500.min(input.len())])
+                );
+            }
         }
     }
 }
