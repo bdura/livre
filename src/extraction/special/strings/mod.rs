@@ -14,7 +14,7 @@
 mod hex_string;
 mod literal_string;
 
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 pub use hex_string::HexadecimalString;
 pub use literal_string::LiteralString;
@@ -28,8 +28,13 @@ pub struct PDFString(pub Vec<u8>);
 
 impl Debug for PDFString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "PDFString({})", String::from_utf8_lossy(&self.0))?;
-        Ok(())
+        write!(f, "PDFString({})", String::from_utf8_lossy(&self.0))
+    }
+}
+
+impl Display for PDFString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", String::from_utf8_lossy(&self.0))
     }
 }
 

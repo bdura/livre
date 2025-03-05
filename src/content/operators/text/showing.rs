@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use winnow::{combinator::peek, dispatch, token::any, BStr, PResult, Parser};
 
 use crate::{
@@ -15,6 +17,12 @@ pub struct ShowText(PDFString);
 
 extract_tuple!(ShowText: 1);
 
+impl Display for ShowText {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 /// `'` operator. Equivalent to:
 ///
 /// ```raw
@@ -26,6 +34,12 @@ pub struct MoveToNextLineAndShowText(PDFString);
 
 extract_tuple!(MoveToNextLineAndShowText: 1);
 
+impl Display for MoveToNextLineAndShowText {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 /// `"` operator.
 ///
 /// Move to the next line and show a text string, using `aw` as the word spacing and
@@ -35,6 +49,12 @@ extract_tuple!(MoveToNextLineAndShowText: 1);
 pub struct MoveToNextLineAndShowTextWithSpacing(f32, f32, PDFString);
 
 extract_tuple!(MoveToNextLineAndShowTextWithSpacing: 3);
+
+impl Display for MoveToNextLineAndShowTextWithSpacing {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 /// `TJ` operator.
 ///
@@ -55,6 +75,17 @@ extract_tuple!(MoveToNextLineAndShowTextWithSpacing: 3);
 pub struct ShowTextArray(Vec<TextArrayElement>);
 
 extract_tuple!(ShowTextArray: 1);
+
+impl Display for ShowTextArray {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for element in &self.0 {
+            if let TextArrayElement::Text(v) = element {
+                write!(f, "{}", v)?;
+            }
+        }
+        Ok(())
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 enum TextArrayElement {
