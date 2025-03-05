@@ -1,3 +1,5 @@
+//! Text-showing operators. See section 9.4.3 of the PDF specification.
+
 use std::fmt::Display;
 
 use winnow::{combinator::peek, dispatch, token::any, BStr, PResult, Parser};
@@ -99,6 +101,12 @@ impl From<PDFString> for TextArrayElement {
     }
 }
 
+impl From<&str> for TextArrayElement {
+    fn from(value: &str) -> Self {
+        Self::Text(value.into())
+    }
+}
+
 impl From<HexadecimalString> for TextArrayElement {
     fn from(value: HexadecimalString) -> Self {
         Self::Text(value.into())
@@ -125,5 +133,46 @@ impl Extract<'_> for TextArrayElement {
             _ => extract.map(TextArrayElement::Offset),
         }
         .parse_next(input)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fmt::Debug;
+
+    use super::TextArrayElement::*;
+    use super::*;
+
+    use indoc::indoc;
+    use rstest::rstest;
+
+    #[rstest]
+    #[case(
+        indoc!{br#"
+            [ (&''!\(\)) 7 (*+) -4 (,) -8 (-) 6 (!\(.) 3 (-) -7 (.\(/) 3 ] TJ
+        "#},
+        ShowTextArray(vec![
+            "&''!()".into(),
+            Offset(7.0),
+            "*+".into(),
+            Offset(-4.0),
+            ",".into(),
+            Offset(-8.0),
+            "-".into(),
+            Offset(6.0),
+            "!(.".into(),
+            Offset(3.0),
+            "-".into(),
+            Offset(-7.0),
+            ".(/".into(),
+            Offset(3.0),
+        ])
+    )]
+    fn extraction<'de, T>(#[case] input: &'de [u8], #[case] expected: T)
+    where
+        T: Extract<'de> + Debug + PartialEq,
+    {
+        let result = extract(&mut input.as_ref()).unwrap();
+        assert_eq!(expected, result);
     }
 }
