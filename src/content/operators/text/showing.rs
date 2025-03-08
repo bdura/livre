@@ -5,6 +5,7 @@ use std::fmt::Display;
 use winnow::{combinator::peek, dispatch, token::any, BStr, PResult, Parser};
 
 use crate::{
+    content::{operators::behavior::TextOperation, state::TextObject},
     extract_tuple,
     extraction::{extract, Extract, HexadecimalString, LiteralString, PDFString},
 };
@@ -90,9 +91,28 @@ impl Display for ShowTextArray {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-enum TextArrayElement {
+pub enum TextArrayElement {
     Text(PDFString),
     Offset(f32),
+}
+
+pub enum TextArrayElementIt {
+    Text(u8),
+    Offset(f32),
+}
+
+impl Iterator for TextArrayElement {
+    type Item = TextArrayElementIt;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Text(PDFString(inner)) => {
+                inner.first()?;
+                Some(inner.remove(0));
+            }
+            Self::Offset(_) => None,
+        }
+    }
 }
 
 impl From<PDFString> for TextArrayElement {
@@ -133,6 +153,36 @@ impl Extract<'_> for TextArrayElement {
             _ => extract.map(TextArrayElement::Offset),
         }
         .parse_next(input)
+    }
+}
+
+impl TextOperation for ShowText {
+    fn apply(self, text_object: &mut TextObject) {
+        text_object.add_text(self.0);
+    }
+}
+
+impl TextOperation for MoveToNextLineAndShowText {
+    fn apply(self, text_object: &mut TextObject) {
+        text_object.move_to_next_line();
+        text_object.add_text(self.0);
+    }
+}
+
+impl TextOperation for MoveToNextLineAndShowTextWithSpacing {
+    fn apply(self, text_object: &mut TextObject) {
+        let MoveToNextLineAndShowTextWithSpacing(aw, ac, text) = self;
+
+        text_object.move_to_next_line();
+        text_object.set_word_spacing(aw);
+        text_object.set_character_spacing(ac);
+        text_object.add_text(text);
+    }
+}
+
+impl TextOperation for ShowTextArray {
+    fn apply(self, text_object: &mut TextObject) {
+        text_object.add_text_array(self.0);
     }
 }
 

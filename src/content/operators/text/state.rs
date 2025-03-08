@@ -4,6 +4,7 @@ use winnow::{
 };
 
 use crate::{
+    content::{operators::behavior::TextOperation, state::TextStateParameters},
     extract_tuple,
     extraction::{extract, Extract, Name},
 };
@@ -95,3 +96,43 @@ extract_tuple!(SetTextLeading: 1);
 extract_tuple!(SetFontAndFontSize: 2);
 extract_tuple!(SetTextRenderingMode: 1);
 extract_tuple!(SetTextRise: 1);
+
+impl TextOperation for SetCharacterSpacing {
+    fn apply_partial(self, _: &mut (f32, f32), parameters: &mut TextStateParameters) {
+        parameters.character_spacing = self.0;
+    }
+}
+
+impl TextOperation for SetWordSpacing {
+    fn apply_partial(self, _: &mut (f32, f32), parameters: &mut TextStateParameters) {
+        parameters.word_spacing = self.0;
+    }
+}
+
+impl TextOperation for SetHorizontalScaling {
+    fn apply_partial(self, _: &mut (f32, f32), parameters: &mut TextStateParameters) {
+        parameters.horizontal_scaling = self.0;
+    }
+}
+
+impl TextOperation for SetTextLeading {
+    fn apply_partial(self, _: &mut (f32, f32), parameters: &mut TextStateParameters) {
+        parameters.leading = self.0;
+    }
+}
+
+impl TextOperation for SetFontAndFontSize {
+    // NOTE: this is special-cased in the `TextObject` implementation
+}
+
+impl TextOperation for SetTextRenderingMode {
+    fn apply_partial(self, _: &mut (f32, f32), parameters: &mut TextStateParameters) {
+        parameters.rendering_mode = self.0;
+    }
+}
+
+impl TextOperation for SetTextRise {
+    fn apply_partial(self, _: &mut (f32, f32), parameters: &mut TextStateParameters) {
+        parameters.rise = self.0;
+    }
+}

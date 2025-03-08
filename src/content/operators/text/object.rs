@@ -1,6 +1,6 @@
 use winnow::{BStr, PResult};
 
-use crate::extraction::Extract;
+use crate::{content::operators::behavior::TextOperation, extraction::Extract};
 
 /// `BT` operator.
 ///
@@ -27,3 +27,6 @@ impl Extract<'_> for EndText {
         Ok(Self)
     }
 }
+
+impl TextOperation for BeginText {}
+impl TextOperation for EndText {}

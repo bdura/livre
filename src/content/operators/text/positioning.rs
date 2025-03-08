@@ -1,4 +1,5 @@
 use crate::{
+    content::{operators::behavior::TextOperation, state::TextStateParameters},
     extract_tuple,
     extraction::{extract, Extract},
 };
@@ -18,6 +19,12 @@ pub struct MoveByOffset(f32, f32);
 
 extract_tuple!(MoveByOffset: 2);
 
+impl TextOperation for MoveByOffset {
+    fn apply_partial(self, position: &mut (f32, f32), _: &mut TextStateParameters) {
+        *position = (self.0, self.1);
+    }
+}
+
 /// `TD` operator.
 ///
 /// Move to the start of the next line, offset from the start of the current line
@@ -33,6 +40,13 @@ pub struct MoveByOffsetAndSetLeading(pub(crate) f32, pub(crate) f32);
 
 extract_tuple!(MoveByOffsetAndSetLeading: 2);
 
+impl TextOperation for MoveByOffsetAndSetLeading {
+    fn apply_partial(self, position: &mut (f32, f32), parameters: &mut TextStateParameters) {
+        parameters.leading = -self.1;
+        *position = (self.0, self.1);
+    }
+}
+
 /// `Tm` operator.
 ///
 /// ```raw
@@ -42,6 +56,16 @@ extract_tuple!(MoveByOffsetAndSetLeading: 2);
 pub struct SetTextMatrix(f32, f32, f32, f32, f32, f32);
 
 extract_tuple!(SetTextMatrix: 6);
+
+impl TextOperation for SetTextMatrix {
+    fn apply_partial(self, position: &mut (f32, f32), _: &mut TextStateParameters) {
+        *position = (self.4, self.5);
+
+        if self.0 != 0.0 || self.1 != 0.0 || self.2 != 0.0 || self.3 != 0.0 {
+            eprintln!("WARNING: non-trivial text matrix. Output will erroneous.");
+        }
+    }
+}
 
 /// `T*` operator
 ///
@@ -58,3 +82,9 @@ extract_tuple!(SetTextMatrix: 6);
 pub struct MoveToNextLine;
 
 extract_tuple!(MoveToNextLine: 0);
+
+impl TextOperation for MoveToNextLine {
+    fn apply_partial(self, position: &mut (f32, f32), parameters: &mut TextStateParameters) {
+        position.1 -= parameters.leading;
+    }
+}

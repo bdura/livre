@@ -9,8 +9,9 @@ pub use object::{BeginText, EndText};
 pub use positioning::{MoveByOffset, MoveByOffsetAndSetLeading, MoveToNextLine, SetTextMatrix};
 pub use showing::{
     MoveToNextLineAndShowText, MoveToNextLineAndShowTextWithSpacing, ShowText, ShowTextArray,
+    TextArrayElement,
 };
 pub use state::{
-    SetCharacterSpacing, SetFontAndFontSize, SetHorizontalScaling, SetTextLeading,
+    RenderingMode, SetCharacterSpacing, SetFontAndFontSize, SetHorizontalScaling, SetTextLeading,
     SetTextRenderingMode, SetTextRise, SetWordSpacing,
 };
