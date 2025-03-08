@@ -45,6 +45,7 @@ fn main() {
                     "{}",
                     String::from_utf8_lossy(&input[..500.min(input.len())])
                 );
+                panic!("Parsing did not consume the entire input");
             }
         }
     }
