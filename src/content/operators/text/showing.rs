@@ -96,25 +96,6 @@ pub enum TextArrayElement {
     Offset(f32),
 }
 
-pub enum TextArrayElementIt {
-    Text(u8),
-    Offset(f32),
-}
-
-impl Iterator for TextArrayElement {
-    type Item = TextArrayElementIt;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            Self::Text(PDFString(inner)) => {
-                inner.first()?;
-                Some(inner.remove(0));
-            }
-            Self::Offset(_) => None,
-        }
-    }
-}
-
 impl From<PDFString> for TextArrayElement {
     fn from(value: PDFString) -> Self {
         Self::Text(value)
