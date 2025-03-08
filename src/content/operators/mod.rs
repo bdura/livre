@@ -1,3 +1,4 @@
+mod behavior;
 mod text;
 
 use text::{
@@ -6,6 +7,8 @@ use text::{
     SetFontAndFontSize, SetHorizontalScaling, SetTextLeading, SetTextMatrix, SetTextRenderingMode,
     SetTextRise, SetWordSpacing, ShowText, ShowTextArray,
 };
+
+pub use behavior::TextOperation;
 
 use winnow::{
     ascii::multispace0,
