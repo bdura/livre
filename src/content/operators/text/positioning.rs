@@ -61,8 +61,11 @@ impl TextOperation for SetTextMatrix {
     fn apply_partial(self, position: &mut (f32, f32), _: &mut TextStateParameters) {
         *position = (self.4, self.5);
 
-        if self.0 != 0.0 || self.1 != 0.0 || self.2 != 0.0 || self.3 != 0.0 {
-            eprintln!("WARNING: non-trivial text matrix. Output will erroneous.");
+        if self.0 != 1.0 || self.1 != 0.0 || self.2 != 0.0 || self.3 != 1.0 {
+            eprintln!(
+                "WARNING: non-trivial text matrix {:?}. Output will erroneous.",
+                self
+            );
         }
     }
 }
