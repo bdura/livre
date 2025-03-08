@@ -21,11 +21,7 @@ fn read_document(path: &str) -> InMemoryDocument {
 }
 
 fn main() {
-    let paths = &[
-        "tests/resources/letter.pdf",
-        "tests/resources/text.pdf",
-        "/Users/basile/Documents/Books/pdf/ISO_32000-2_sponsored-ec2.pdf",
-    ];
+    let paths = &["tests/resources/text.pdf", "tests/resources/letter.pdf"];
 
     for path in paths {
         let doc = read_document(path);
@@ -40,8 +36,8 @@ fn main() {
 
             while let Some(mut text_state) = parse_text_object(&mut it) {
                 println!("NEW TEXT OBJECT");
-                for (position, c) in &mut text_state {
-                    println!("- {:?} {:?}", position, char::from(c));
+                for (position, text) in &mut text_state {
+                    println!("- {:?} {:?}", position, text);
                 }
                 println!("END TEXT OBJECT");
                 println!();
