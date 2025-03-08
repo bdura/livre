@@ -10,6 +10,8 @@
 //! > the horizontal or vertical displacement of each glyph painted as well as
 //! > any character or word-spacing parameters in the text state.
 
+use std::collections::VecDeque;
+
 use crate::{
     content::operators::{SetFontAndFontSize, TextOperation},
     extraction::{Name, PDFString},
@@ -74,7 +76,10 @@ pub struct TextObject {
     /// A "simplified" text matrix.
     pub position: (f32, f32),
     pub parameters: TextStateParameters,
-    pub buffer: Option<TextOrArray>,
+    // FIXME: this indirection will be needed down the line. For now it's seems a bit dumb.
+    // It should be replaced with a `VecDeque<u8>` to allow the *font* to iterate over the text
+    pub text_buffer: Option<PDFString>,
+    pub buffer: Option<VecDeque<TextArrayElement>>,
 }
 
 impl TextObject {
@@ -84,11 +89,11 @@ impl TextObject {
     pub fn move_to_next_line(&mut self) {
         self.position.1 -= self.parameters.leading;
     }
-    pub fn add_text(&mut self, PDFString(text): PDFString) {
-        self.buffer = Some(TextOrArray::Text(text));
+    pub fn add_text(&mut self, text: PDFString) {
+        self.text_buffer = Some(text);
     }
     pub fn add_text_array(&mut self, array: Vec<TextArrayElement>) {
-        self.buffer = Some(TextOrArray::Array(array));
+        self.buffer = Some(array.into());
     }
     pub fn set_leading(&mut self, leading: f32) {
         self.parameters.leading = leading;
@@ -122,6 +127,7 @@ where
                 font_size,
                 position: (0.0, 0.0),
                 parameters: Default::default(),
+                text_buffer: None,
                 buffer: None,
             };
 
@@ -150,22 +156,28 @@ where
 }
 
 impl Iterator for TextObject {
-    type Item = ((f32, f32), u8);
+    type Item = ((f32, f32), PDFString);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let buffer = self.buffer.as_mut()?;
+        if self.text_buffer.is_none() {
+            let buffer = self.buffer.as_mut()?;
 
-        let char = match buffer {
-            TextOrArray::Text(text) => {
-                text.first()?;
-                Some(text.remove(0))
+            loop {
+                match buffer.pop_front()? {
+                    TextArrayElement::Text(text) => {
+                        self.text_buffer = Some(text);
+                        break;
+                    }
+                    TextArrayElement::Offset(offset) => {
+                        self.position.0 += offset;
+                    }
+                }
             }
-            TextOrArray::Array(array) => {
-                eprintln!("TJ is not yet supported: {:?}", array);
-                return None;
-            }
-        }?;
-        Some((self.position, char))
+        }
+
+        let text = self.text_buffer.take()?;
+
+        Some((self.position, text))
     }
 }
 
@@ -173,7 +185,7 @@ impl<Ops> Iterator for TextObjectStream<Ops>
 where
     Ops: Iterator<Item = Operator>,
 {
-    type Item = ((f32, f32), u8);
+    type Item = ((f32, f32), PDFString);
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.text_object.buffer.is_none() {
