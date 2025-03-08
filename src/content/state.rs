@@ -103,3 +103,87 @@ impl TextObject {
         self.parameters.horizontal_scaling = scaling;
     }
 }
+
+pub struct TextObjectStream<Ops> {
+    text_object: TextObject,
+    ops: Ops,
+}
+
+impl<Ops> TextObjectStream<Ops>
+where
+    Ops: Iterator<Item = Operator>,
+{
+    fn build(mut ops: Ops) -> Self {
+        let operator = ops.next().unwrap();
+
+        if let Operator::SetFontAndFontSize(SetFontAndFontSize(font, font_size)) = operator {
+            let text_object = TextObject {
+                font,
+                font_size,
+                position: (0.0, 0.0),
+                parameters: Default::default(),
+                buffer: None,
+            };
+
+            TextObjectStream { text_object, ops }
+        } else {
+            unreachable!(
+                "BT should always start with a SetFontAndFontSize operator, got {operator:?}"
+            )
+        }
+    }
+}
+
+pub fn parse_text_object<Ops>(mut ops: Ops) -> Option<TextObjectStream<Ops>>
+where
+    Ops: Iterator<Item = Operator>,
+{
+    while let Some(op) = ops.next() {
+        match op {
+            Operator::BeginText(_) => return Some(TextObjectStream::build(ops)),
+            _ => {
+                // NOTE: just skip any other operators until we find the text object
+            }
+        }
+    }
+    None
+}
+
+impl Iterator for TextObject {
+    type Item = ((f32, f32), u8);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let buffer = self.buffer.as_mut()?;
+
+        let char = match buffer {
+            TextOrArray::Text(text) => {
+                text.first()?;
+                Some(text.remove(0))
+            }
+            TextOrArray::Array(array) => {
+                eprintln!("TJ is not yet supported: {:?}", array);
+                return None;
+            }
+        }?;
+        Some((self.position, char))
+    }
+}
+
+impl<Ops> Iterator for TextObjectStream<Ops>
+where
+    Ops: Iterator<Item = Operator>,
+{
+    type Item = ((f32, f32), u8);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.text_object.buffer.is_none() {
+            let op = self.ops.next()?;
+            match op {
+                Operator::EndText(_) => return None,
+                _ => op.apply(&mut self.text_object),
+            }
+        }
+
+        self.text_object.next()
+    }
+}
