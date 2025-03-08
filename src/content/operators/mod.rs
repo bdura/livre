@@ -4,11 +4,12 @@ mod text;
 use text::{
     BeginText, EndText, MoveByOffset, MoveByOffsetAndSetLeading, MoveToNextLine,
     MoveToNextLineAndShowText, MoveToNextLineAndShowTextWithSpacing, SetCharacterSpacing,
-    SetFontAndFontSize, SetHorizontalScaling, SetTextLeading, SetTextMatrix, SetTextRenderingMode,
-    SetTextRise, SetWordSpacing, ShowText, ShowTextArray,
+    SetHorizontalScaling, SetTextLeading, SetTextMatrix, SetTextRenderingMode, SetTextRise,
+    SetWordSpacing, ShowText, ShowTextArray,
 };
 
 pub use behavior::TextOperation;
+pub use text::{RenderingMode, SetFontAndFontSize, TextArrayElement};
 
 use winnow::{
     ascii::multispace0,
@@ -19,6 +20,8 @@ use winnow::{
 };
 
 use crate::extraction::{take_till_delimiter, Angles, Brackets, Extract, Name, Parentheses};
+
+use super::state::{TextObject, TextStateParameters};
 
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
@@ -56,6 +59,45 @@ macro_rules! impl_from {
 }
 
 impl_from!(
+    SetCharacterSpacing,
+    SetWordSpacing,
+    SetHorizontalScaling,
+    SetTextLeading,
+    SetFontAndFontSize,
+    SetTextRenderingMode,
+    SetTextRise,
+    BeginText,
+    EndText,
+    MoveByOffset,
+    MoveByOffsetAndSetLeading,
+    SetTextMatrix,
+    MoveToNextLine,
+    ShowText,
+    MoveToNextLineAndShowText,
+    MoveToNextLineAndShowTextWithSpacing,
+    ShowTextArray,
+);
+
+macro_rules! impl_text_operation {
+    ($($t:ident,)+) => {
+        impl TextOperation for Operator {
+            fn apply_partial(self, position: &mut (f32, f32), parameters: &mut TextStateParameters) {
+                match self {
+                    $( Operator::$t(inner) => inner.apply_partial(position, parameters),)+
+                    _ => {},
+                }
+            }
+            fn apply(self, text_object: &mut TextObject) {
+                match self {
+                    $( Operator::$t(inner) => inner.apply(text_object),)+
+                    _ => {},
+                }
+            }
+        }
+    };
+}
+
+impl_text_operation!(
     SetCharacterSpacing,
     SetWordSpacing,
     SetHorizontalScaling,
