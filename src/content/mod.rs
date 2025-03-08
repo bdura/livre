@@ -1,4 +1,4 @@
-mod operators;
+pub mod operators;
 mod state;
 
-pub use operators::Operator;
+pub use operators::{Operator, TextArrayElement};
