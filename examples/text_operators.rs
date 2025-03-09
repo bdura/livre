@@ -9,7 +9,7 @@ use winnow::{
     ascii::multispace0,
     combinator::{iterator, preceded},
     error::ContextError,
-    BStr, Parser,
+    BStr,
 };
 
 fn read_document(path: &str) -> InMemoryDocument {
