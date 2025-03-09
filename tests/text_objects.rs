@@ -1,7 +1,7 @@
 use std::{fs::File, io::Read};
 
 use livre::{
-    content::{parse_text_object, Operator},
+    content::{operators::Operator, parse_text_object},
     extraction::Extract,
     InMemoryDocument,
 };

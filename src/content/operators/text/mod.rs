@@ -15,7 +15,7 @@ pub use showing::{
     TextArrayElement, TextShowingOperator,
 };
 pub use state::{
-    RenderingMode, SetCharacterSpacing, SetFontAndFontSize, SetHorizontalScaling, SetTextLeading,
+    SetCharacterSpacing, SetFontAndFontSize, SetHorizontalScaling, SetTextLeading,
     SetTextRenderingMode, SetTextRise, SetWordSpacing, TextStateOperator,
 };
 
@@ -23,7 +23,7 @@ use crate::content::state::{TextMatrix, TextObject, TextStateParameters};
 
 use super::Operator;
 
-/// Defines operations on the text state.
+/// Defines operations that act on the text state.
 #[enum_dispatch]
 pub trait TextOperation: Sized {
     fn apply(self, text_object: &mut TextObject);
@@ -50,6 +50,8 @@ where
     }
 }
 
+/// Abstraction over any text operator. `TextOperator` implements [`TextOperation`],
+/// allowing it to modify a text object.
 #[derive(Debug, Clone, PartialEq)]
 #[enum_dispatch(TextOperation)]
 pub enum TextOperator {

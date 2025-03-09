@@ -7,12 +7,19 @@ use crate::{
 
 use super::PreTextOperation;
 
+/// Abstraction over text positioning operators, as defined in section 9.4.2 of the PDF
+/// specification.
 #[derive(Debug, Clone, PartialEq)]
 #[enum_dispatch(PreTextOperation)]
 pub enum TextPositioningOperator {
+    /// The `Td` operator. Move to the start of the next line, offset from the start of the current
+    /// line by `(tx, ty)`.
     MoveByOffset(MoveByOffset),
+    /// The `TD` operator. Move to the start of the next line, and set the leading parameter.
     MoveByOffsetAndSetLeading(MoveByOffsetAndSetLeading),
+    /// The `Tm` operator. Set the text matrix.
     SetTextMatrix(SetTextMatrix),
+    /// The `T*` operator. Move to the start of the next line.
     MoveToNextLine(MoveToNextLine),
 }
 
@@ -78,7 +85,7 @@ impl PreTextOperation for SetTextMatrix {
 /// ```
 ///
 /// where `T_l` denotes the current leading parameter in the text state.
-/// The negative of T l is used here because T l is the text leading expressed
+/// The negative of $T_l$ is used here because $T_l$ is the text leading expressed
 /// as a positive number. Going to the next line entails decreasing the y coordinate.
 #[derive(Debug, Clone, Copy, PartialEq, Extract)]
 pub struct MoveToNextLine;

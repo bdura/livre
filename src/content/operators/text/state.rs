@@ -1,8 +1,7 @@
 use enum_dispatch::enum_dispatch;
-use winnow::error::{ContextError, ErrMode};
 
 use crate::{
-    content::state::{TextMatrix, TextStateParameters},
+    content::state::{RenderingMode, TextMatrix, TextStateParameters},
     extraction::{Extract, Name},
 };
 
@@ -49,7 +48,7 @@ impl PreTextOperation for SetWordSpacing {
 
 /// `Tz` operator.
 #[derive(Debug, Clone, Copy, PartialEq, Extract)]
-pub struct SetHorizontalScaling(pub(crate) f32);
+pub struct SetHorizontalScaling(f32);
 
 impl PreTextOperation for SetHorizontalScaling {
     fn preapply(self, _: &mut TextMatrix, parameters: &mut TextStateParameters) {
@@ -59,7 +58,7 @@ impl PreTextOperation for SetHorizontalScaling {
 
 /// `TL` operator.
 #[derive(Debug, Clone, Copy, PartialEq, Extract)]
-pub struct SetTextLeading(pub(crate) f32);
+pub struct SetTextLeading(f32);
 
 impl PreTextOperation for SetTextLeading {
     fn preapply(self, _: &mut TextMatrix, parameters: &mut TextStateParameters) {
@@ -88,7 +87,7 @@ impl PreTextOperation for SetFontAndFontSize {
 /// 2 Tr
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Extract)]
-pub struct SetTextRenderingMode(pub(crate) RenderingMode);
+pub struct SetTextRenderingMode(RenderingMode);
 
 impl PreTextOperation for SetTextRenderingMode {
     fn preapply(self, _: &mut TextMatrix, parameters: &mut TextStateParameters) {
@@ -98,46 +97,10 @@ impl PreTextOperation for SetTextRenderingMode {
 
 /// `Ts` operator.
 #[derive(Debug, Clone, Copy, PartialEq, Extract)]
-pub struct SetTextRise(pub(crate) f32);
+pub struct SetTextRise(f32);
 
 impl PreTextOperation for SetTextRise {
     fn preapply(self, _: &mut TextMatrix, parameters: &mut TextStateParameters) {
         parameters.rise = self.0;
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum RenderingMode {
-    /// Fill text.
-    Fill,
-    /// Stroke text.
-    Stroke,
-    /// Fill, then stroke text.
-    FillThenStroke,
-    /// Neither fill nor stroke text (invisible).
-    Invisible,
-    /// Fill text and add to path for clipping.
-    FillAndClip,
-    /// Stroke text and add to path for clipping.
-    StrokeAndClip,
-    /// Fill, then stroke text and add to path for clipping.
-    FillThenStrokeAndClip,
-    /// Add text to path for clipping.
-    AddTextAndClip,
-}
-
-impl Extract<'_> for RenderingMode {
-    fn extract(input: &mut &'_ winnow::BStr) -> winnow::PResult<Self> {
-        match u8::extract(input)? {
-            0 => Ok(Self::Fill),
-            1 => Ok(Self::Stroke),
-            2 => Ok(Self::FillThenStroke),
-            3 => Ok(Self::Invisible),
-            4 => Ok(Self::FillAndClip),
-            5 => Ok(Self::StrokeAndClip),
-            6 => Ok(Self::FillThenStrokeAndClip),
-            7 => Ok(Self::AddTextAndClip),
-            _ => Err(ErrMode::Backtrack(ContextError::new())),
-        }
     }
 }

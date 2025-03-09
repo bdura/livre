@@ -1,4 +1,4 @@
-//! Text state.
+//! Definition of a [text object](TextObject), and its state parameters.
 //!
 //! > At the beginning of a text object, $T_m$ shall be the identity matrix;
 //! > therefore, the origin of text space shall be initially the same as that of
@@ -12,20 +12,26 @@
 
 use std::collections::VecDeque;
 
-use winnow::{combinator::trace, BStr, PResult, Parser};
+use winnow::{
+    combinator::trace,
+    error::{ContextError, ErrMode},
+    BStr, PResult, Parser,
+};
 
 use crate::{
     content::{
         error::{ContentError, Result},
         operators::{
-            PreTextOperation, SetFontAndFontSize, TextOperation, TextOperator, TextStateOperator,
+            text::{
+                PreTextOperation, SetFontAndFontSize, TextArrayElement, TextOperation,
+                TextOperator, TextStateOperator,
+            },
+            Operator,
         },
     },
     debug,
     extraction::{extract, Extract, Name, PDFString},
 };
-
-use super::super::{operators::RenderingMode, Operator, TextArrayElement};
 
 pub struct TextStateParameters {
     /// Spacing between characters, in unscaled text space units. Added to the horizontal or
@@ -40,12 +46,14 @@ pub struct TextStateParameters {
     /// Spacing between words, in unscaled text space units. Works the same way as
     /// [character spacing](Self::character_spacing).
     ///
+    /// From the specification:
+    ///
     /// > Word spacing shall be applied to every occurrence of the single-byte character code 32
     /// > in a string when using a simple font (including Type 3) or a composite font that defines
     /// > code 32 as a single-byte code. It shall not apply to occurrences of the byte value 32
     /// > in multiple-byte codes
     pub word_spacing: f32,
-    /// Horizontal scaling adjusts the width of glyphs by stretching or compressing them in the
+    /// Horizontal scaling: adjusts the width of glyphs by stretching or compressing them in the
     /// horizontal direction. Specified as a percentage of the normal width of the glyph, 100
     /// being the normal width.
     pub horizontal_scaling: f32,
@@ -120,14 +128,60 @@ impl TextMatrix {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum RenderingMode {
+    /// Fill text.
+    Fill,
+    /// Stroke text.
+    Stroke,
+    /// Fill, then stroke text.
+    FillThenStroke,
+    /// Neither fill nor stroke text (invisible).
+    Invisible,
+    /// Fill text and add to path for clipping.
+    FillAndClip,
+    /// Stroke text and add to path for clipping.
+    StrokeAndClip,
+    /// Fill, then stroke text and add to path for clipping.
+    FillThenStrokeAndClip,
+    /// Add text to path for clipping.
+    AddTextAndClip,
+}
+
+impl Extract<'_> for RenderingMode {
+    fn extract(input: &mut &'_ winnow::BStr) -> winnow::PResult<Self> {
+        match u8::extract(input)? {
+            0 => Ok(Self::Fill),
+            1 => Ok(Self::Stroke),
+            2 => Ok(Self::FillThenStroke),
+            3 => Ok(Self::Invisible),
+            4 => Ok(Self::FillAndClip),
+            5 => Ok(Self::StrokeAndClip),
+            6 => Ok(Self::FillThenStrokeAndClip),
+            7 => Ok(Self::AddTextAndClip),
+            _ => Err(ErrMode::Backtrack(ContextError::new())),
+        }
+    }
+}
+
+/// A text object.
+///
+/// Can be iterated over to extract text elements. For now, since we lack a proper font object,
+/// we merely yield the text elements as they are (as [`PDFString`]s). This behaviour will change.
 pub struct TextObject {
+    /// Font name.
+    /// NOTE: this is set to become an actual object in the future.
     pub font: Name,
+    /// Font size, a scaling factor applied to every glyph's size parameters.
     pub font_size: f32,
+    /// Text matrix. Governs the transformation of text space to user space.
     pub matrix: TextMatrix,
+    /// All text state parameters: leading, character spacing, word spacing, etc.
     pub parameters: TextStateParameters,
     // FIXME: this indirection will be needed down the line. For now it seems a bit dumb.
     // It should be replaced with a `VecDeque<u8>` to allow the *font* to iterate over the text
     pub text_buffer: Option<PDFString>,
+    /// Buffer of text elements and offsets. We use a [`VecDeque`] to allow for efficient popping.
     pub buffer: Option<VecDeque<TextArrayElement>>,
 }
 
@@ -158,6 +212,7 @@ impl TextObject {
     }
 }
 
+/// The `TextObjectStream` holds a text object and a stream of operators that apply to it.
 pub struct TextObjectStream<Ops> {
     text_object: TextObject,
     ops: Ops,
@@ -207,6 +262,10 @@ where
     }
 }
 
+/// Main, if temporary, entry point for parsing text objects.
+///
+/// Skips over any operators until it finds the `BT` operator, which marks the beginning of a text,
+/// and returns an object that can be used to iterate over the text elements.
 pub fn parse_text_object<Ops>(mut ops: Ops) -> Result<Option<TextObjectStream<Ops>>>
 where
     Ops: Iterator<Item = Operator>,
@@ -223,6 +282,7 @@ where
 }
 
 impl Iterator for TextObject {
+    // FIXME: return `char`s instead of `PDFString`
     type Item = ((f32, f32), PDFString);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -243,6 +303,8 @@ impl Iterator for TextObject {
             }
         }
 
+        // FIXME: this is merely a placeholder.
+        // Actual logic will invlove the font object.
         let text = self.text_buffer.take()?;
 
         Some((self.matrix.position(), text))

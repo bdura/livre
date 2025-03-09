@@ -1,6 +1,6 @@
 use std::{fs::File, io::Read};
 
-use livre::{content::Operator, extraction::Extract, InMemoryDocument};
+use livre::{content::operators::Operator, extraction::Extract, InMemoryDocument};
 use winnow::{
     ascii::multispace0,
     combinator::{iterator, preceded},

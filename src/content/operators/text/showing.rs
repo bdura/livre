@@ -12,12 +12,18 @@ use crate::{
 
 use super::TextOperation;
 
+/// Abstraction over any text-showing operator, as defined in section 9.4.3 of the PDF
+/// specification.
 #[derive(Debug, Clone, PartialEq)]
 #[enum_dispatch(TextOperation)]
 pub enum TextShowingOperator {
+    /// The `Tj` operator. Show a text string.
     ShowText(ShowText),
+    /// The `'` operator. Move to the next line and show a text string.
     MoveToNextLineAndShowText(MoveToNextLineAndShowText),
+    /// The `"` operator. Move to the next line and show a text string, using `aw` as the word
     MoveToNextLineAndShowTextWithSpacing(MoveToNextLineAndShowTextWithSpacing),
+    /// The `TJ` operator. Show zero or more text strings, allowing individual glyph positioning.
     ShowTextArray(ShowTextArray),
 }
 
@@ -52,7 +58,9 @@ impl TextOperation for ShowText {
     }
 }
 
-/// `'` operator. Equivalent to:
+/// `'` operator. Move to the next line and show a text string.
+///
+/// Equivalent to:
 ///
 /// ```raw
 /// T*
@@ -106,9 +114,8 @@ impl Display for MoveToNextLineAndShowTextWithSpacing {
 ///
 /// - in the case of a string, the operator shows the text;
 /// - in the case of a number, the operator adjust the text position by that
-///   amount (i.e. translate the text matrix). Expressed in **thousandths of a unit of
-///   text space.
-///   That amount is substracted from the current "selected coordinate",
+///   amount (i.e. translate the text matrix). Expressed in thousandths of text
+///   space units. That amount is subtracted from the current "selected coordinate",
 ///   depending on the writing mode.
 ///
 /// ```raw
@@ -134,6 +141,7 @@ impl Display for ShowTextArray {
     }
 }
 
+/// Helper enumeration to represent the elements of a text array.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TextArrayElement {
     Text(PDFString),

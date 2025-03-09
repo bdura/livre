@@ -1,15 +1,28 @@
-mod text;
+//! Operators used in content streams.
+//!
+//! This module defines the operators that are used in content streams, as well as specific
+//! behaviour. The operators are organised in a hierarchy that follows the PDF specification.
+//!
+//! Note that PDF documents serialise operators as zero or more operands followed by an operator
+//! identifier. This means that we *need* to parse the operands before we can determine the
+//! operator.
+//!
+//! To achieve this, we could use two different approaches:
+//!
+//! 1. Parse each operand as a PDF [`Object`](crate::extraction::Object), and then parse the operator.
+//! 2. Merely *recognize* the operands, parse the operator, and finally go back and parse the operands.
+//!
+//! Livre uses the second approach, since it is more efficient. Indeed, parsing an `Object`
+//! requires going through every alternative until one matches, while skipping over the operands
+//! allows us to use the right parser directly, which is possible once we know the operator.
+
+pub mod text;
 
 use text::{
     BeginText, EndText, MoveByOffset, MoveByOffsetAndSetLeading, MoveToNextLine,
     MoveToNextLineAndShowText, MoveToNextLineAndShowTextWithSpacing, SetCharacterSpacing,
-    SetHorizontalScaling, SetTextLeading, SetTextMatrix, SetTextRenderingMode, SetTextRise,
-    SetWordSpacing, ShowText, ShowTextArray,
-};
-
-pub use text::{
-    PreTextOperation, RenderingMode, SetFontAndFontSize, TextArrayElement, TextOperation,
-    TextOperator, TextPositioningOperator, TextShowingOperator, TextStateOperator,
+    SetFontAndFontSize, SetHorizontalScaling, SetTextLeading, SetTextMatrix, SetTextRenderingMode,
+    SetTextRise, SetWordSpacing, ShowText, ShowTextArray, TextOperator,
 };
 
 use winnow::{
@@ -26,10 +39,19 @@ use crate::extraction::{take_till_delimiter, Angles, Brackets, Extract, Name, Pa
 ///
 /// ## Implementation notes
 ///
-/// Although Livre defines a somewhat deep hierarchy of operators, the top-level `Operator`
-/// is the only type that implements [`Extract`]. This allows a more efficient extraction
-/// of operators, since we do not have to rely on alternatives or other combinators to parse
-/// the operator.
+/// Although Livre defines a somewhat deep hierarchy of operators, the extraction is exlusively
+/// driven by `Operator`. This allows a more efficient extraction of operators, since we do not
+/// have to rely on nested alternatives or other combinators to parse the operator.
+///
+/// Moreover:
+///
+/// - intermerdiate operators in the hierarchy do not implement [`Extract`], for the reason
+///   established above.
+/// - leaf operators do implement [`Extract`], although partially - they only know how to parse
+///   their operands.
+///
+/// Finally, the `Operator` enum is not exhaustive, since it does not (yet!) cover all operators
+/// defined by the PDF specification.
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub enum Operator {
@@ -60,7 +82,8 @@ impl Extract<'_> for Operator {
     }
 }
 
-/// Recognize an operand, without parsing it.
+/// Recognize an operand, without parsing it. Thanks to the
+/// [`recognize`](Extract::recognize) static method, we can efficiently skip over the operands.
 fn recognize_operand<'de>(input: &mut &'de BStr) -> PResult<&'de [u8]> {
     dispatch! {peek(any);
         b'/' => Name::recognize,
@@ -82,6 +105,10 @@ where
     T::extract.map(Operator::from).parse_next(input)
 }
 
+/// Parse an operator from the input.
+///
+/// Defining the parsing logic at the [`Operator`] level allows us to use a single alternative,
+/// which is more efficient than using nested parsing logic.
 fn parse_operator(input: &mut &BStr) -> PResult<Operator> {
     let mut cursor = *input;
 
@@ -129,6 +156,9 @@ mod tests {
     use super::*;
 
     macro_rules! op {
+        ($text:literal) => {
+            extract(&mut $text.as_ref()).unwrap()
+        };
         (BT) => {
             BeginText
         };
