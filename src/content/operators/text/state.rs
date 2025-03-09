@@ -5,7 +5,7 @@ use winnow::{
 };
 
 use crate::{
-    content::state::TextStateParameters,
+    content::state::{TextMatrix, TextStateParameters},
     extract_tuple,
     extraction::{extract, Extract, Name},
 };
@@ -37,7 +37,7 @@ pub struct SetCharacterSpacing(pub(crate) f32);
 extract_tuple!(SetCharacterSpacing: 1);
 
 impl PreTextOperation for SetCharacterSpacing {
-    fn preapply(self, _: &mut (f32, f32), parameters: &mut TextStateParameters) {
+    fn preapply(self, _: &mut TextMatrix, parameters: &mut TextStateParameters) {
         parameters.character_spacing = self.0;
     }
 }
@@ -48,7 +48,7 @@ impl PreTextOperation for SetCharacterSpacing {
 pub struct SetWordSpacing(pub(crate) f32);
 extract_tuple!(SetWordSpacing: 1);
 impl PreTextOperation for SetWordSpacing {
-    fn preapply(self, _: &mut (f32, f32), parameters: &mut TextStateParameters) {
+    fn preapply(self, _: &mut TextMatrix, parameters: &mut TextStateParameters) {
         parameters.word_spacing = self.0;
     }
 }
@@ -58,7 +58,7 @@ impl PreTextOperation for SetWordSpacing {
 pub struct SetHorizontalScaling(pub(crate) f32);
 extract_tuple!(SetHorizontalScaling: 1);
 impl PreTextOperation for SetHorizontalScaling {
-    fn preapply(self, _: &mut (f32, f32), parameters: &mut TextStateParameters) {
+    fn preapply(self, _: &mut TextMatrix, parameters: &mut TextStateParameters) {
         parameters.horizontal_scaling = self.0;
     }
 }
@@ -68,7 +68,7 @@ impl PreTextOperation for SetHorizontalScaling {
 pub struct SetTextLeading(pub(crate) f32);
 extract_tuple!(SetTextLeading: 1);
 impl PreTextOperation for SetTextLeading {
-    fn preapply(self, _: &mut (f32, f32), parameters: &mut TextStateParameters) {
+    fn preapply(self, _: &mut TextMatrix, parameters: &mut TextStateParameters) {
         parameters.leading = self.0;
     }
 }
@@ -83,7 +83,7 @@ impl PreTextOperation for SetTextLeading {
 pub struct SetFontAndFontSize(pub(crate) Name, pub(crate) f32);
 extract_tuple!(SetFontAndFontSize: 2);
 impl PreTextOperation for SetFontAndFontSize {
-    fn preapply(self, _position: &mut (f32, f32), _parameters: &mut TextStateParameters) {
+    fn preapply(self, _matrix: &mut TextMatrix, _parameters: &mut TextStateParameters) {
         unreachable!("This operator is special-cased during initialisation of the TextObject, and cannot be applied twice.")
     }
 }
@@ -97,7 +97,7 @@ impl PreTextOperation for SetFontAndFontSize {
 pub struct SetTextRenderingMode(pub(crate) RenderingMode);
 extract_tuple!(SetTextRenderingMode: 1);
 impl PreTextOperation for SetTextRenderingMode {
-    fn preapply(self, _: &mut (f32, f32), parameters: &mut TextStateParameters) {
+    fn preapply(self, _: &mut TextMatrix, parameters: &mut TextStateParameters) {
         parameters.rendering_mode = self.0;
     }
 }
@@ -107,7 +107,7 @@ impl PreTextOperation for SetTextRenderingMode {
 pub struct SetTextRise(pub(crate) f32);
 extract_tuple!(SetTextRise: 1);
 impl PreTextOperation for SetTextRise {
-    fn preapply(self, _: &mut (f32, f32), parameters: &mut TextStateParameters) {
+    fn preapply(self, _: &mut TextMatrix, parameters: &mut TextStateParameters) {
         parameters.rise = self.0;
     }
 }

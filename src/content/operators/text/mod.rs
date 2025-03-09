@@ -19,7 +19,7 @@ pub use state::{
     SetTextRenderingMode, SetTextRise, SetWordSpacing, TextStateOperator,
 };
 
-use crate::content::state::{TextObject, TextStateParameters};
+use crate::content::state::{TextMatrix, TextObject, TextStateParameters};
 
 use super::Operator;
 
@@ -38,7 +38,7 @@ pub trait TextOperation: Sized {
 /// implementation.
 #[enum_dispatch]
 pub trait PreTextOperation: Sized {
-    fn preapply(self, position: &mut (f32, f32), parameters: &mut TextStateParameters);
+    fn preapply(self, matrix: &mut TextMatrix, parameters: &mut TextStateParameters);
 }
 
 impl<T> TextOperation for T
@@ -46,7 +46,7 @@ where
     T: PreTextOperation,
 {
     fn apply(self, text_object: &mut TextObject) {
-        self.preapply(&mut text_object.position, &mut text_object.parameters);
+        self.preapply(&mut text_object.matrix, &mut text_object.parameters);
     }
 }
 

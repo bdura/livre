@@ -1,8 +1,9 @@
 use enum_dispatch::enum_dispatch;
+use winnow::{BStr, PResult};
 
 use crate::{
-    content::state::TextStateParameters,
-    debug, extract_tuple,
+    content::state::{TextMatrix, TextStateParameters},
+    extract_tuple,
     extraction::{extract, Extract},
 };
 
@@ -33,8 +34,8 @@ pub struct MoveByOffset(f32, f32);
 extract_tuple!(MoveByOffset: 2);
 
 impl PreTextOperation for MoveByOffset {
-    fn preapply(self, position: &mut (f32, f32), _parameters: &mut TextStateParameters) {
-        *position = (self.0, self.1);
+    fn preapply(self, matrix: &mut TextMatrix, _parameters: &mut TextStateParameters) {
+        matrix.move_to(self.0, self.1);
     }
 }
 
@@ -54,9 +55,9 @@ pub struct MoveByOffsetAndSetLeading(pub(crate) f32, pub(crate) f32);
 extract_tuple!(MoveByOffsetAndSetLeading: 2);
 
 impl PreTextOperation for MoveByOffsetAndSetLeading {
-    fn preapply(self, position: &mut (f32, f32), parameters: &mut TextStateParameters) {
+    fn preapply(self, matrix: &mut TextMatrix, parameters: &mut TextStateParameters) {
         parameters.leading = -self.1;
-        *position = (self.0, self.1);
+        matrix.move_to(self.0, self.1);
     }
 }
 
@@ -66,20 +67,17 @@ impl PreTextOperation for MoveByOffsetAndSetLeading {
 /// 1 0 0 -1 370.70721 .47981739 Tm
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct SetTextMatrix(f32, f32, f32, f32, f32, f32);
+pub struct SetTextMatrix(TextMatrix);
 
-extract_tuple!(SetTextMatrix: 6);
+impl Extract<'_> for SetTextMatrix {
+    fn extract(input: &mut &BStr) -> PResult<Self> {
+        extract(input).map(Self)
+    }
+}
 
 impl PreTextOperation for SetTextMatrix {
-    fn preapply(self, position: &mut (f32, f32), _: &mut TextStateParameters) {
-        *position = (self.4, self.5);
-
-        if self.0 != 1.0 || self.1 != 0.0 || self.2 != 0.0 || self.3 != 1.0 {
-            debug!(
-                "WARNING: non-trivial text matrix {:?}. Output will erroneous.",
-                self
-            );
-        }
+    fn preapply(self, matrix: &mut TextMatrix, _: &mut TextStateParameters) {
+        *matrix = self.0;
     }
 }
 
@@ -100,7 +98,7 @@ pub struct MoveToNextLine;
 extract_tuple!(MoveToNextLine: 0);
 
 impl PreTextOperation for MoveToNextLine {
-    fn preapply(self, position: &mut (f32, f32), parameters: &mut TextStateParameters) {
-        position.1 -= parameters.leading;
+    fn preapply(self, matrix: &mut TextMatrix, parameters: &mut TextStateParameters) {
+        matrix.move_to(0.0, -parameters.leading);
     }
 }

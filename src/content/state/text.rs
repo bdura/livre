@@ -12,6 +12,8 @@
 
 use std::collections::VecDeque;
 
+use winnow::{combinator::trace, BStr, PResult, Parser};
+
 use crate::{
     content::{
         error::{ContentError, Result},
@@ -20,7 +22,7 @@ use crate::{
         },
     },
     debug,
-    extraction::{Name, PDFString},
+    extraction::{extract, Extract, Name, PDFString},
 };
 
 use super::super::{operators::RenderingMode, Operator, TextArrayElement};
@@ -70,12 +72,58 @@ impl Default for TextStateParameters {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TextMatrix {
+    a: f32,
+    b: f32,
+    c: f32,
+    d: f32,
+    e: f32,
+    f: f32,
+}
+
+impl Extract<'_> for TextMatrix {
+    fn extract(input: &mut &BStr) -> PResult<Self> {
+        trace(
+            "livre-text-matrix",
+            extract.map(|(a, b, c, d, e, f)| Self { a, b, c, d, e, f }),
+        )
+        .parse_next(input)
+    }
+}
+
+impl Default for TextMatrix {
+    fn default() -> Self {
+        Self {
+            a: 1.0,
+            b: 0.0,
+            c: 0.0,
+            d: 1.0,
+            e: 0.0,
+            f: 0.0,
+        }
+    }
+}
+
+impl TextMatrix {
+    pub fn position(&self) -> (f32, f32) {
+        (self.e, self.f)
+    }
+
+    pub fn move_to(&mut self, x: f32, y: f32) {
+        let Self { a, b, c, d, e, f } = *self;
+
+        let e = a * x + c * y + e;
+        let f = b * x + d * y + f;
+
+        *self = Self { a, b, c, d, e, f };
+    }
+}
+
 pub struct TextObject {
     pub font: Name,
     pub font_size: f32,
-    // matrix: [f32; 6],
-    /// A "simplified" text matrix.
-    pub position: (f32, f32),
+    pub matrix: TextMatrix,
     pub parameters: TextStateParameters,
     // FIXME: this indirection will be needed down the line. For now it seems a bit dumb.
     // It should be replaced with a `VecDeque<u8>` to allow the *font* to iterate over the text
@@ -85,10 +133,10 @@ pub struct TextObject {
 
 impl TextObject {
     pub fn move_to(&mut self, x: f32, y: f32) {
-        self.position = (x, y);
+        self.matrix.move_to(x, y);
     }
     pub fn move_to_next_line(&mut self) {
-        self.position.1 -= self.parameters.leading;
+        self.matrix.move_to(0.0, -self.parameters.leading);
     }
     pub fn add_text(&mut self, text: PDFString) {
         self.text_buffer = Some(text);
@@ -120,7 +168,7 @@ where
     Ops: Iterator<Item = Operator>,
 {
     fn build(mut ops: Ops) -> Result<Self> {
-        let mut position = (0.0, 0.0);
+        let mut matrix = Default::default();
         let mut parameters = Default::default();
 
         for operator in &mut ops {
@@ -131,7 +179,7 @@ where
                     let text_object = TextObject {
                         font,
                         font_size,
-                        position,
+                        matrix,
                         parameters,
                         text_buffer: None,
                         buffer: None,
@@ -140,10 +188,10 @@ where
                     return Ok(TextObjectStream { text_object, ops });
                 }
                 Operator::Text(TextOperator::TextStateOperator(op)) => {
-                    op.preapply(&mut position, &mut parameters);
+                    op.preapply(&mut matrix, &mut parameters);
                 }
                 Operator::Text(TextOperator::TextPositioningOperator(op)) => {
-                    op.preapply(&mut position, &mut parameters);
+                    op.preapply(&mut matrix, &mut parameters);
                 }
                 Operator::Text(TextOperator::TextShowingOperator(op)) => {
                     return Err(ContentError::UnexpectedTextShowingOperator(op));
@@ -188,7 +236,8 @@ impl Iterator for TextObject {
                         break;
                     }
                     TextArrayElement::Offset(offset) => {
-                        self.position.0 += offset;
+                        // NOTE: offset is given in thousandths of a unit of text space
+                        self.matrix.move_to(-offset / 1_000.0, 0.0);
                     }
                 }
             }
@@ -196,7 +245,7 @@ impl Iterator for TextObject {
 
         let text = self.text_buffer.take()?;
 
-        Some((self.position, text))
+        Some((self.matrix.position(), text))
     }
 }
 
@@ -207,7 +256,11 @@ where
     type Item = ((f32, f32), PDFString);
 
     fn next(&mut self) -> Option<Self::Item> {
-        while self.text_object.buffer.is_none() {
+        loop {
+            if let Some(out) = self.text_object.next() {
+                return Some(out);
+            }
+
             let op = self.ops.next()?;
             match op {
                 Operator::EndText(_) => return None,
@@ -217,7 +270,5 @@ where
                 }
             }
         }
-
-        self.text_object.next()
     }
 }
