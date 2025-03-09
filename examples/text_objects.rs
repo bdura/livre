@@ -34,7 +34,7 @@ fn main() {
                 preceded(multispace0, Operator::extract),
             );
 
-            while let Some(mut text_state) = parse_text_object(&mut it) {
+            while let Some(mut text_state) = parse_text_object(&mut it).unwrap() {
                 println!("NEW TEXT OBJECT");
                 for (position, text) in &mut text_state {
                     println!("- {:?} {:?}", position, text);
