@@ -1,6 +1,10 @@
 use std::{fs::File, io::Read};
 
-use livre::{content::Operator, extraction::Extract, InMemoryDocument};
+use livre::{
+    content::{parse_text_object, Operator},
+    extraction::Extract,
+    InMemoryDocument,
+};
 use rstest::rstest;
 use winnow::{
     ascii::multispace0,
@@ -31,8 +35,11 @@ fn test_content(#[case] path: &str) {
             preceded(multispace0, Operator::extract),
         );
 
-        for operator in &mut it {
-            println!("{:?}", operator);
+        while let Some(mut text_state) = parse_text_object(&mut it).unwrap() {
+            println!();
+            for (position, text) in &mut text_state {
+                println!("- {:?} {:?}", position, text);
+            }
         }
 
         let (mut input, _) = it.finish().unwrap();
