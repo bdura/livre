@@ -83,7 +83,7 @@ impl PreTextOperation for SetTextLeading {
 pub struct SetFontAndFontSize(pub(crate) Name, pub(crate) f32);
 extract_tuple!(SetFontAndFontSize: 2);
 impl PreTextOperation for SetFontAndFontSize {
-    fn preapply(self, position: &mut (f32, f32), parameters: &mut TextStateParameters) {
+    fn preapply(self, _position: &mut (f32, f32), _parameters: &mut TextStateParameters) {
         unreachable!("This operator is special-cased during initialisation of the TextObject, and cannot be applied twice.")
     }
 }

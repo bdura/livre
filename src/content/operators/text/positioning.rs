@@ -33,7 +33,7 @@ pub struct MoveByOffset(f32, f32);
 extract_tuple!(MoveByOffset: 2);
 
 impl PreTextOperation for MoveByOffset {
-    fn preapply(self, position: &mut (f32, f32), parameters: &mut TextStateParameters) {
+    fn preapply(self, position: &mut (f32, f32), _parameters: &mut TextStateParameters) {
         *position = (self.0, self.1);
     }
 }
