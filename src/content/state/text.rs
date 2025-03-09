@@ -13,8 +13,11 @@
 use std::collections::VecDeque;
 
 use crate::{
-    content::operators::{
-        PreTextOperation, SetFontAndFontSize, TextOperation, TextOperator, TextStateOperator,
+    content::{
+        error::{ContentError, Result},
+        operators::{
+            PreTextOperation, SetFontAndFontSize, TextOperation, TextOperator, TextStateOperator,
+        },
     },
     debug,
     extraction::{Name, PDFString},
@@ -67,11 +70,6 @@ impl Default for TextStateParameters {
     }
 }
 
-pub enum TextOrArray {
-    Text(Vec<u8>),
-    Array(Vec<TextArrayElement>),
-}
-
 pub struct TextObject {
     pub font: Name,
     pub font_size: f32,
@@ -79,7 +77,7 @@ pub struct TextObject {
     /// A "simplified" text matrix.
     pub position: (f32, f32),
     pub parameters: TextStateParameters,
-    // FIXME: this indirection will be needed down the line. For now it's seems a bit dumb.
+    // FIXME: this indirection will be needed down the line. For now it seems a bit dumb.
     // It should be replaced with a `VecDeque<u8>` to allow the *font* to iterate over the text
     pub text_buffer: Option<PDFString>,
     pub buffer: Option<VecDeque<TextArrayElement>>,
@@ -121,7 +119,7 @@ impl<Ops> TextObjectStream<Ops>
 where
     Ops: Iterator<Item = Operator>,
 {
-    fn build(mut ops: Ops) -> Self {
+    fn build(mut ops: Ops) -> Result<Self> {
         let mut position = (0.0, 0.0);
         let mut parameters = Default::default();
 
@@ -139,7 +137,7 @@ where
                         buffer: None,
                     };
 
-                    return TextObjectStream { text_object, ops };
+                    return Ok(TextObjectStream { text_object, ops });
                 }
                 Operator::Text(TextOperator::TextStateOperator(op)) => {
                     op.preapply(&mut position, &mut parameters);
@@ -148,9 +146,7 @@ where
                     op.preapply(&mut position, &mut parameters);
                 }
                 Operator::Text(TextOperator::TextShowingOperator(op)) => {
-                    unreachable!(
-                        "Trying to show text before setting the font and font size: {op:?}"
-                    );
+                    return Err(ContentError::UnexpectedTextShowingOperator(op));
                 }
                 _ => {
                     // FIXME: Use proper logging.
@@ -159,24 +155,23 @@ where
             }
         }
 
-        // FIXME: replace these `unreachable!` with proper error handling
-        unreachable!("A `BT` tag was found, but the text object was not completed");
+        Err(ContentError::IncompleteTextObject)
     }
 }
 
-pub fn parse_text_object<Ops>(mut ops: Ops) -> Option<TextObjectStream<Ops>>
+pub fn parse_text_object<Ops>(mut ops: Ops) -> Result<Option<TextObjectStream<Ops>>>
 where
     Ops: Iterator<Item = Operator>,
 {
     while let Some(op) = ops.next() {
         match op {
-            Operator::BeginText(_) => return Some(TextObjectStream::build(ops)),
+            Operator::BeginText(_) => return Some(TextObjectStream::build(ops)).transpose(),
             _ => {
                 // NOTE: just skip any other operators until we find the text object
             }
         }
     }
-    None
+    Ok(None)
 }
 
 impl Iterator for TextObject {
