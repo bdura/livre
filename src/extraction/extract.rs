@@ -1,3 +1,4 @@
+pub use livre_derive::Extract;
 use winnow::{BStr, PResult, Parser};
 
 /// The [`Extract`] trait marks a type as extractable from a stream of bytes.
