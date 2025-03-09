@@ -1,8 +1,21 @@
+use enum_dispatch::enum_dispatch;
+
 use crate::{
-    content::{operators::behavior::TextOperation, state::TextStateParameters},
-    extract_tuple,
+    content::state::TextStateParameters,
+    debug, extract_tuple,
     extraction::{extract, Extract},
 };
+
+use super::PreTextOperation;
+
+#[derive(Debug, Clone, PartialEq)]
+#[enum_dispatch(PreTextOperation)]
+pub enum TextPositioningOperator {
+    MoveByOffset(MoveByOffset),
+    MoveByOffsetAndSetLeading(MoveByOffsetAndSetLeading),
+    SetTextMatrix(SetTextMatrix),
+    MoveToNextLine(MoveToNextLine),
+}
 
 /// `Td` operator.
 ///
@@ -19,8 +32,8 @@ pub struct MoveByOffset(f32, f32);
 
 extract_tuple!(MoveByOffset: 2);
 
-impl TextOperation for MoveByOffset {
-    fn apply_partial(self, position: &mut (f32, f32), _: &mut TextStateParameters) {
+impl PreTextOperation for MoveByOffset {
+    fn preapply(self, position: &mut (f32, f32), parameters: &mut TextStateParameters) {
         *position = (self.0, self.1);
     }
 }
@@ -40,8 +53,8 @@ pub struct MoveByOffsetAndSetLeading(pub(crate) f32, pub(crate) f32);
 
 extract_tuple!(MoveByOffsetAndSetLeading: 2);
 
-impl TextOperation for MoveByOffsetAndSetLeading {
-    fn apply_partial(self, position: &mut (f32, f32), parameters: &mut TextStateParameters) {
+impl PreTextOperation for MoveByOffsetAndSetLeading {
+    fn preapply(self, position: &mut (f32, f32), parameters: &mut TextStateParameters) {
         parameters.leading = -self.1;
         *position = (self.0, self.1);
     }
@@ -57,12 +70,12 @@ pub struct SetTextMatrix(f32, f32, f32, f32, f32, f32);
 
 extract_tuple!(SetTextMatrix: 6);
 
-impl TextOperation for SetTextMatrix {
-    fn apply_partial(self, position: &mut (f32, f32), _: &mut TextStateParameters) {
+impl PreTextOperation for SetTextMatrix {
+    fn preapply(self, position: &mut (f32, f32), _: &mut TextStateParameters) {
         *position = (self.4, self.5);
 
         if self.0 != 1.0 || self.1 != 0.0 || self.2 != 0.0 || self.3 != 1.0 {
-            eprintln!(
+            debug!(
                 "WARNING: non-trivial text matrix {:?}. Output will erroneous.",
                 self
             );
@@ -86,8 +99,8 @@ pub struct MoveToNextLine;
 
 extract_tuple!(MoveToNextLine: 0);
 
-impl TextOperation for MoveToNextLine {
-    fn apply_partial(self, position: &mut (f32, f32), parameters: &mut TextStateParameters) {
+impl PreTextOperation for MoveToNextLine {
+    fn preapply(self, position: &mut (f32, f32), parameters: &mut TextStateParameters) {
         position.1 -= parameters.leading;
     }
 }

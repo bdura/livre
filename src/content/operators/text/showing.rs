@@ -2,13 +2,25 @@
 
 use std::fmt::Display;
 
+use enum_dispatch::enum_dispatch;
 use winnow::{combinator::peek, dispatch, token::any, BStr, PResult, Parser};
 
 use crate::{
-    content::{operators::behavior::TextOperation, state::TextObject},
+    content::state::TextObject,
     extract_tuple,
     extraction::{extract, Extract, HexadecimalString, LiteralString, PDFString},
 };
+
+use super::TextOperation;
+
+#[derive(Debug, Clone, PartialEq)]
+#[enum_dispatch(TextOperation)]
+pub enum TextShowingOperator {
+    ShowText(ShowText),
+    MoveToNextLineAndShowText(MoveToNextLineAndShowText),
+    MoveToNextLineAndShowTextWithSpacing(MoveToNextLineAndShowTextWithSpacing),
+    ShowTextArray(ShowTextArray),
+}
 
 /// `Tj` operator. Show a text string.
 ///
@@ -26,6 +38,12 @@ impl Display for ShowText {
     }
 }
 
+impl TextOperation for ShowText {
+    fn apply(self, text_object: &mut TextObject) {
+        text_object.add_text(self.0);
+    }
+}
+
 /// `'` operator. Equivalent to:
 ///
 /// ```raw
@@ -36,6 +54,13 @@ impl Display for ShowText {
 pub struct MoveToNextLineAndShowText(PDFString);
 
 extract_tuple!(MoveToNextLineAndShowText: 1);
+
+impl TextOperation for MoveToNextLineAndShowText {
+    fn apply(self, text_object: &mut TextObject) {
+        text_object.move_to_next_line();
+        text_object.add_text(self.0);
+    }
+}
 
 impl Display for MoveToNextLineAndShowText {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -52,6 +77,17 @@ impl Display for MoveToNextLineAndShowText {
 pub struct MoveToNextLineAndShowTextWithSpacing(f32, f32, PDFString);
 
 extract_tuple!(MoveToNextLineAndShowTextWithSpacing: 3);
+
+impl TextOperation for MoveToNextLineAndShowTextWithSpacing {
+    fn apply(self, text_object: &mut TextObject) {
+        let MoveToNextLineAndShowTextWithSpacing(aw, ac, text) = self;
+
+        text_object.move_to_next_line();
+        text_object.set_word_spacing(aw);
+        text_object.set_character_spacing(ac);
+        text_object.add_text(text);
+    }
+}
 
 impl Display for MoveToNextLineAndShowTextWithSpacing {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -78,6 +114,12 @@ impl Display for MoveToNextLineAndShowTextWithSpacing {
 pub struct ShowTextArray(Vec<TextArrayElement>);
 
 extract_tuple!(ShowTextArray: 1);
+
+impl TextOperation for ShowTextArray {
+    fn apply(self, text_object: &mut TextObject) {
+        text_object.add_text_array(self.0);
+    }
+}
 
 impl Display for ShowTextArray {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -134,36 +176,6 @@ impl Extract<'_> for TextArrayElement {
             _ => extract.map(TextArrayElement::Offset),
         }
         .parse_next(input)
-    }
-}
-
-impl TextOperation for ShowText {
-    fn apply(self, text_object: &mut TextObject) {
-        text_object.add_text(self.0);
-    }
-}
-
-impl TextOperation for MoveToNextLineAndShowText {
-    fn apply(self, text_object: &mut TextObject) {
-        text_object.move_to_next_line();
-        text_object.add_text(self.0);
-    }
-}
-
-impl TextOperation for MoveToNextLineAndShowTextWithSpacing {
-    fn apply(self, text_object: &mut TextObject) {
-        let MoveToNextLineAndShowTextWithSpacing(aw, ac, text) = self;
-
-        text_object.move_to_next_line();
-        text_object.set_word_spacing(aw);
-        text_object.set_character_spacing(ac);
-        text_object.add_text(text);
-    }
-}
-
-impl TextOperation for ShowTextArray {
-    fn apply(self, text_object: &mut TextObject) {
-        text_object.add_text_array(self.0);
     }
 }
 

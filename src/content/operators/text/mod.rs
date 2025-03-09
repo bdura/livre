@@ -1,17 +1,103 @@
 //! Text operators, roughly organised following the PDF specification's hierarchy.
 
-mod object;
+mod delimiters;
 mod positioning;
 mod showing;
 mod state;
 
-pub use object::{BeginText, EndText};
-pub use positioning::{MoveByOffset, MoveByOffsetAndSetLeading, MoveToNextLine, SetTextMatrix};
+pub use delimiters::{BeginText, EndText};
+use enum_dispatch::enum_dispatch;
+pub use positioning::{
+    MoveByOffset, MoveByOffsetAndSetLeading, MoveToNextLine, SetTextMatrix, TextPositioningOperator,
+};
 pub use showing::{
     MoveToNextLineAndShowText, MoveToNextLineAndShowTextWithSpacing, ShowText, ShowTextArray,
-    TextArrayElement,
+    TextArrayElement, TextShowingOperator,
 };
 pub use state::{
     RenderingMode, SetCharacterSpacing, SetFontAndFontSize, SetHorizontalScaling, SetTextLeading,
-    SetTextRenderingMode, SetTextRise, SetWordSpacing,
+    SetTextRenderingMode, SetTextRise, SetWordSpacing, TextStateOperator,
 };
+
+use crate::content::state::{TextObject, TextStateParameters};
+
+use super::Operator;
+
+/// Defines operations on the text state.
+#[enum_dispatch]
+pub trait TextOperation: Sized {
+    fn apply(self, text_object: &mut TextObject);
+}
+
+/// Operators that can be applied before the text object is fully constructed.
+///
+/// By definition, these include the [`Tf` operator](SetFontAndFontSize),
+/// since the text state cannot exist without a font and a font size.
+///
+/// `PreTextOperation` types are automatically [`TextOperation`] thanks to a blanket
+/// implementation.
+#[enum_dispatch]
+pub trait PreTextOperation: Sized {
+    fn preapply(self, position: &mut (f32, f32), parameters: &mut TextStateParameters);
+}
+
+impl<T> TextOperation for T
+where
+    T: PreTextOperation,
+{
+    fn apply(self, text_object: &mut TextObject) {
+        self.preapply(&mut text_object.position, &mut text_object.parameters);
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+#[enum_dispatch(TextOperation)]
+pub enum TextOperator {
+    TextShowingOperator(TextShowingOperator),
+    TextPositioningOperator(TextPositioningOperator),
+    TextStateOperator(TextStateOperator),
+}
+
+macro_rules! chain_into {
+    ($from:ty => $via:ident => $into:ty) => {
+        impl From<$from> for $into {
+            fn from(op: $from) -> Self {
+                Self::$via(op.into())
+            }
+        }
+    };
+    ($via:ident => $into:ty; $($from:ty,)+) => {
+        $(chain_into!($from => $via => $into);)+
+    };
+}
+
+chain_into!(TextStateOperator => TextOperator;
+    SetCharacterSpacing,
+    SetWordSpacing,
+    SetHorizontalScaling,
+    SetTextLeading,
+    SetFontAndFontSize,
+    SetTextRenderingMode,
+    SetTextRise,
+);
+chain_into!(TextShowingOperator => TextOperator;
+    ShowTextArray,
+    ShowText,
+    MoveToNextLineAndShowText,
+    MoveToNextLineAndShowTextWithSpacing,
+);
+chain_into!(TextPositioningOperator => TextOperator;
+    MoveByOffset,
+    MoveByOffsetAndSetLeading,
+    SetTextMatrix,
+    MoveToNextLine,
+);
+
+impl<T> From<T> for Operator
+where
+    T: Into<TextOperator>,
+{
+    fn from(op: T) -> Self {
+        Operator::Text(op.into())
+    }
+}
