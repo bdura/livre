@@ -1,4 +1,3 @@
-mod behavior;
 mod text;
 
 use text::{
@@ -8,8 +7,10 @@ use text::{
     SetWordSpacing, ShowText, ShowTextArray,
 };
 
-pub use behavior::TextOperation;
-pub use text::{RenderingMode, SetFontAndFontSize, TextArrayElement};
+pub use text::{
+    PreTextOperation, RenderingMode, SetFontAndFontSize, TextArrayElement, TextOperation,
+    TextOperator, TextPositioningOperator, TextShowingOperator, TextStateOperator,
+};
 
 use winnow::{
     ascii::multispace0,
@@ -21,28 +22,21 @@ use winnow::{
 
 use crate::extraction::{take_till_delimiter, Angles, Brackets, Extract, Name, Parentheses};
 
-use super::state::{TextObject, TextStateParameters};
-
+/// Content stream operator.
+///
+/// ## Implementation notes
+///
+/// Although Livre defines a somewhat deep hierarchy of operators, the top-level `Operator`
+/// is the only type that implements [`Extract`]. This allows a more efficient extraction
+/// of operators, since we do not have to rely on alternatives or other combinators to parse
+/// the operator.
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub enum Operator {
-    SetCharacterSpacing(SetCharacterSpacing),
-    SetWordSpacing(SetWordSpacing),
-    SetHorizontalScaling(SetHorizontalScaling),
-    SetTextLeading(SetTextLeading),
-    SetFontAndFontSize(SetFontAndFontSize),
-    SetTextRenderingMode(SetTextRenderingMode),
-    SetTextRise(SetTextRise),
+    // Delimiters
     BeginText(BeginText),
     EndText(EndText),
-    MoveByOffset(MoveByOffset),
-    MoveByOffsetAndSetLeading(MoveByOffsetAndSetLeading),
-    SetTextMatrix(SetTextMatrix),
-    MoveToNextLine(MoveToNextLine),
-    ShowText(ShowText),
-    MoveToNextLineAndShowText(MoveToNextLineAndShowText),
-    MoveToNextLineAndShowTextWithSpacing(MoveToNextLineAndShowTextWithSpacing),
-    ShowTextArray(ShowTextArray),
+    Text(TextOperator),
     NotImplemented(String),
 }
 
@@ -58,64 +52,7 @@ macro_rules! impl_from {
     };
 }
 
-impl_from!(
-    SetCharacterSpacing,
-    SetWordSpacing,
-    SetHorizontalScaling,
-    SetTextLeading,
-    SetFontAndFontSize,
-    SetTextRenderingMode,
-    SetTextRise,
-    BeginText,
-    EndText,
-    MoveByOffset,
-    MoveByOffsetAndSetLeading,
-    SetTextMatrix,
-    MoveToNextLine,
-    ShowText,
-    MoveToNextLineAndShowText,
-    MoveToNextLineAndShowTextWithSpacing,
-    ShowTextArray,
-);
-
-macro_rules! impl_text_operation {
-    ($($t:ident,)+) => {
-        impl TextOperation for Operator {
-            fn apply_partial(self, position: &mut (f32, f32), parameters: &mut TextStateParameters) {
-                match self {
-                    $( Operator::$t(inner) => inner.apply_partial(position, parameters),)+
-                    _ => {},
-                }
-            }
-            fn apply(self, text_object: &mut TextObject) {
-                match self {
-                    $( Operator::$t(inner) => inner.apply(text_object),)+
-                    _ => {},
-                }
-            }
-        }
-    };
-}
-
-impl_text_operation!(
-    SetCharacterSpacing,
-    SetWordSpacing,
-    SetHorizontalScaling,
-    SetTextLeading,
-    SetFontAndFontSize,
-    SetTextRenderingMode,
-    SetTextRise,
-    BeginText,
-    EndText,
-    MoveByOffset,
-    MoveByOffsetAndSetLeading,
-    SetTextMatrix,
-    MoveToNextLine,
-    ShowText,
-    MoveToNextLineAndShowText,
-    MoveToNextLineAndShowTextWithSpacing,
-    ShowTextArray,
-);
+impl_from!(BeginText, EndText,);
 
 #[macro_export]
 macro_rules! extract_tuple {
