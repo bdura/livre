@@ -31,3 +31,6 @@ eyre = "0.6.12"
 [dev-dependencies]
 rstest = "0.23"
 indoc = "2"
+
+[features]
+debug = []

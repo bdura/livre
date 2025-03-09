@@ -8,5 +8,6 @@ pub mod structure;
 
 mod document;
 mod filtering;
+mod utilities;
 
 pub use document::InMemoryDocument;
