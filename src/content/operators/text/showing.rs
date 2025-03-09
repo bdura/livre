@@ -22,6 +22,17 @@ pub enum TextShowingOperator {
     ShowTextArray(ShowTextArray),
 }
 
+impl Display for TextShowingOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TextShowingOperator::ShowText(v) => write!(f, "{}", v),
+            TextShowingOperator::MoveToNextLineAndShowText(v) => writeln!(f, "{}", v),
+            TextShowingOperator::MoveToNextLineAndShowTextWithSpacing(v) => writeln!(f, "{}", v),
+            TextShowingOperator::ShowTextArray(v) => write!(f, "{}", v),
+        }
+    }
+}
+
 /// `Tj` operator. Show a text string.
 ///
 /// ```raw
