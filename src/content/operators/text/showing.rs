@@ -7,7 +7,6 @@ use winnow::{combinator::peek, dispatch, token::any, BStr, PResult, Parser};
 
 use crate::{
     content::state::TextObject,
-    extract_tuple,
     extraction::{extract, Extract, HexadecimalString, LiteralString, PDFString},
 };
 
@@ -38,10 +37,8 @@ impl Display for TextShowingOperator {
 /// ```raw
 /// <0052> Tj
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Extract)]
 pub struct ShowText(PDFString);
-
-extract_tuple!(ShowText: 1);
 
 impl Display for ShowText {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -61,10 +58,8 @@ impl TextOperation for ShowText {
 /// T*
 /// string Tj
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Extract)]
 pub struct MoveToNextLineAndShowText(PDFString);
-
-extract_tuple!(MoveToNextLineAndShowText: 1);
 
 impl TextOperation for MoveToNextLineAndShowText {
     fn apply(self, text_object: &mut TextObject) {
@@ -84,10 +79,8 @@ impl Display for MoveToNextLineAndShowText {
 /// Move to the next line and show a text string, using `aw` as the word spacing and
 /// `ac` as the character spacing (setting the corresponding parameters in the text state).
 /// `aw` and `ac` shall be numbers expressed in unscaled text space units.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Extract)]
 pub struct MoveToNextLineAndShowTextWithSpacing(f32, f32, PDFString);
-
-extract_tuple!(MoveToNextLineAndShowTextWithSpacing: 3);
 
 impl TextOperation for MoveToNextLineAndShowTextWithSpacing {
     fn apply(self, text_object: &mut TextObject) {
@@ -121,10 +114,8 @@ impl Display for MoveToNextLineAndShowTextWithSpacing {
 /// ```raw
 /// [(5)-6(1)-6(,)-2( )-2(A)] TJ
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Extract)]
 pub struct ShowTextArray(Vec<TextArrayElement>);
-
-extract_tuple!(ShowTextArray: 1);
 
 impl TextOperation for ShowTextArray {
     fn apply(self, text_object: &mut TextObject) {

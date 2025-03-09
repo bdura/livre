@@ -1,10 +1,8 @@
 use enum_dispatch::enum_dispatch;
-use winnow::{BStr, PResult};
 
 use crate::{
     content::state::{TextMatrix, TextStateParameters},
-    extract_tuple,
-    extraction::{extract, Extract},
+    extraction::Extract,
 };
 
 use super::PreTextOperation;
@@ -28,10 +26,8 @@ pub enum TextPositioningOperator {
 /// 0 -13.2773438 Td
 /// 8.1511078 0 Td
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Extract)]
 pub struct MoveByOffset(f32, f32);
-
-extract_tuple!(MoveByOffset: 2);
 
 impl PreTextOperation for MoveByOffset {
     fn preapply(self, matrix: &mut TextMatrix, _parameters: &mut TextStateParameters) {
@@ -49,10 +45,8 @@ impl PreTextOperation for MoveByOffset {
 /// -ty TL
 /// tx ty Td
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Extract)]
 pub struct MoveByOffsetAndSetLeading(pub(crate) f32, pub(crate) f32);
-
-extract_tuple!(MoveByOffsetAndSetLeading: 2);
 
 impl PreTextOperation for MoveByOffsetAndSetLeading {
     fn preapply(self, matrix: &mut TextMatrix, parameters: &mut TextStateParameters) {
@@ -66,14 +60,8 @@ impl PreTextOperation for MoveByOffsetAndSetLeading {
 /// ```raw
 /// 1 0 0 -1 370.70721 .47981739 Tm
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Extract)]
 pub struct SetTextMatrix(TextMatrix);
-
-impl Extract<'_> for SetTextMatrix {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
-        extract(input).map(Self)
-    }
-}
 
 impl PreTextOperation for SetTextMatrix {
     fn preapply(self, matrix: &mut TextMatrix, _: &mut TextStateParameters) {
@@ -92,10 +80,8 @@ impl PreTextOperation for SetTextMatrix {
 /// where `T_l` denotes the current leading parameter in the text state.
 /// The negative of T l is used here because T l is the text leading expressed
 /// as a positive number. Going to the next line entails decreasing the y coordinate.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Extract)]
 pub struct MoveToNextLine;
-
-extract_tuple!(MoveToNextLine: 0);
 
 impl PreTextOperation for MoveToNextLine {
     fn preapply(self, matrix: &mut TextMatrix, parameters: &mut TextStateParameters) {

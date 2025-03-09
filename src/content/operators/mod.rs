@@ -54,48 +54,6 @@ macro_rules! impl_from {
 
 impl_from!(BeginText, EndText,);
 
-#[macro_export]
-macro_rules! extract_tuple {
-    ($name:ident: 0) => {
-        impl<'de> Extract<'de> for $name {
-            fn extract(_input: &mut &'_ winnow::BStr) -> winnow::PResult<Self> {
-                Ok(Self)
-            }
-        }
-    };
-    ($name:ident: 1) => {
-        impl<'de> Extract<'de> for $name {
-            fn extract(input: &mut &'_ winnow::BStr) -> winnow::PResult<Self> {
-                extract.map(Self).parse_next(input)
-            }
-        }
-    };
-    ($name:ident: 2) => {
-        impl<'de> Extract<'de> for $name {
-            fn extract(input: &mut &'_ winnow::BStr) -> winnow::PResult<Self> {
-                let (a, b) = extract(input)?;
-                Ok(Self(a, b))
-            }
-        }
-    };
-    ($name:ident: 3) => {
-        impl<'de> Extract<'de> for $name {
-            fn extract(input: &mut &'_ winnow::BStr) -> winnow::PResult<Self> {
-                let (a, b, c) = extract(input)?;
-                Ok(Self(a, b, c))
-            }
-        }
-    };
-    ($name:ident: 6) => {
-        impl<'de> Extract<'de> for $name {
-            fn extract(input: &mut &'_ winnow::BStr) -> winnow::PResult<Self> {
-                let (a, b, c, d, e, f) = extract(input)?;
-                Ok(Self(a, b, c, d, e, f))
-            }
-        }
-    };
-}
-
 impl Extract<'_> for Operator {
     fn extract(input: &mut &BStr) -> PResult<Self> {
         trace("livre-operator", parse_operator).parse_next(input)

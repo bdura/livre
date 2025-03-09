@@ -1,13 +1,9 @@
 use enum_dispatch::enum_dispatch;
-use winnow::{
-    error::{ContextError, ErrMode},
-    Parser,
-};
+use winnow::error::{ContextError, ErrMode};
 
 use crate::{
     content::state::{TextMatrix, TextStateParameters},
-    extract_tuple,
-    extraction::{extract, Extract, Name},
+    extraction::{Extract, Name},
 };
 
 use super::PreTextOperation;
@@ -31,10 +27,8 @@ pub enum TextStateOperator {
 /// -0.024 Tc
 /// 0.03 Tc
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Extract)]
 pub struct SetCharacterSpacing(pub(crate) f32);
-
-extract_tuple!(SetCharacterSpacing: 1);
 
 impl PreTextOperation for SetCharacterSpacing {
     fn preapply(self, _: &mut TextMatrix, parameters: &mut TextStateParameters) {
@@ -44,9 +38,9 @@ impl PreTextOperation for SetCharacterSpacing {
 
 /// `Tw` operator.
 /// Unscaled text space units.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Extract)]
 pub struct SetWordSpacing(pub(crate) f32);
-extract_tuple!(SetWordSpacing: 1);
+
 impl PreTextOperation for SetWordSpacing {
     fn preapply(self, _: &mut TextMatrix, parameters: &mut TextStateParameters) {
         parameters.word_spacing = self.0;
@@ -54,9 +48,9 @@ impl PreTextOperation for SetWordSpacing {
 }
 
 /// `Tz` operator.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Extract)]
 pub struct SetHorizontalScaling(pub(crate) f32);
-extract_tuple!(SetHorizontalScaling: 1);
+
 impl PreTextOperation for SetHorizontalScaling {
     fn preapply(self, _: &mut TextMatrix, parameters: &mut TextStateParameters) {
         parameters.horizontal_scaling = self.0;
@@ -64,9 +58,9 @@ impl PreTextOperation for SetHorizontalScaling {
 }
 
 /// `TL` operator.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Extract)]
 pub struct SetTextLeading(pub(crate) f32);
-extract_tuple!(SetTextLeading: 1);
+
 impl PreTextOperation for SetTextLeading {
     fn preapply(self, _: &mut TextMatrix, parameters: &mut TextStateParameters) {
         parameters.leading = self.0;
@@ -79,9 +73,9 @@ impl PreTextOperation for SetTextLeading {
 /// /F6 9 Tf
 /// /F4 14.666667 Tf
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Extract)]
 pub struct SetFontAndFontSize(pub(crate) Name, pub(crate) f32);
-extract_tuple!(SetFontAndFontSize: 2);
+
 impl PreTextOperation for SetFontAndFontSize {
     fn preapply(self, _matrix: &mut TextMatrix, _parameters: &mut TextStateParameters) {
         unreachable!("This operator is special-cased during initialisation of the TextObject, and cannot be applied twice.")
@@ -93,9 +87,9 @@ impl PreTextOperation for SetFontAndFontSize {
 /// ```raw
 /// 2 Tr
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Extract)]
 pub struct SetTextRenderingMode(pub(crate) RenderingMode);
-extract_tuple!(SetTextRenderingMode: 1);
+
 impl PreTextOperation for SetTextRenderingMode {
     fn preapply(self, _: &mut TextMatrix, parameters: &mut TextStateParameters) {
         parameters.rendering_mode = self.0;
@@ -103,9 +97,9 @@ impl PreTextOperation for SetTextRenderingMode {
 }
 
 /// `Ts` operator.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Extract)]
 pub struct SetTextRise(pub(crate) f32);
-extract_tuple!(SetTextRise: 1);
+
 impl PreTextOperation for SetTextRise {
     fn preapply(self, _: &mut TextMatrix, parameters: &mut TextStateParameters) {
         parameters.rise = self.0;
