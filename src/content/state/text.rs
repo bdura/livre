@@ -13,11 +13,14 @@
 use std::collections::VecDeque;
 
 use crate::{
-    content::operators::{SetFontAndFontSize, TextOperation},
+    content::operators::{
+        PreTextOperation, SetFontAndFontSize, TextOperation, TextOperator, TextStateOperator,
+    },
+    debug,
     extraction::{Name, PDFString},
 };
 
-use super::{operators::RenderingMode, Operator, TextArrayElement};
+use super::super::{operators::RenderingMode, Operator, TextArrayElement};
 
 pub struct TextStateParameters {
     /// Spacing between characters, in unscaled text space units. Added to the horizontal or
@@ -119,24 +122,45 @@ where
     Ops: Iterator<Item = Operator>,
 {
     fn build(mut ops: Ops) -> Self {
-        let operator = ops.next().unwrap();
+        let mut position = (0.0, 0.0);
+        let mut parameters = Default::default();
 
-        if let Operator::SetFontAndFontSize(SetFontAndFontSize(font, font_size)) = operator {
-            let text_object = TextObject {
-                font,
-                font_size,
-                position: (0.0, 0.0),
-                parameters: Default::default(),
-                text_buffer: None,
-                buffer: None,
-            };
+        for operator in &mut ops {
+            match operator {
+                Operator::Text(TextOperator::TextStateOperator(
+                    TextStateOperator::SetFontAndFontSize(SetFontAndFontSize(font, font_size)),
+                )) => {
+                    let text_object = TextObject {
+                        font,
+                        font_size,
+                        position,
+                        parameters,
+                        text_buffer: None,
+                        buffer: None,
+                    };
 
-            TextObjectStream { text_object, ops }
-        } else {
-            unreachable!(
-                "BT should always start with a SetFontAndFontSize operator, got {operator:?}"
-            )
+                    return TextObjectStream { text_object, ops };
+                }
+                Operator::Text(TextOperator::TextStateOperator(op)) => {
+                    op.preapply(&mut position, &mut parameters);
+                }
+                Operator::Text(TextOperator::TextPositioningOperator(op)) => {
+                    op.preapply(&mut position, &mut parameters);
+                }
+                Operator::Text(TextOperator::TextShowingOperator(op)) => {
+                    unreachable!(
+                        "Trying to show text before setting the font and font size: {op:?}"
+                    );
+                }
+                _ => {
+                    // FIXME: Use proper logging.
+                    debug!("Skipping operator: {:?}", operator);
+                }
+            }
         }
+
+        // FIXME: replace these `unreachable!` with proper error handling
+        unreachable!("A `BT` tag was found, but the text object was not completed");
     }
 }
 
@@ -192,7 +216,10 @@ where
             let op = self.ops.next()?;
             match op {
                 Operator::EndText(_) => return None,
-                _ => op.apply(&mut self.text_object),
+                Operator::Text(op) => op.apply(&mut self.text_object),
+                _ => {
+                    debug!("Skipping operator: {:?}", op);
+                }
             }
         }
 
