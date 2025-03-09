@@ -1,6 +1,10 @@
 use std::{fs::File, io::Read};
 
-use livre::{content::Operator, extraction::Extract, InMemoryDocument};
+use livre::{
+    content::{operators::TextOperator, Operator},
+    extraction::Extract,
+    InMemoryDocument,
+};
 use winnow::{
     ascii::multispace0,
     combinator::{iterator, preceded},
@@ -31,10 +35,7 @@ fn main() {
             for operator in &mut it {
                 match operator {
                     Operator::BeginText(_) => println!(),
-                    Operator::ShowText(v) => print!("{v}"),
-                    Operator::ShowTextArray(v) => print!("{v}"),
-                    Operator::MoveToNextLineAndShowText(v) => println!("{v}"),
-                    Operator::MoveToNextLineAndShowTextWithSpacing(v) => println!("{v}"),
+                    Operator::Text(TextOperator::TextShowingOperator(v)) => print!("{v}"),
                     _ => {}
                 }
             }
