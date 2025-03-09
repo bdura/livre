@@ -11,7 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- parse operators ([#41](https://github.com/bdura/livre/pull/41))
+- Page content extraction ([#41](https://github.com/bdura/livre/pull/41))
+
+  - efficient-ish extraction of PDF operators
+  - iteration over text objects
 
 ### Other
 
