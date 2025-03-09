@@ -165,6 +165,7 @@ mod tests {
     #[case(b"(\\0533)", b"+3")]
     #[case(b"(te\\\\st)", b"te\\st")]
     #[case(b"(te\\\nst)", b"test")]
+    #[case(b"(!3\\(.!530)", b"!3(.!530")]
     fn literal_string(#[case] input: &[u8], #[case] expected: &[u8]) {
         let LiteralString(inner) = extract(&mut input.as_ref()).unwrap();
         assert_eq!(expected, &inner);

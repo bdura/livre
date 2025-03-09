@@ -50,6 +50,8 @@ pub use from_raw_dict::FromRawDict;
 
 pub use special::{
     multicomment0, multicomment1, Comment, Date, HexadecimalString, Id, Indirect, LiteralString,
-    Map, MaybeArray, Name, Nil, Object, OptRef, RawDict, Rectangle, Reference, ReferenceId, Stream,
-    Todo,
+    Map, MaybeArray, Name, Nil, Object, OptRef, PDFString, RawDict, Rectangle, Reference,
+    ReferenceId, Stream, Todo,
 };
+
+pub(crate) use utilities::{take_till_delimiter, Angles, Brackets, Parentheses};

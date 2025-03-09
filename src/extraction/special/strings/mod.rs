@@ -14,7 +14,57 @@
 mod hex_string;
 mod literal_string;
 
+use std::fmt::{Debug, Display};
+
 pub use hex_string::HexadecimalString;
 pub use literal_string::LiteralString;
+use winnow::combinator::{alt, trace};
+use winnow::Parser;
 
-// TODO: create a PDFString enum/newtype?
+use crate::extraction::Extract;
+
+#[derive(Clone, PartialEq)]
+pub struct PDFString(pub Vec<u8>);
+
+impl Debug for PDFString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "PDFString({})", String::from_utf8_lossy(&self.0))
+    }
+}
+
+impl Display for PDFString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", String::from_utf8_lossy(&self.0))
+    }
+}
+
+impl From<&str> for PDFString {
+    fn from(value: &str) -> Self {
+        Self(value.into())
+    }
+}
+
+impl From<HexadecimalString> for PDFString {
+    fn from(HexadecimalString(value): HexadecimalString) -> Self {
+        Self(value)
+    }
+}
+
+impl From<LiteralString> for PDFString {
+    fn from(LiteralString(value): LiteralString) -> Self {
+        Self(value)
+    }
+}
+
+impl Extract<'_> for PDFString {
+    fn extract(input: &mut &'_ winnow::BStr) -> winnow::PResult<Self> {
+        trace(
+            "livre-pdfstring",
+            alt((
+                HexadecimalString::extract.map(PDFString::from),
+                LiteralString::extract.map(PDFString::from),
+            )),
+        )
+        .parse_next(input)
+    }
+}

@@ -123,6 +123,8 @@ impl<'de> Extract<'de> for RawValue<'de> {
             b'<' => Angles::recognize,
             // NOTE: provided we do not encounter a name *within a tuple*, this last case
             // handles every other option.
+            // NOTE: I tried using `take_till_delimiter`, which failed miserably.
+            // Values can contain tuples or references...
             // FIXME: remove that failure case.
             _ => take_till(0.., b'/').map(remove_trailing_spaces),
         }

@@ -11,6 +11,7 @@ use winnow::{
 };
 
 use crate::{
+    debug,
     extraction::{extract, RawDict, Reference, ReferenceId, Stream},
     follow_refs::{Build, BuildFromRawDict, Builder, BuilderParser, Built},
 };
@@ -82,7 +83,8 @@ impl ObjectStream {
             builder.as_parser().parse_next(&mut input)
         } else if let Some(extends) = self.extends {
             // FIXME: use some actual logging framework.
-            eprint!("Reference not found in this stream. Checking the extended stream.");
+
+            debug!("Reference not found in this stream. Checking the extended stream.");
 
             let stream = builder.build_reference(extends)?;
             stream.build_object(reference, builder)

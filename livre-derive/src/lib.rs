@@ -6,12 +6,18 @@ use std::collections::HashSet;
 
 use syn::{parse_quote, GenericParam, Generics};
 
+mod extract;
 mod from_raw_dict;
 mod utilities;
 
 #[proc_macro_derive(FromRawDict, attributes(livre))]
 pub fn derive_from_raw_dict(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     from_raw_dict::derive(input)
+}
+
+#[proc_macro_derive(Extract, attributes(livre))]
+pub fn derive_extract(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    extract::derive(input)
 }
 
 // Add a bound `T: Extract` to every type parameter T.

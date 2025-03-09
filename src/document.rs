@@ -33,14 +33,14 @@ impl Builder for HashMap<ReferenceId, &BStr> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct InMemoryBuilder<'de> {
+pub struct InMemoryBuilder {
     /// The entire input slice
-    input: &'de BStr,
+    input: Vec<u8>,
     /// The cross-reference table
     pub xrefs: HashMap<ReferenceId, RefLocation>,
 }
 
-impl Builder for InMemoryBuilder<'_> {
+impl Builder for InMemoryBuilder {
     fn build_reference<T>(&self, Reference { id, .. }: Reference<T>) -> PResult<T>
     where
         T: Build,
@@ -80,13 +80,13 @@ impl Builder for InMemoryBuilder<'_> {
     }
 }
 
-pub struct InMemoryDocument<'de> {
+pub struct InMemoryDocument {
     pub catalog: Catalog,
-    pub builder: InMemoryBuilder<'de>,
+    pub builder: InMemoryBuilder,
 }
 
-impl<'de> Extract<'de> for InMemoryDocument<'de> {
-    fn extract(i: &mut &'de BStr) -> winnow::PResult<Self> {
+impl Extract<'_> for InMemoryDocument {
+    fn extract(i: &mut &BStr) -> winnow::PResult<Self> {
         let input = *i;
 
         let StartXRef(start) = StartXRef::find(i)?;
@@ -125,7 +125,7 @@ impl<'de> Extract<'de> for InMemoryDocument<'de> {
         }
 
         let builder = InMemoryBuilder {
-            input,
+            input: input.to_vec(),
             xrefs: cross_references.into_iter().collect(),
         };
 
@@ -135,7 +135,7 @@ impl<'de> Extract<'de> for InMemoryDocument<'de> {
     }
 }
 
-impl Builder for InMemoryDocument<'_> {
+impl Builder for InMemoryDocument {
     fn build_reference<T>(&self, reference: Reference<T>) -> PResult<T>
     where
         T: Build,
@@ -144,7 +144,7 @@ impl Builder for InMemoryDocument<'_> {
     }
 }
 
-impl InMemoryDocument<'_> {
+impl InMemoryDocument {
     pub fn pages(&self) -> PResult<Vec<Page>> {
         self.catalog.pages.list_pages(self)
     }

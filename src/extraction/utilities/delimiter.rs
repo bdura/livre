@@ -1,7 +1,8 @@
 use winnow::{
     combinator::{delimited, fail, terminated, trace},
     error::ContextError,
-    token::{any, take},
+    stream::Range,
+    token::{any, take, take_till},
     BStr, PResult, Parser,
 };
 
@@ -24,11 +25,16 @@ use crate::extraction::{extract, Extract};
 struct WithinBalancedParser {
     opening: u8,
     closing: u8,
+    escaped: Option<u8>,
 }
 
 impl WithinBalancedParser {
-    fn new(opening: u8, closing: u8) -> Self {
-        Self { opening, closing }
+    fn new(opening: u8, closing: u8, escaped: Option<u8>) -> Self {
+        Self {
+            opening,
+            closing,
+            escaped,
+        }
     }
 }
 
@@ -44,9 +50,15 @@ impl<'a> Parser<&'a BStr, &'a [u8], ContextError> for WithinBalancedParser {
         // Let us remain on the side of caution for now.
         // TODO: evaluate the need for a `u16` here.
         let mut counter: u16 = 1;
+        let mut skip = false;
 
         for (i, &byte) in input.iter().enumerate() {
-            if byte == self.closing {
+            if skip {
+                skip = false;
+                continue;
+            } else if self.escaped.is_some_and(|v| byte == v) {
+                skip = true;
+            } else if byte == self.closing {
                 counter -= 1;
             } else if byte == self.opening {
                 counter += 1;
@@ -62,9 +74,19 @@ impl<'a> Parser<&'a BStr, &'a [u8], ContextError> for WithinBalancedParser {
             }
         }
 
-        // Delimiters are imbalances, we can just fail at this point.
+        // Delimiters are imbalanced, we can just fail at this point.
         fail(input)
     }
+}
+
+/// All PDF delimiters.
+static DELIMITERS: &[u8] = b"()<>[]{}/% \t\r\n";
+
+/// Useful for recognizing elements.
+pub fn take_till_delimiter<'a>(
+    occurrences: impl Into<Range>,
+) -> impl Parser<&'a BStr, &'a [u8], ContextError> {
+    trace("livre-till-delimiter", take_till(occurrences, DELIMITERS))
 }
 
 /// Consume the inside of a balanced delimited input.
@@ -74,36 +96,36 @@ impl<'a> Parser<&'a BStr, &'a [u8], ContextError> for WithinBalancedParser {
 fn take_within_balanced<'a>(
     opening: u8,
     closing: u8,
+    escaped: Option<u8>,
 ) -> impl Parser<&'a BStr, &'a [u8], ContextError> {
-    WithinBalancedParser::new(opening, closing)
+    WithinBalancedParser::new(opening, closing, escaped)
 }
 
 macro_rules! delimited {
-    ($($name:ident: $opening:literal -> $closing:literal)+) => {
-        $(
-            paste!{
-                #[derive(Debug, PartialEq)]
-                pub struct $name<'de>(pub &'de BStr);
+    ($name:ident: $opening:literal -> $closing:literal, $escaped:expr) => {
+        paste! {
+            #[derive(Debug, PartialEq)]
+            pub struct $name<'de>(pub &'de BStr);
 
-                impl<'de> Extract<'de> for $name<'de> {
-                    fn extract(input: &mut &'de BStr) -> PResult<Self> {
-                        trace(
-                            stringify!(livre-[<$name:snake>]),
-                            take_within_balanced($opening, $closing)
-                                .map(|inside| Self(inside.as_ref())),
-                        ).parse_next(input)
-                    }
+            impl<'de> Extract<'de> for $name<'de> {
+                fn extract(input: &mut &'de BStr) -> PResult<Self> {
+                    trace(
+                        stringify!(livre-[<$name:snake>]),
+                        take_within_balanced($opening, $closing, $escaped)
+                            .map(|inside| Self(inside.as_ref())),
+                    ).parse_next(input)
                 }
             }
-        )+
+        }
+    };
+    ($name:ident: $opening:literal -> $closing:literal) => {
+        delimited!($name: $opening -> $closing, None);
     };
 }
 
-delimited!(
-    Brackets: b'[' -> b']'
-    Parentheses: b'(' -> b')'
-    Angles: b'<' -> b'>'
-);
+delimited!(Brackets: b'[' -> b']');
+delimited!(Parentheses: b'(' -> b')', Some(b'\\'));
+delimited!(Angles: b'<' -> b'>');
 
 #[derive(Debug, PartialEq)]
 pub struct DoubleAngles<'de>(pub &'de BStr);
@@ -136,7 +158,7 @@ mod tests {
         #[case] input: &[u8],
         #[case] expected: &[u8],
     ) {
-        let mut parser = take_within_balanced(opening, closing);
+        let mut parser = take_within_balanced(opening, closing, None);
         let input = &mut input.as_ref();
         let res = parser.parse_next(input).unwrap();
 
