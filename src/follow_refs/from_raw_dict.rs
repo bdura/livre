@@ -1,3 +1,4 @@
+pub use livre_derive::BuildFromRawDict;
 use winnow::{BStr, PResult};
 
 use crate::extraction::{extract, RawDict};
