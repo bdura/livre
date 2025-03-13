@@ -1,3 +1,3 @@
-# Derive macro for `livre` crate
+# Derive macros for `livre` crate
 
 See the [`livre` crate](https://crates.io/crates/livre) for more information on the project.
