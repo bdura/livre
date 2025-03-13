@@ -75,26 +75,10 @@ impl<T> From<(usize, u16)> for Reference<T> {
 ///
 /// Many properties in the PDF specification are optionally represented through an indirect object,
 /// making this type extremely valuable.
-#[derive(Debug, Clone, PartialEq, Eq, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy, Extract)]
 pub enum OptRef<T> {
     Ref(Reference<T>),
     Direct(T),
-}
-
-impl<'de, T> Extract<'de> for OptRef<T>
-where
-    T: Extract<'de>,
-{
-    fn extract(input: &mut &'de BStr) -> PResult<Self> {
-        trace(
-            "livre-optref",
-            alt((
-                Reference::extract.map(Self::Ref),
-                T::extract.map(Self::Direct),
-            )),
-        )
-        .parse_next(input)
-    }
 }
 
 impl<T> Build for OptRef<T>
