@@ -82,7 +82,6 @@ fn generate_extraction(data: &Data) -> (TokenStream, HashSet<String>) {
                     is_opt,
                     default,
                 } = attr::parse_attributes(f).unwrap();
-                // let is_reference = is_ref(&f.ty);
                 
                 if flatten {
                     let path = match ty {
