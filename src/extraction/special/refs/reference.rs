@@ -7,7 +7,7 @@ use winnow::{
 
 use super::ReferenceId;
 use crate::{
-    extraction::Extract,
+    extraction::{extract, Extract},
     follow_refs::{Build, Builder, BuilderParser},
 };
 
@@ -97,6 +97,15 @@ where
             )),
         )
         .parse_next(input)
+    }
+}
+
+impl<T> Build for Reference<T> {
+    fn build<B>(input: &mut &BStr, _: &B) -> PResult<Self>
+    where
+        B: Builder,
+    {
+        extract(input)
     }
 }
 
