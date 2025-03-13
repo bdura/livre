@@ -6,9 +6,15 @@ use std::collections::HashSet;
 
 use syn::{parse_quote, GenericParam, Generics};
 
+mod build_from_raw_dict;
 mod extract;
 mod from_raw_dict;
 mod utilities;
+
+#[proc_macro_derive(BuildFromRawDict, attributes(livre))]
+pub fn derive_build_from_raw_dict(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    build_from_raw_dict::derive(input)
+}
 
 #[proc_macro_derive(FromRawDict, attributes(livre))]
 pub fn derive_from_raw_dict(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
