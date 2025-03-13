@@ -50,7 +50,7 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         impl #impl_generics crate::follow_refs::BuildFromRawDict for #name #ty_generics #where_clause {
             fn build_from_raw_dict<B>(dict: &mut crate::extraction::RawDict<'_>, builder: &B) -> ::winnow::PResult<Self>
             where
-                B: Builder,
+                B: crate::follow_refs::Builder,
             {
                 #extraction
                 Ok(res)
