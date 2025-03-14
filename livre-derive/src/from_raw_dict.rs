@@ -6,7 +6,7 @@ use syn::{
     parse_macro_input, parse_quote_spanned, Data, DataStruct, DeriveInput, Fields, Type
 };
 
-use crate::{add_extraction_trait_bounds, utilities::attr::{Attributes, DefaultValue}};
+use crate::{add_extraction_trait_bounds, utilities::attr::Attributes};
 
 use super::utilities::attr;
 
@@ -102,20 +102,11 @@ fn generate_extraction(data: &Data) -> (TokenStream, HashSet<String>) {
                     }
                 };
 
-                match default {
-                    Some(DefaultValue::None) => {
-                        extraction = quote! {
-                            #extraction
-                            let #name = #name.unwrap_or_default();
-                        }
-                    },
-                    Some(DefaultValue::Lit(lit)) => {
-                        extraction = quote! {
-                            #extraction
-                            let #name = #name.unwrap_or(#lit);
-                        }
-                    },
-                    None => {},
+                if let Some(default) = default {
+                    extraction = quote! {
+                        #extraction
+                        let #name = #name.#default;
+                    }
                 }
 
                 if from.is_some() {

@@ -1,4 +1,6 @@
-use syn::{Field, Lit, LitStr, Result, Type};
+use proc_macro2::TokenStream;
+use quote::{quote, ToTokens};
+use syn::{ExprClosure, Field, Lit, LitStr, Result, Type};
 
 use super::option;
 
@@ -13,6 +15,18 @@ pub struct Attributes {
 pub enum DefaultValue {
     None,
     Lit(Lit),
+    Closure(ExprClosure),
+}
+
+impl ToTokens for DefaultValue {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let added = match self {
+            Self::None => quote! {unwrap_or_default()},
+            Self::Lit(lit) => quote! {unwrap_or(#lit)},
+            Self::Closure(closure) => quote! {unwrap_or_else(#closure)},
+        };
+        tokens.extend(added);
+    }
 }
 
 /// Find the value of a #[livre] attribute.
@@ -54,8 +68,18 @@ pub fn parse_attributes(field: &Field) -> Result<Attributes> {
             }
 
             if meta.path.is_ident("default") {
-                if let Ok(Ok(lit)) = meta.value().map(|inner| inner.parse()) {
-                    default = Some(DefaultValue::Lit(lit));
+                if default.is_some() {
+                    return Err(meta.error("duplicate default attribute"));
+                }
+
+                if let Ok(inner) = meta.value() {
+                    if let Ok(lit) = inner.parse() {
+                        default = Some(DefaultValue::Lit(lit));
+                    } else if let Ok(closure) = inner.parse() {
+                        default = Some(DefaultValue::Closure(closure));
+                    } else {
+                        unimplemented!()
+                    }
                 } else {
                     default = Some(DefaultValue::None);
                 }
