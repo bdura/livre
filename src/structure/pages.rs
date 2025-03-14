@@ -266,7 +266,7 @@ pub struct Page {
     /// of 1 ⁄ 72 inch. The range of supported values shall be implementation-dependent.
     ///
     /// Default value: 1.0 (user space unit is 1 ⁄ 72 inch).
-    #[livre(default)]
+    #[livre(default = 1.0)]
     pub user_unit: f32,
 }
 
