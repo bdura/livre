@@ -1,4 +1,4 @@
-use syn::{Field, LitStr, Result, Type};
+use syn::{ExprClosure, Field, LitStr, Result, Type};
 
 use super::option;
 
@@ -6,8 +6,13 @@ pub struct Attributes {
     pub field_str: String,
     pub from: Option<Type>,
     pub flatten: bool,
-    pub default: bool,
+    pub default: Option<DefaultValue>,
     pub is_opt: bool,
+}
+
+pub enum DefaultValue {
+    None,
+    Lit(LitStr),
 }
 
 /// Find the value of a #[livre] attribute.
@@ -15,7 +20,7 @@ pub fn parse_attributes(field: &Field) -> Result<Attributes> {
     let mut rename = None;
     let mut from = None;
     let mut flatten = false;
-    let mut default = false;
+    let mut default = None;
 
     for attr in &field.attrs {
         if !attr.path().is_ident("livre") {
@@ -49,7 +54,13 @@ pub fn parse_attributes(field: &Field) -> Result<Attributes> {
             }
 
             if meta.path.is_ident("default") {
-                default = true;
+                if let Ok(inner) = meta.value() {
+                    if let Ok(lit) = inner.parse() {
+                        default = Some(DefaultValue::Lit(lit))
+                    } else {
+                        default = Some(DefaultValue::None);
+                    }
+                }
                 return Ok(());
             }
 

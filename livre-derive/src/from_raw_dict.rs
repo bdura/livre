@@ -6,7 +6,7 @@ use syn::{
     parse_macro_input, parse_quote_spanned, Data, DataStruct, DeriveInput, Fields, Type
 };
 
-use crate::{add_extraction_trait_bounds, utilities::attr::Attributes};
+use crate::{add_extraction_trait_bounds, utilities::attr::{Attributes, DefaultValue}};
 
 use super::utilities::attr;
 
@@ -75,13 +75,13 @@ fn generate_extraction(data: &Data) -> (TokenStream, HashSet<String>) {
 
                 let from_ty = from.as_ref().unwrap_or(ty);
 
-                let from_ty = if default {
+                let from_ty = if default.is_some() {
                     quote! {Option::<#from_ty>}
                 } else {
                     quote! {#from_ty}
                 };
 
-                let absent_key = if is_opt || default {
+                let absent_key = if is_opt || default.is_some() {
                     quote! {None}
                 } else {
                     quote! { return Err(::winnow::error::ErrMode::Backtrack(::winnow::error::ContextError::new())) }
@@ -102,11 +102,20 @@ fn generate_extraction(data: &Data) -> (TokenStream, HashSet<String>) {
                     }
                 };
 
-                if default {
-                    extraction = quote! {
-                        #extraction
-                        let #name = #name.unwrap_or_default();
-                    }
+                match default {
+                    Some(DefaultValue::None) => {
+                        extraction = quote! {
+                            #extraction
+                            let #name = #name.unwrap_or_default();
+                        }
+                    },
+                    Some(DefaultValue::Lit(lit)) => {
+                        extraction = quote! {
+                            #extraction
+                            let #name = #name.unwrap_or(#lit);
+                        }
+                    },
+                    None => {},
                 }
 
                 if from.is_some() {
