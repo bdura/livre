@@ -1,4 +1,4 @@
-use syn::{ExprClosure, Field, LitStr, Result, Type};
+use syn::{Field, Lit, LitStr, Result, Type};
 
 use super::option;
 
@@ -12,7 +12,7 @@ pub struct Attributes {
 
 pub enum DefaultValue {
     None,
-    Lit(LitStr),
+    Lit(Lit),
 }
 
 /// Find the value of a #[livre] attribute.
@@ -54,12 +54,10 @@ pub fn parse_attributes(field: &Field) -> Result<Attributes> {
             }
 
             if meta.path.is_ident("default") {
-                if let Ok(inner) = meta.value() {
-                    if let Ok(lit) = inner.parse() {
-                        default = Some(DefaultValue::Lit(lit))
-                    } else {
-                        default = Some(DefaultValue::None);
-                    }
+                if let Ok(Ok(lit)) = meta.value().map(|inner| inner.parse()) {
+                    default = Some(DefaultValue::Lit(lit));
+                } else {
+                    default = Some(DefaultValue::None);
                 }
                 return Ok(());
             }
