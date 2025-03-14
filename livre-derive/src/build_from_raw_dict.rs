@@ -3,11 +3,11 @@ use std::collections::HashSet;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{
-    parse_macro_input, parse_quote, parse_quote_spanned, Data, DataStruct, DeriveInput, Fields, GenericParam, Generics, Type
+    parse_macro_input, parse_quote, parse_quote_spanned, Data, DataStruct, DeriveInput, Fields,
+    GenericParam, Generics,
 };
 
-use super::utilities::attr::{self, Attributes};
-
+use crate::utilities::extraction;
 
 fn add_extraction_trait_bounds(mut generics: Generics, flattened: HashSet<String>) -> Generics {
     for param in &mut generics.params {
@@ -72,75 +72,7 @@ fn generate_extraction(data: &Data) -> (TokenStream, HashSet<String>) {
             let fieldname = fields.named.iter().map(|f| &f.ident).collect::<Vec<_>>();
 
             let field_by_field = fields.named.iter().map(|f| {
-                let name = &f.ident;
-                let ty = &f.ty;
-
-                let Attributes {
-                    flatten,
-                    from,
-                    field_str,
-                    is_opt,
-                    default,
-                } = attr::parse_attributes(f).unwrap();
-                
-                if flatten {
-                    let path = match ty {
-                        Type::Path(p) => &p.path,
-                        _ => unimplemented!(),
-                    };
-                    set.insert(path.get_ident().unwrap().to_string());
-                }
-
-                let from_ty = from.as_ref().unwrap_or(ty);
-
-                let from_ty = if default.is_some() {
-                    quote! {Option::<#from_ty>}
-                } else {
-                    quote! {#from_ty}
-                };
-
-                let absent_key = if is_opt || default.is_some() {
-                    quote! {None}
-                } else {
-                    quote! { return Err(::winnow::error::ErrMode::Backtrack(::winnow::error::ContextError::new())) }
-                };
-
-                let mut extraction = if flatten {
-                    quote! {
-                        let #name = #from_ty::build_from_raw_dict(dict, builder)?;
-                    }
-                } else {
-                    quote! {
-                    let #name: #from_ty = if let Some(value) = dict.pop(&#field_str.into()) {
-                        value.build(builder)?
-                    } else {
-                        #absent_key
-                    };
-
-                    }
-                };
-
-                if let Some(default) = default {
-                    extraction = quote! {
-                        #extraction
-                        let #name = #name.#default;
-                    }
-                }
-
-                if from.is_some() {
-                    if is_opt {
-                        extraction = quote! {
-                            #extraction
-                            let #name = #name.map(|inner| inner.into());
-                        };
-                    } else {
-                        extraction = quote! {
-                            #extraction
-                            let #name: #ty = #name.into();
-                        };
-                    }
-                }
-                extraction
+                extraction::extract_field(f, &mut set, quote! {build_from_raw_dict}, quote! {build})
             });
 
             let extraction = quote! {
