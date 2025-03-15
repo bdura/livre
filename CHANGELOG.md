@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1](https://github.com/bdura/livre/compare/livre-v0.5.0...livre-v0.5.1) - 2025-03-15
+
+### Added
+
+- add `BuildFromRawDict` derive macro ([#44](https://github.com/bdura/livre/pull/44))
+
 ## [0.5.0](https://github.com/bdura/livre/compare/livre-v0.4.0...livre-v0.5.0) - 2025-03-09
 
 ### Added
