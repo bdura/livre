@@ -47,12 +47,12 @@ pub fn extract_field(
 
     let mut extraction = if flatten {
         quote! {
-            let #name = #from_ty::#complex(dict, builder)?;
+            let #name = #from_ty::#complex?;
         }
     } else {
         quote! {
         let #name: #from_ty = if let Some(value) = dict.pop(&#field_str.into()) {
-            value.#simple(builder)?
+            value.#simple?
         } else {
             #absent_key
         };

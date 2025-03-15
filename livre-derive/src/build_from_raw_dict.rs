@@ -72,7 +72,12 @@ fn generate_extraction(data: &Data) -> (TokenStream, HashSet<String>) {
             let fieldname = fields.named.iter().map(|f| &f.ident).collect::<Vec<_>>();
 
             let field_by_field = fields.named.iter().map(|f| {
-                extraction::extract_field(f, &mut set, quote! {build_from_raw_dict}, quote! {build})
+                extraction::extract_field(
+                    f,
+                    &mut set,
+                    quote! {build_from_raw_dict(dict, builder)},
+                    quote! {build(builder)},
+                )
             });
 
             let extraction = quote! {
