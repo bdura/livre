@@ -1,4 +1,6 @@
-use syn::{Field, LitStr, Result, Type};
+use proc_macro2::TokenStream;
+use quote::{quote, ToTokens};
+use syn::{ExprClosure, Field, Lit, LitStr, Result, Type};
 
 use super::option;
 
@@ -6,8 +8,25 @@ pub struct Attributes {
     pub field_str: String,
     pub from: Option<Type>,
     pub flatten: bool,
-    pub default: bool,
+    pub default: Option<DefaultValue>,
     pub is_opt: bool,
+}
+
+pub enum DefaultValue {
+    None,
+    Lit(Lit),
+    Closure(ExprClosure),
+}
+
+impl ToTokens for DefaultValue {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let added = match self {
+            Self::None => quote! {unwrap_or_default()},
+            Self::Lit(lit) => quote! {unwrap_or(#lit)},
+            Self::Closure(closure) => quote! {unwrap_or_else(#closure)},
+        };
+        tokens.extend(added);
+    }
 }
 
 /// Find the value of a #[livre] attribute.
@@ -15,7 +34,7 @@ pub fn parse_attributes(field: &Field) -> Result<Attributes> {
     let mut rename = None;
     let mut from = None;
     let mut flatten = false;
-    let mut default = false;
+    let mut default = None;
 
     for attr in &field.attrs {
         if !attr.path().is_ident("livre") {
@@ -49,7 +68,21 @@ pub fn parse_attributes(field: &Field) -> Result<Attributes> {
             }
 
             if meta.path.is_ident("default") {
-                default = true;
+                if default.is_some() {
+                    return Err(meta.error("duplicate default attribute"));
+                }
+
+                if let Ok(inner) = meta.value() {
+                    if let Ok(lit) = inner.parse() {
+                        default = Some(DefaultValue::Lit(lit));
+                    } else if let Ok(closure) = inner.parse() {
+                        default = Some(DefaultValue::Closure(closure));
+                    } else {
+                        unimplemented!()
+                    }
+                } else {
+                    default = Some(DefaultValue::None);
+                }
                 return Ok(());
             }
 

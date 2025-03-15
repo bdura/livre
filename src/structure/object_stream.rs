@@ -12,8 +12,8 @@ use winnow::{
 
 use crate::{
     debug,
-    extraction::{extract, RawDict, Reference, ReferenceId, Stream},
-    follow_refs::{Build, BuildFromRawDict, Builder, BuilderParser, Built},
+    extraction::{extract, Reference, ReferenceId, Stream},
+    follow_refs::{Build, BuildFromRawDict, Builder, BuilderParser},
 };
 
 /// Represents a PDF object stream.
@@ -128,6 +128,7 @@ impl Build for ObjectStream {
 
 /// Transient object that represents the structured data associated with the [`Stream`], containing
 /// necessary information for the extraction of the [`ObjectStream`].
+#[derive(BuildFromRawDict)]
 struct ObjectStreamDict {
     /// Number of elements within the object stream
     pub n: usize,
@@ -135,30 +136,6 @@ struct ObjectStreamDict {
     pub first: usize,
     /// An optional reference to another object stream.
     pub extends: Option<Reference<ObjectStream>>,
-}
-
-impl BuildFromRawDict for ObjectStreamDict {
-    fn build_from_raw_dict<B>(dict: &mut RawDict<'_>, builder: &B) -> PResult<Self>
-    where
-        B: Builder,
-    {
-        let Built(n) = dict
-            .pop_and_build(&b"N".into(), builder)?
-            .ok_or(ErrMode::Backtrack(ContextError::new()))?;
-
-        let Built(first) = dict
-            .pop_and_build(&b"First".into(), builder)?
-            .ok_or(ErrMode::Backtrack(ContextError::new()))?;
-
-        let extends = if let Some(result) = dict.pop_and_extract(&b"Extends".into()) {
-            let extends = result?;
-            Some(extends)
-        } else {
-            None
-        };
-
-        Ok(Self { n, first, extends })
-    }
 }
 
 #[cfg(test)]

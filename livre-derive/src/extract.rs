@@ -2,7 +2,9 @@ use std::collections::HashSet;
 
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
-use syn::{parse_macro_input, parse_quote_spanned, Data, DataStruct, DeriveInput, Fields, Ident};
+use syn::{
+    parse_macro_input, parse_quote_spanned, Data, DataEnum, DataStruct, DeriveInput, Fields, Ident,
+};
 
 use crate::add_extraction_trait_bounds;
 
@@ -11,9 +13,9 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
     // Used in the quasi-quotation below as `#name`.
-    let name = input.ident;
+    let name = &input.ident;
 
-    let extraction = generate_extraction(&input.data);
+    let extraction = generate_extraction(&input);
 
     // Add a bound `T: Extract` to every type parameter T.
     let generics = add_extraction_trait_bounds(input.generics, HashSet::new());
@@ -39,8 +41,8 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     proc_macro::TokenStream::from(expanded)
 }
 
-fn generate_extraction(data: &Data) -> TokenStream {
-    match data {
+fn generate_extraction(input: &DeriveInput) -> TokenStream {
+    match &input.data {
         Data::Struct(DataStruct {
             fields: Fields::Unnamed(fields),
             ..
@@ -60,6 +62,22 @@ fn generate_extraction(data: &Data) -> TokenStream {
         }) => {
             quote! {
                 Ok(Self)
+            }
+        }
+        Data::Enum(DataEnum { variants, .. }) => {
+            let name = &input.ident;
+
+            let alternatives = variants.iter().map(|v| {
+                let ident = &v.ident;
+                quote! {crate::extraction::extract.map(#name::#ident),}
+            });
+
+            quote! {
+                ::winnow::combinator::alt((
+                    #(
+                        #alternatives
+                    )*
+                )).parse_next(input)
             }
         }
         _ => unimplemented!(),

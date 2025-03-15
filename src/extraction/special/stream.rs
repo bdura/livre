@@ -11,7 +11,7 @@ use winnow::{
 use crate::{
     extraction::{extract, Extract, FromRawDict},
     filtering::{Filter, Filtering},
-    follow_refs::{Build, BuildFromRawDict, Builder, BuilderParser, Built},
+    follow_refs::{Build, BuildFromRawDict, Builder, BuilderParser},
 };
 
 use super::{MaybeArray, Nil, RawDict};
@@ -23,7 +23,7 @@ use super::{MaybeArray, Nil, RawDict};
 ///
 /// Since `StreamConfig` is needed to extract the content of a stream, Livre implements [`Parser`]
 /// for it.
-#[derive(Debug, PartialEq, Eq, FromRawDict)]
+#[derive(Debug, PartialEq, Eq, FromRawDict, BuildFromRawDict)]
 pub struct StreamConfig {
     length: usize,
     #[livre(from = MaybeArray<Filter>, default)]
@@ -56,47 +56,12 @@ impl Parser<&BStr, Vec<u8>, ContextError> for StreamConfig {
 ///    `length` field.
 ///
 /// In Livre, `StreamDict<T>` is a generic container for the former.
-#[derive(Debug, PartialEq, Eq, FromRawDict)]
+#[derive(Debug, PartialEq, Eq, FromRawDict, BuildFromRawDict)]
 struct StreamDict<T> {
     #[livre(flatten)]
     config: StreamConfig,
     #[livre(flatten)]
     structured: T,
-}
-
-impl BuildFromRawDict for StreamConfig {
-    fn build_from_raw_dict<B>(dict: &mut RawDict<'_>, builder: &B) -> PResult<Self>
-    where
-        B: Builder,
-    {
-        let Built(length) = dict
-            .pop_and_build(&b"Length".into(), builder)?
-            .ok_or(ErrMode::Backtrack(ContextError::new()))?;
-
-        let filter = dict
-            .pop_and_build::<Built<MaybeArray<Filter>>, _>(&b"Filter".into(), builder)?
-            .map(|Built(filter)| filter)
-            .unwrap_or_default();
-
-        let filter = filter.into();
-
-        Ok(Self { length, filter })
-    }
-}
-
-impl<T> BuildFromRawDict for StreamDict<T>
-where
-    T: BuildFromRawDict,
-{
-    fn build_from_raw_dict<B>(dict: &mut RawDict<'_>, builder: &B) -> PResult<Self>
-    where
-        B: Builder,
-    {
-        let config = StreamConfig::build_from_raw_dict(dict, builder)?;
-        let structured = T::build_from_raw_dict(dict, builder)?;
-
-        Ok(Self { config, structured })
-    }
 }
 
 /// A PDF object that stores arbitrary content, as well as some (optional) structured data.

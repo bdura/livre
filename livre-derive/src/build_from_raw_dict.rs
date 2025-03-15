@@ -2,9 +2,29 @@ use std::collections::HashSet;
 
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{parse_macro_input, parse_quote_spanned, Data, DataStruct, DeriveInput, Fields};
+use syn::{
+    parse_macro_input, parse_quote, parse_quote_spanned, Data, DataStruct, DeriveInput, Fields,
+    GenericParam, Generics,
+};
 
-use crate::{add_extraction_trait_bounds, utilities::extraction};
+use crate::utilities::extraction;
+
+fn add_extraction_trait_bounds(mut generics: Generics, flattened: HashSet<String>) -> Generics {
+    for param in &mut generics.params {
+        if let GenericParam::Type(ref mut type_param) = *param {
+            if flattened.contains(&type_param.ident.to_string()) {
+                type_param
+                    .bounds
+                    .push(parse_quote!(crate::follow_refs::BuildFromRawDict));
+            } else {
+                type_param
+                    .bounds
+                    .push(parse_quote!(crate::follow_refs::Build));
+            }
+        }
+    }
+    generics
+}
 
 pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // Parse the input tokens into a syntax tree.
@@ -27,9 +47,11 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let (impl_generics, _, _) = gen_lt.split_for_impl();
 
     let expanded = quote! {
-        // The generated impl.
-        impl #impl_generics crate::extraction::FromRawDict<'de> for #name #ty_generics #where_clause {
-            fn from_raw_dict(dict: &mut crate::extraction::RawDict<'de>) -> ::winnow::PResult<Self> {
+        impl #impl_generics crate::follow_refs::BuildFromRawDict for #name #ty_generics #where_clause {
+            fn build_from_raw_dict<B>(dict: &mut crate::extraction::RawDict<'_>, builder: &B) -> ::winnow::PResult<Self>
+            where
+                B: crate::follow_refs::Builder,
+            {
                 #extraction
                 Ok(res)
             }
@@ -53,8 +75,8 @@ fn generate_extraction(data: &Data) -> (TokenStream, HashSet<String>) {
                 extraction::extract_field(
                     f,
                     &mut set,
-                    quote! {from_raw_dict(dict)},
-                    quote! {extract()},
+                    quote! {build_from_raw_dict(dict, builder)},
+                    quote! {build(builder)},
                 )
             });
 

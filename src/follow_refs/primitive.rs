@@ -5,7 +5,7 @@ use crate::extraction::OptRef;
 use super::{Build, Builder, BuilderParser};
 
 /// An eager build primitive. By wrapping a type into `Built`, you signal to Livre that the
-/// associated field may be an reference that should be followed.
+/// associated field may be a reference that should be followed.
 pub struct Built<T>(pub T);
 
 impl<T> Build for Built<T>
