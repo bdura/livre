@@ -22,3 +22,4 @@
 //! [CIDFont]: https://en.wikipedia.org/wiki/PostScript_fonts#CID
 
 mod descriptor;
+mod simple_fonts;
