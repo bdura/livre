@@ -89,6 +89,12 @@ where
     }
 }
 
+impl Name {
+    pub fn as_slice(&self) -> &[u8] {
+        &self.0
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

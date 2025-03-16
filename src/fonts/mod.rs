@@ -20,3 +20,5 @@
 //! [Type3]: https://en.wikipedia.org/wiki/PostScript_fonts#Type_3
 //! [TrueType]: https://en.wikipedia.org/wiki/TrueType
 //! [CIDFont]: https://en.wikipedia.org/wiki/PostScript_fonts#CID
+
+mod descriptor;
