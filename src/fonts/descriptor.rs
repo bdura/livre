@@ -1,7 +1,10 @@
-use livre_derive::FromRawDict;
+use livre_derive::{BuildFromRawDict, FromRawDict};
 use winnow::{BStr, PResult};
 
-use crate::extraction::{extract, Extract, Name, Rectangle};
+use crate::{
+    extraction::{extract, Extract, Name, Rectangle},
+    follow_refs::{Build, Builder},
+};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct FontFlags {
@@ -70,7 +73,16 @@ impl Extract<'_> for FontFlags {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, FromRawDict)]
+impl Build for FontFlags {
+    fn build<B>(input: &mut &BStr, _: &B) -> PResult<Self>
+    where
+        B: Builder,
+    {
+        extract(input)
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, FromRawDict, BuildFromRawDict)]
 pub struct FontDescriptor {
     /// The PostScript name of the font.
     pub font_name: Name,
@@ -168,6 +180,15 @@ impl Extract<'_> for FontWeight {
     }
 }
 
+impl Build for FontWeight {
+    fn build<B>(input: &mut &BStr, _: &B) -> PResult<Self>
+    where
+        B: Builder,
+    {
+        extract(input)
+    }
+}
+
 /// The font stretch value.
 ///
 /// The specific interpretation of these values varies from font to font.
@@ -204,6 +225,15 @@ impl Extract<'_> for FontStretch {
         };
 
         Ok(inner)
+    }
+}
+
+impl Build for FontStretch {
+    fn build<B>(input: &mut &BStr, _: &B) -> PResult<Self>
+    where
+        B: Builder,
+    {
+        extract(input)
     }
 }
 
