@@ -32,6 +32,7 @@ pub trait Decode {
 ///
 /// Either a standard encoding, represented as a simple name or a more complex dictonary.
 #[enum_dispatch(Decode)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Encoding {
     BuiltInEncoding,
     ModifiedEncoding,
