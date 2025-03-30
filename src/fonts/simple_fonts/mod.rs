@@ -1,3 +1,13 @@
+//! Behaviour for simple fonts.
+//!
+//! When using simple fonts, the specification states that text-showing operators
+//! treat each byte within the string as a separate character code. The latter
+//! then needs to be looked up in the font's encoding.
+//!
+//! With a simple font, each byte of the string shall be treated as a separate
+//! character code. The character code shall then be looked up in the font’s
+//! encoding to select the glyph, as described in 9.6.5, "Character encoding".
+
 use crate::{
     extraction::{Name, Reference},
     follow_refs::BuildFromRawDict,
