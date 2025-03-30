@@ -79,8 +79,16 @@ impl<B> BuilderParser for B where B: Builder {}
 ///
 /// `LivreBuilder` merely defers parsing to the wrapped builder. Its value is in making it
 /// compatible with the rest of the [`winnow`] ecosystem.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct LivreBuilder<'b, B>(&'b B);
+
+impl<B> Clone for LivreBuilder<'_, B> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<B> Copy for LivreBuilder<'_, B> {}
 
 impl<T, B> Parser<&BStr, T, ContextError> for LivreBuilder<'_, B>
 where

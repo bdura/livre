@@ -42,13 +42,11 @@ impl Build for Encoding {
     where
         B: Builder,
     {
+        let parser = builder.as_parser();
+
         alt((
-            builder
-                .as_parser()
-                .map(|encoding: BuiltInEncoding| encoding.into()),
-            builder
-                .as_parser()
-                .map(|encoding: ModifiedEncoding| encoding.into()),
+            parser.map(|encoding: BuiltInEncoding| encoding.into()),
+            parser.map(|encoding: ModifiedEncoding| encoding.into()),
         ))
         .parse_next(input)
     }
