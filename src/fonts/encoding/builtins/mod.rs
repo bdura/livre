@@ -19,10 +19,6 @@ use winnow::{
 
 use crate::extraction::{extract, Extract, Name};
 
-mod glyphs;
-
-pub type CharacterSet = [Option<u16>; 256];
-
 mod mac_roman;
 pub use mac_roman::MacRomanEncoding;
 
@@ -54,6 +50,12 @@ pub enum BuiltInEncoding {
     ExpertEncoding,
     SymbolEncoding,
     PdfDocEncoding,
+}
+
+impl Default for BuiltInEncoding {
+    fn default() -> Self {
+        PdfDocEncoding.into()
+    }
 }
 
 impl Extract<'_> for BuiltInEncoding {

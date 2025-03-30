@@ -1,6 +1,4 @@
-use crate::fonts::encoding::Encoding;
-
-use super::{glyphs::Glyph, CharacterSet};
+use crate::fonts::encoding::{CharacterSet, Encoding, Glyph};
 
 #[derive(Debug)]
 pub struct MacExpertEncoding;
@@ -8,6 +6,10 @@ pub struct MacExpertEncoding;
 impl Encoding for MacExpertEncoding {
     fn to_char(&self, code: u8) -> u16 {
         MAC_EXPERT_ENCODING[code as usize].expect("character should be in the character set.")
+    }
+
+    fn character_set(self) -> CharacterSet {
+        MAC_EXPERT_ENCODING
     }
 }
 
