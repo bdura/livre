@@ -1,5 +1,12 @@
 use crate::fonts::encoding::{CharacterSet, Encoding, Glyph};
 
+/// Standard Latin-text encoding, the built-in encoding in Type 1 font programs -
+/// but generally not in `TrueType` fonts.
+///
+/// PDF processors shall not have a predefined encoding named StandardEncoding.
+/// However, it is necessary to describe this encoding, since a font’s built-in
+/// encoding can be used as the base encoding from which differences may be
+/// specified in an encoding dictionary.
 #[derive(Debug)]
 pub struct StandardEncoding;
 
@@ -271,3 +278,19 @@ pub const STANDARD_ENCODING: CharacterSet = [
     None,
     None,
 ];
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+
+    use super::*;
+
+    #[rstest]
+    #[case(0o125, Glyph::U)]
+    #[case(0o126, Glyph::V)]
+    #[case(0o122, Glyph::R)]
+    #[case(0o141, Glyph::a)]
+    fn test_code_to_char(#[case] code: u8, #[case] expected: u16) {
+        assert_eq!(StandardEncoding.to_char(code), expected);
+    }
+}

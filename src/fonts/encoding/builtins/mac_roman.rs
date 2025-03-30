@@ -1,5 +1,10 @@
 use crate::fonts::encoding::{CharacterSet, Encoding, Glyph};
 
+/// Mac OS standard encoding for Latin text.
+///
+/// > Mac OS standard encoding for Latin text in Western writing systems.
+/// > PDF processors shall have a predefined encoding named MacRomanEncoding
+/// > that may be used with both Type 1 and TrueType fonts.
 #[derive(Debug)]
 pub struct MacRomanEncoding;
 
@@ -271,3 +276,20 @@ pub const MAC_ROMAN_ENCODING: CharacterSet = [
     Some(Glyph::ogonek),
     Some(Glyph::caron),
 ];
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+
+    use super::*;
+
+    #[rstest]
+    #[case(0o101, Glyph::A)]
+    #[case(0o256, Glyph::AE)]
+    #[case(0o361, Glyph::Ograve)]
+    #[case(0o122, Glyph::R)]
+    #[case(0o141, Glyph::a)]
+    fn test_code_to_char(#[case] code: u8, #[case] expected: u16) {
+        assert_eq!(MacRomanEncoding.to_char(code), expected);
+    }
+}

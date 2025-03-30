@@ -1,5 +1,12 @@
 use crate::fonts::encoding::{CharacterSet, Encoding, Glyph};
 
+/// Encoding for "expert fonts".
+///
+/// > An encoding for use with expert fonts — ones containing the expert character set.
+/// > PDF processors shall have a predefined encoding named MacExpertEncoding.
+/// > Despite its name, it is not a platform-specific encoding; however, only certain
+/// > fonts have the appropriate character set for use with this encoding.
+/// > No such fonts are among the standard 14 predefined fonts.
 #[derive(Debug)]
 pub struct MacExpertEncoding;
 
