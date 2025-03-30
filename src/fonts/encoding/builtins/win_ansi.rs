@@ -1,6 +1,4 @@
-use crate::fonts::encoding::Encoding;
-
-use super::{glyphs::Glyph, CharacterSet};
+use crate::fonts::encoding::{CharacterSet, Encoding, Glyph};
 
 #[derive(Debug)]
 pub struct WinAnsiEncoding;
@@ -8,6 +6,10 @@ pub struct WinAnsiEncoding;
 impl Encoding for WinAnsiEncoding {
     fn to_char(&self, code: u8) -> u16 {
         WIN_ANSI_ENCODING[code as usize].expect("character should be in the character set.")
+    }
+
+    fn character_set(self) -> CharacterSet {
+        WIN_ANSI_ENCODING
     }
 }
 

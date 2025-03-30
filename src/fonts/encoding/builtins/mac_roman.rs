@@ -1,6 +1,4 @@
-use crate::fonts::encoding::Encoding;
-
-use super::{glyphs::Glyph, CharacterSet};
+use crate::fonts::encoding::{CharacterSet, Encoding, Glyph};
 
 #[derive(Debug)]
 pub struct MacRomanEncoding;
@@ -8,6 +6,10 @@ pub struct MacRomanEncoding;
 impl Encoding for MacRomanEncoding {
     fn to_char(&self, code: u8) -> u16 {
         MAC_ROMAN_ENCODING[code as usize].expect("character should be in the character set.")
+    }
+
+    fn character_set(self) -> CharacterSet {
+        MAC_ROMAN_ENCODING
     }
 }
 
