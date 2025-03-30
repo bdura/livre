@@ -11,6 +11,8 @@ pub use builtins::{
     StandardEncoding, SymbolEncoding, WinAnsiEncoding,
 };
 
+mod modified;
+
 pub type CharacterSet = [Option<u16>; 256];
 
 /// A font's encoding is the association between character codes and glyph description.
