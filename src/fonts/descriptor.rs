@@ -1,5 +1,5 @@
 use livre_derive::{BuildFromRawDict, FromRawDict};
-use winnow::{BStr, PResult};
+use winnow::{BStr, ModalResult};
 
 use crate::{
     extraction::{extract, Extract, Name, Rectangle},
@@ -67,14 +67,14 @@ impl From<u32> for FontFlags {
 }
 
 impl Extract<'_> for FontFlags {
-    fn extract(input: &mut &'_ winnow::BStr) -> winnow::PResult<Self> {
+    fn extract(input: &mut &'_ winnow::BStr) -> ModalResult<Self> {
         let flags: u32 = extract(input)?;
         Ok(flags.into())
     }
 }
 
 impl Build for FontFlags {
-    fn build<B>(input: &mut &BStr, _: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, _: &B) -> ModalResult<Self>
     where
         B: Builder,
     {
@@ -160,7 +160,7 @@ pub enum FontWeight {
 }
 
 impl Extract<'_> for FontWeight {
-    fn extract(input: &mut &'_ BStr) -> PResult<Self> {
+    fn extract(input: &mut &'_ BStr) -> ModalResult<Self> {
         let weight: u16 = extract(input)?;
 
         let inner = match weight {
@@ -181,7 +181,7 @@ impl Extract<'_> for FontWeight {
 }
 
 impl Build for FontWeight {
-    fn build<B>(input: &mut &BStr, _: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, _: &B) -> ModalResult<Self>
     where
         B: Builder,
     {
@@ -206,7 +206,7 @@ pub enum FontStretch {
 }
 
 impl Extract<'_> for FontStretch {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
         let name: Name = extract(input)?;
         let inner = match name.as_slice() {
             b"UltraCondensed" => Self::UltraCondensed,
@@ -229,7 +229,7 @@ impl Extract<'_> for FontStretch {
 }
 
 impl Build for FontStretch {
-    fn build<B>(input: &mut &BStr, _: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, _: &B) -> ModalResult<Self>
     where
         B: Builder,
     {
