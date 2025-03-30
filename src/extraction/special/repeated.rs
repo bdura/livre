@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use winnow::{
     ascii::multispace0,
     combinator::{repeat, terminated, trace},
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use crate::extraction::Extract;
@@ -36,7 +36,7 @@ impl<'de, T> Extract<'de> for Repeated<T>
 where
     T: Extract<'de>,
 {
-    fn extract(input: &mut &'de BStr) -> PResult<Self> {
+    fn extract(input: &mut &'de BStr) -> ModalResult<Self> {
         trace(
             "livre-repeated",
             repeat(0.., terminated(T::extract, multispace0)).map(Self),

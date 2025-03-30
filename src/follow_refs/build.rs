@@ -123,7 +123,7 @@ impl<T> Build for Repeated<T>
 where
     T: Build,
 {
-    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, builder: &B) -> ModalResult<Self>
     where
         B: Builder,
     {

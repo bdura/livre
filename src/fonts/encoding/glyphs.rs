@@ -9,13 +9,16 @@
 
 use crate::extraction::{extract, Name};
 use phf::{phf_map, Map};
-use winnow::{error::ContextError, BStr, PResult, Parser};
+use winnow::{
+    error::{ContextError, ErrMode},
+    BStr, ModalResult, Parser,
+};
 
 /// Utility that maps glyph names to character code. Implements the [`Parser`] trait.
 pub struct Glyph;
 
-impl Parser<&BStr, Option<u16>, ContextError> for Glyph {
-    fn parse_next(&mut self, input: &mut &BStr) -> PResult<Option<u16>> {
+impl Parser<&BStr, Option<u16>, ErrMode<ContextError>> for Glyph {
+    fn parse_next(&mut self, input: &mut &BStr) -> ModalResult<Option<u16>> {
         let Name(name) = extract(input)?;
         let glyph = GLYPH_MAP.get(&name).copied();
         Ok(glyph)

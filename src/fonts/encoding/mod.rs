@@ -13,7 +13,7 @@ pub use builtins::{
 
 mod modified;
 pub use modified::ModifiedEncoding;
-use winnow::{combinator::alt, BStr, PResult, Parser};
+use winnow::{combinator::alt, BStr, ModalResult, Parser};
 
 use crate::follow_refs::{Build, Builder, BuilderParser};
 
@@ -38,17 +38,15 @@ pub enum Encoding {
 }
 
 impl Build for Encoding {
-    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, builder: &B) -> ModalResult<Self>
     where
         B: Builder,
     {
+        let parser = builder.as_parser();
+
         alt((
-            builder
-                .as_parser()
-                .map(|encoding: BuiltInEncoding| encoding.into()),
-            builder
-                .as_parser()
-                .map(|encoding: ModifiedEncoding| encoding.into()),
+            parser.map(|encoding: BuiltInEncoding| encoding.into()),
+            parser.map(|encoding: ModifiedEncoding| encoding.into()),
         ))
         .parse_next(input)
     }

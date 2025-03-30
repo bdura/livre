@@ -14,7 +14,7 @@
 use enum_dispatch::enum_dispatch;
 use winnow::{
     error::{ContextError, ErrMode},
-    BStr, PResult,
+    BStr, ModalResult,
 };
 
 use crate::{
@@ -62,7 +62,7 @@ impl Default for BuiltInEncoding {
 }
 
 impl Extract<'_> for BuiltInEncoding {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
         let Name(name) = extract(input)?;
 
         let inner = match name.as_slice() {
@@ -83,7 +83,7 @@ impl Extract<'_> for BuiltInEncoding {
 }
 
 impl Build for BuiltInEncoding {
-    fn build<B>(input: &mut &BStr, _: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, _: &B) -> ModalResult<Self>
     where
         B: Builder,
     {

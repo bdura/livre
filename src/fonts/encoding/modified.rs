@@ -1,5 +1,5 @@
 use livre_derive::{BuildFromRawDict, FromRawDict};
-use winnow::{BStr, PResult, Parser};
+use winnow::{BStr, ModalResult, Parser};
 
 use crate::{
     extraction::{extract, Extract, Repeated},
@@ -26,7 +26,7 @@ impl Decode for ModifiedEncoding {
 }
 
 impl Extract<'_> for ModifiedEncoding {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
         let EncodingDictionary {
             base_encoding,
             differences,
@@ -43,7 +43,7 @@ impl Extract<'_> for ModifiedEncoding {
 }
 
 impl Build for ModifiedEncoding {
-    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, builder: &B) -> ModalResult<Self>
     where
         B: Builder,
     {
@@ -91,7 +91,7 @@ impl EncodingDifference {
 }
 
 impl Extract<'_> for EncodingDifference {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
         let (code, Repeated::<DifferenceElement>(differences)) = extract(input)?;
         let differences = differences
             .into_iter()
@@ -103,7 +103,7 @@ impl Extract<'_> for EncodingDifference {
 
 impl Build for EncodingDifference {
     // NOTE: we are making the assumption that the differences come as a block.
-    fn build<B>(input: &mut &BStr, _: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, _: &B) -> ModalResult<Self>
     where
         B: Builder,
     {
@@ -118,7 +118,7 @@ impl Build for EncodingDifference {
 struct DifferenceElement(Option<u16>);
 
 impl Extract<'_> for DifferenceElement {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
         Glyph.map(Self).parse_next(input)
     }
 }
