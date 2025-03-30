@@ -82,6 +82,7 @@ impl Build for FontFlags {
     }
 }
 
+/// Describes the overall properties of a font.
 #[derive(Debug, PartialEq, Clone, FromRawDict, BuildFromRawDict)]
 pub struct FontDescriptor {
     /// The PostScript name of the font.
@@ -189,9 +190,7 @@ impl Build for FontWeight {
     }
 }
 
-/// The font stretch value.
-///
-/// The specific interpretation of these values varies from font to font.
+/// The font stretch value. The interpretation varies from font to font.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FontStretch {
     UltraCondensed,
