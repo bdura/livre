@@ -1,5 +1,11 @@
 use crate::fonts::encoding::{CharacterSet, Encoding, Glyph};
 
+/// Encoding for text strings outside of a [`ContentStream`]
+///
+/// > This is one of two encodings (the other being Unicode) that may be used
+/// > to represent text strings; see 7.9.2.2, "Text string type". PDF does not
+/// > have a predefined encoding named PDFDocEncoding; it is not customary to
+/// > use this encoding to show text from fonts
 #[derive(Debug)]
 pub struct PdfDocEncoding;
 
@@ -272,3 +278,20 @@ pub const PDF_DOC_ENCODING: CharacterSet = [
     Some(Glyph::thorn),
     Some(Glyph::ydieresis),
 ];
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+
+    use super::*;
+
+    #[rstest]
+    #[case(0o101, Glyph::A)]
+    #[case(0o312, Glyph::Ecircumflex)]
+    #[case(0o341, Glyph::aacute)]
+    #[case(0o122, Glyph::R)]
+    #[case(0o141, Glyph::a)]
+    fn test_code_to_char(#[case] code: u8, #[case] expected: u16) {
+        assert_eq!(PdfDocEncoding.to_char(code), expected);
+    }
+}

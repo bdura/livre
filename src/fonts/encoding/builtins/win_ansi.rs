@@ -1,5 +1,10 @@
 use crate::fonts::encoding::{CharacterSet, Encoding, Glyph};
 
+/// Windows Code Page 1252.
+///
+/// > This is the standard Microsoft Windows TM specific encoding for Latin text
+/// > in Western writing systems. PDF processors shall have a predefined encoding
+/// > named WinAnsiEncoding that may be used with both Type 1 and TrueType fonts.
 #[derive(Debug)]
 pub struct WinAnsiEncoding;
 
@@ -271,3 +276,20 @@ pub const WIN_ANSI_ENCODING: CharacterSet = [
     Some(Glyph::thorn),
     Some(Glyph::ydieresis),
 ];
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+
+    use super::*;
+
+    #[rstest]
+    #[case(0o125, Glyph::U)]
+    #[case(0o126, Glyph::V)]
+    #[case(0o122, Glyph::R)]
+    #[case(0o141, Glyph::a)]
+    #[case(0o362, Glyph::ograve)]
+    fn test_code_to_char(#[case] code: u8, #[case] expected: u16) {
+        assert_eq!(WinAnsiEncoding.to_char(code), expected);
+    }
+}

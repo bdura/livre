@@ -17,7 +17,10 @@ use winnow::{
     BStr, PResult,
 };
 
-use crate::extraction::{extract, Extract, Name};
+use crate::{
+    extraction::{extract, Extract, Name},
+    follow_refs::{Build, Builder},
+};
 
 mod mac_roman;
 pub use mac_roman::MacRomanEncoding;
@@ -76,5 +79,14 @@ impl Extract<'_> for BuiltInEncoding {
         };
 
         Ok(inner)
+    }
+}
+
+impl Build for BuiltInEncoding {
+    fn build<B>(input: &mut &BStr, _: &B) -> PResult<Self>
+    where
+        B: Builder,
+    {
+        extract(input)
     }
 }
