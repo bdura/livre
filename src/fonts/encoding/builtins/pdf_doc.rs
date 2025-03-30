@@ -6,7 +6,7 @@ use crate::fonts::encoding::{CharacterSet, Decode, Glyph};
 /// > to represent text strings; see 7.9.2.2, "Text string type". PDF does not
 /// > have a predefined encoding named PDFDocEncoding; it is not customary to
 /// > use this encoding to show text from fonts
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PdfDocEncoding;
 
 impl Decode for PdfDocEncoding {

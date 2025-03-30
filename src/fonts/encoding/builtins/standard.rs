@@ -7,7 +7,7 @@ use crate::fonts::encoding::{CharacterSet, Decode, Glyph};
 /// However, it is necessary to describe this encoding, since a font’s built-in
 /// encoding can be used as the base encoding from which differences may be
 /// specified in an encoding dictionary.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct StandardEncoding;
 
 impl Decode for StandardEncoding {

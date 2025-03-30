@@ -44,7 +44,7 @@ mod pdf_doc;
 pub use pdf_doc::PdfDocEncoding;
 
 #[enum_dispatch(Decode)]
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BuiltInEncoding {
     MacRomanEncoding,
     MacExpertEncoding,

@@ -1,6 +1,6 @@
 use crate::fonts::encoding::{CharacterSet, Decode, Glyph};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ExpertEncoding;
 
 impl Decode for ExpertEncoding {

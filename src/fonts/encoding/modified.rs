@@ -12,7 +12,7 @@ use super::{BuiltInEncoding, Decode, Glyph};
 ///
 /// Livre's `ModifiedEncoding` is the distilled version of an encoding dictionary,
 /// with the base encoding and the differences compiled into a single array.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ModifiedEncoding(pub Vec<Option<u16>>);
 
 impl Decode for ModifiedEncoding {

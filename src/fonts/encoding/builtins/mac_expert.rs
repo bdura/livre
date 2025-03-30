@@ -7,7 +7,7 @@ use crate::fonts::encoding::{CharacterSet, Decode, Glyph};
 /// > Despite its name, it is not a platform-specific encoding; however, only certain
 /// > fonts have the appropriate character set for use with this encoding.
 /// > No such fonts are among the standard 14 predefined fonts.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MacExpertEncoding;
 
 impl Decode for MacExpertEncoding {

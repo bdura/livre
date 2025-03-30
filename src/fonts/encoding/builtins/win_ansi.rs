@@ -5,7 +5,7 @@ use crate::fonts::encoding::{CharacterSet, Decode, Glyph};
 /// > This is the standard Microsoft Windows TM specific encoding for Latin text
 /// > in Western writing systems. PDF processors shall have a predefined encoding
 /// > named WinAnsiEncoding that may be used with both Type 1 and TrueType fonts.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct WinAnsiEncoding;
 
 impl Decode for WinAnsiEncoding {

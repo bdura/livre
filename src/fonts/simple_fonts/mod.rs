@@ -9,12 +9,12 @@
 //! encoding to select the glyph, as described in 9.6.5, "Character encoding".
 
 use crate::{
-    extraction::{Name, Reference},
+    extraction::{Name, Reference, Todo},
     follow_refs::BuildFromRawDict,
 };
 use widths::Widths;
 
-use super::descriptor::FontDescriptor;
+use super::{descriptor::FontDescriptor, encoding::Encoding};
 
 mod widths;
 
@@ -25,8 +25,8 @@ pub struct SimpleFont {
     pub widths: Widths,
     /// A font descriptor describing the font’s metrics other than its glyph widths
     pub font_descriptor: FontDescriptor,
-    pub encoding: Option<Name>,
-    pub to_unicode: Option<Reference<()>>,
+    pub encoding: Option<Encoding>,
+    pub to_unicode: Option<Todo>,
 }
 
 impl SimpleFont {
