@@ -1,4 +1,4 @@
-use crate::fonts::encoding::{CharacterSet, Encoding, Glyph};
+use crate::fonts::encoding::{CharacterSet, Decode, Glyph};
 
 /// Encoding for "expert fonts".
 ///
@@ -10,13 +10,13 @@ use crate::fonts::encoding::{CharacterSet, Encoding, Glyph};
 #[derive(Debug)]
 pub struct MacExpertEncoding;
 
-impl Encoding for MacExpertEncoding {
-    fn to_char(&self, code: u8) -> u16 {
+impl Decode for MacExpertEncoding {
+    fn decode(&self, code: u8) -> u16 {
         MAC_EXPERT_ENCODING[code as usize].expect("character should be in the character set.")
     }
 
-    fn character_set(self) -> CharacterSet {
-        MAC_EXPERT_ENCODING
+    fn character_set(self) -> Vec<Option<u16>> {
+        MAC_EXPERT_ENCODING.to_vec()
     }
 }
 

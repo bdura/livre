@@ -1,4 +1,4 @@
-use crate::fonts::encoding::{CharacterSet, Encoding, Glyph};
+use crate::fonts::encoding::{CharacterSet, Decode, Glyph};
 
 /// Encoding for text strings outside of a [`ContentStream`]
 ///
@@ -9,13 +9,13 @@ use crate::fonts::encoding::{CharacterSet, Encoding, Glyph};
 #[derive(Debug)]
 pub struct PdfDocEncoding;
 
-impl Encoding for PdfDocEncoding {
-    fn to_char(&self, code: u8) -> u16 {
+impl Decode for PdfDocEncoding {
+    fn decode(&self, code: u8) -> u16 {
         PDF_DOC_ENCODING[code as usize].expect("character should be in the character set.")
     }
 
-    fn character_set(self) -> CharacterSet {
-        PDF_DOC_ENCODING
+    fn character_set(self) -> Vec<Option<u16>> {
+        PDF_DOC_ENCODING.to_vec()
     }
 }
 
@@ -292,6 +292,6 @@ mod tests {
     #[case(0o122, Glyph::R)]
     #[case(0o141, Glyph::a)]
     fn test_code_to_char(#[case] code: u8, #[case] expected: u16) {
-        assert_eq!(PdfDocEncoding.to_char(code), expected);
+        assert_eq!(PdfDocEncoding.decode(code), expected);
     }
 }

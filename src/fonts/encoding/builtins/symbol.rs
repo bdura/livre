@@ -1,15 +1,15 @@
-use crate::fonts::encoding::{CharacterSet, Encoding, Glyph};
+use crate::fonts::encoding::{CharacterSet, Decode, Glyph};
 
 #[derive(Debug)]
 pub struct SymbolEncoding;
 
-impl Encoding for SymbolEncoding {
-    fn to_char(&self, code: u8) -> u16 {
+impl Decode for SymbolEncoding {
+    fn decode(&self, code: u8) -> u16 {
         SYMBOL_ENCODING[code as usize].expect("character should be in the character set.")
     }
 
-    fn character_set(self) -> CharacterSet {
-        SYMBOL_ENCODING
+    fn character_set(self) -> Vec<Option<u16>> {
+        SYMBOL_ENCODING.to_vec()
     }
 }
 

@@ -43,7 +43,7 @@ pub use symbol::SymbolEncoding;
 mod pdf_doc;
 pub use pdf_doc::PdfDocEncoding;
 
-#[enum_dispatch(Encoding)]
+#[enum_dispatch(Decode)]
 #[derive(Debug)]
 pub enum BuiltInEncoding {
     MacRomanEncoding,

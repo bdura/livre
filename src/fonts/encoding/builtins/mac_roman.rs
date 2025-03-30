@@ -1,4 +1,4 @@
-use crate::fonts::encoding::{CharacterSet, Encoding, Glyph};
+use crate::fonts::encoding::{CharacterSet, Decode, Glyph};
 
 /// Mac OS standard encoding for Latin text.
 ///
@@ -8,13 +8,13 @@ use crate::fonts::encoding::{CharacterSet, Encoding, Glyph};
 #[derive(Debug)]
 pub struct MacRomanEncoding;
 
-impl Encoding for MacRomanEncoding {
-    fn to_char(&self, code: u8) -> u16 {
+impl Decode for MacRomanEncoding {
+    fn decode(&self, code: u8) -> u16 {
         MAC_ROMAN_ENCODING[code as usize].expect("character should be in the character set.")
     }
 
-    fn character_set(self) -> CharacterSet {
-        MAC_ROMAN_ENCODING
+    fn character_set(self) -> Vec<Option<u16>> {
+        MAC_ROMAN_ENCODING.to_vec()
     }
 }
 
@@ -290,6 +290,6 @@ mod tests {
     #[case(0o122, Glyph::R)]
     #[case(0o141, Glyph::a)]
     fn test_code_to_char(#[case] code: u8, #[case] expected: u16) {
-        assert_eq!(MacRomanEncoding.to_char(code), expected);
+        assert_eq!(MacRomanEncoding.decode(code), expected);
     }
 }

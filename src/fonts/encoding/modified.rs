@@ -2,25 +2,25 @@ use livre_derive::{BuildFromRawDict, FromRawDict};
 use winnow::{BStr, PResult, Parser};
 
 use crate::{
-    extraction::{extract, Extract, Name, Repeated},
+    extraction::{extract, Extract, Repeated},
     follow_refs::{Build, Builder},
 };
 
-use super::{BuiltInEncoding, CharacterSet, Encoding, Glyph};
+use super::{BuiltInEncoding, Decode, Glyph};
 
 /// A more complex encoding that can be present in a PDF document.
 ///
 /// Livre's `ModifiedEncoding` is the distilled version of an encoding dictionary,
 /// with the base encoding and the differences compiled into a single array.
 #[derive(Debug)]
-pub struct ModifiedEncoding(pub CharacterSet);
+pub struct ModifiedEncoding(pub Vec<Option<u16>>);
 
-impl Encoding for ModifiedEncoding {
-    fn to_char(&self, code: u8) -> u16 {
+impl Decode for ModifiedEncoding {
+    fn decode(&self, code: u8) -> u16 {
         self.0[code as usize].expect("character code should be present")
     }
 
-    fn character_set(self) -> CharacterSet {
+    fn character_set(self) -> Vec<Option<u16>> {
         self.0
     }
 }
@@ -31,6 +31,26 @@ impl Extract<'_> for ModifiedEncoding {
             base_encoding,
             differences,
         } = extract(input)?;
+
+        let mut character_set = base_encoding.character_set();
+
+        for difference in differences {
+            difference.modify_set(&mut character_set);
+        }
+
+        Ok(Self(character_set))
+    }
+}
+
+impl Build for ModifiedEncoding {
+    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
+    where
+        B: Builder,
+    {
+        let EncodingDictionary {
+            base_encoding,
+            differences,
+        } = builder.build(input)?;
 
         let mut character_set = base_encoding.character_set();
 
@@ -148,8 +168,8 @@ mod tests {
 
         let encoding: ModifiedEncoding = extract(&mut input.as_ref()).unwrap();
 
-        assert_eq!(encoding.to_char(128), Glyph::Adieresis);
-        assert_eq!(encoding.to_char(129), Glyph::Aring);
-        assert_eq!(encoding.to_char(136), Glyph::agrave);
+        assert_eq!(encoding.decode(128), Glyph::Adieresis);
+        assert_eq!(encoding.decode(129), Glyph::Aring);
+        assert_eq!(encoding.decode(136), Glyph::agrave);
     }
 }

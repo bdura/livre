@@ -1,15 +1,15 @@
-use crate::fonts::encoding::{CharacterSet, Encoding, Glyph};
+use crate::fonts::encoding::{CharacterSet, Decode, Glyph};
 
 #[derive(Debug)]
 pub struct ExpertEncoding;
 
-impl Encoding for ExpertEncoding {
-    fn to_char(&self, code: u8) -> u16 {
+impl Decode for ExpertEncoding {
+    fn decode(&self, code: u8) -> u16 {
         EXPERT_ENCODING[code as usize].expect("character should be in the character set.")
     }
 
-    fn character_set(self) -> CharacterSet {
-        EXPERT_ENCODING
+    fn character_set(self) -> Vec<Option<u16>> {
+        EXPERT_ENCODING.to_vec()
     }
 }
 
