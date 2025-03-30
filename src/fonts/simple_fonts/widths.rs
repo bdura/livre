@@ -1,5 +1,6 @@
 use livre_derive::BuildFromRawDict;
 
+/// Describes characters' width.
 #[derive(Debug, PartialEq, Clone, BuildFromRawDict)]
 pub struct Widths {
     /// The first character code defined in the font’s `widths` array
@@ -12,12 +13,12 @@ pub struct Widths {
     /// `missing_width` from the FontDescriptor entry for this font shall be used. The
     /// glyph widths shall be measured in units in which 1000 units correspond to 1 unit
     /// in text space.
-    pub widths: Vec<u16>,
+    pub widths: Vec<f32>,
 }
 
 impl Widths {
     /// Provides the width for a single glyph.
-    pub fn width(&self, cid: usize) -> Option<u16> {
+    pub fn width(&self, cid: usize) -> Option<f32> {
         if cid < self.first_char {
             None
         } else {
