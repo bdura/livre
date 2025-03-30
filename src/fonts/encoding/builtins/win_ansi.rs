@@ -1,4 +1,4 @@
-use crate::fonts::encoding::{CharacterSet, Encoding, Glyph};
+use crate::fonts::encoding::{CharacterSet, Decode, Glyph};
 
 /// Windows Code Page 1252.
 ///
@@ -8,13 +8,13 @@ use crate::fonts::encoding::{CharacterSet, Encoding, Glyph};
 #[derive(Debug)]
 pub struct WinAnsiEncoding;
 
-impl Encoding for WinAnsiEncoding {
-    fn to_char(&self, code: u8) -> u16 {
+impl Decode for WinAnsiEncoding {
+    fn decode(&self, code: u8) -> u16 {
         WIN_ANSI_ENCODING[code as usize].expect("character should be in the character set.")
     }
 
-    fn character_set(self) -> CharacterSet {
-        WIN_ANSI_ENCODING
+    fn character_set(self) -> Vec<Option<u16>> {
+        WIN_ANSI_ENCODING.to_vec()
     }
 }
 
@@ -290,6 +290,6 @@ mod tests {
     #[case(0o141, Glyph::a)]
     #[case(0o362, Glyph::ograve)]
     fn test_code_to_char(#[case] code: u8, #[case] expected: u16) {
-        assert_eq!(WinAnsiEncoding.to_char(code), expected);
+        assert_eq!(WinAnsiEncoding.decode(code), expected);
     }
 }

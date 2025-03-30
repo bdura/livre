@@ -33,7 +33,6 @@ impl SimpleFont {
     fn width(&self, code: u8) -> f32 {
         self.widths
             .width(code as usize)
-            .map(f32::from)
             .unwrap_or(self.font_descriptor.missing_width)
             / 1000.0
     }

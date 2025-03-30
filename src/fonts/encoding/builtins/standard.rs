@@ -1,4 +1,4 @@
-use crate::fonts::encoding::{CharacterSet, Encoding, Glyph};
+use crate::fonts::encoding::{CharacterSet, Decode, Glyph};
 
 /// Standard Latin-text encoding, the built-in encoding in Type 1 font programs -
 /// but generally not in `TrueType` fonts.
@@ -10,13 +10,13 @@ use crate::fonts::encoding::{CharacterSet, Encoding, Glyph};
 #[derive(Debug)]
 pub struct StandardEncoding;
 
-impl Encoding for StandardEncoding {
-    fn to_char(&self, code: u8) -> u16 {
+impl Decode for StandardEncoding {
+    fn decode(&self, code: u8) -> u16 {
         STANDARD_ENCODING[code as usize].expect("character should be in the character set.")
     }
 
-    fn character_set(self) -> CharacterSet {
-        STANDARD_ENCODING
+    fn character_set(self) -> Vec<Option<u16>> {
+        STANDARD_ENCODING.to_vec()
     }
 }
 
@@ -291,6 +291,6 @@ mod tests {
     #[case(0o122, Glyph::R)]
     #[case(0o141, Glyph::a)]
     fn test_code_to_char(#[case] code: u8, #[case] expected: u16) {
-        assert_eq!(StandardEncoding.to_char(code), expected);
+        assert_eq!(StandardEncoding.decode(code), expected);
     }
 }
