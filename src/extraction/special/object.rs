@@ -15,6 +15,7 @@ use super::{
     refs::Reference,
     stream::Stream,
     strings::{HexadecimalString, LiteralString},
+    PDFString,
 };
 
 /// A type that can represent *any* PDF object.
@@ -37,7 +38,7 @@ pub enum Object {
     Boolean(bool),
     Integer(i32),
     Real(f32),
-    String(Vec<u8>),
+    String(PDFString),
     Name(Name),
     Array(Vec<Object>),
     Dictionary(Map<Object>),
@@ -64,8 +65,8 @@ impl From<f32> for Object {
 }
 
 impl From<LiteralString> for Object {
-    fn from(LiteralString(inner): LiteralString) -> Self {
-        Self::String(inner)
+    fn from(inner: LiteralString) -> Self {
+        Self::String(inner.into())
     }
 }
 
@@ -147,8 +148,8 @@ impl From<&str> for Object {
 }
 
 impl From<HexadecimalString> for Object {
-    fn from(HexadecimalString(value): HexadecimalString) -> Self {
-        Self::String(value)
+    fn from(value: HexadecimalString) -> Self {
+        Self::String(value.into())
     }
 }
 
