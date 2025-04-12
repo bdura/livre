@@ -42,6 +42,29 @@ where
     }
 }
 
+impl<T> BuildFromRawDict for Map<T>
+where
+    T: Build,
+{
+    fn build_from_raw_dict<B>(dict: &mut RawDict<'_>, builder: &B) -> PResult<Self>
+    where
+        B: Builder,
+    {
+        let mut map = Map::with_capacity(dict.0.len());
+
+        for (key, value) in dict.0.drain() {
+            // NOTE: this is debatable. The alternative would be to fail whenever there's
+            // a value that cannot be extracted.
+            // Let's try it out this way and see how it goes.
+            if let Ok(value) = value.build(builder) {
+                map.insert(key, value);
+            }
+        }
+
+        Ok(map)
+    }
+}
+
 /// Parse a single key-value pair. Consumes trailing whitespace if there is any.
 fn parse_key_value<'de, T>(input: &mut &'de BStr) -> PResult<(Name, T)>
 where
