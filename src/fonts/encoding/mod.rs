@@ -31,11 +31,19 @@ pub trait Decode {
 /// PDF encoding.
 ///
 /// Either a standard encoding, represented as a simple name or a more complex dictonary.
+/// Default value is the `StandardEncoding`, as specified in table 112 (section 9.6.5.1)
+/// in the PDF specification.
 #[enum_dispatch(Decode)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum Encoding {
     BuiltInEncoding,
     ModifiedEncoding,
+}
+
+impl Default for Encoding {
+    fn default() -> Self {
+        BuiltInEncoding::from(StandardEncoding).into()
+    }
 }
 
 impl Build for Encoding {
