@@ -13,8 +13,9 @@
 use std::collections::VecDeque;
 
 use winnow::{
-    combinator::trace,
-    error::{ContextError, ErrMode},
+    combinator::{empty, fail, trace},
+    dispatch,
+    token::any,
     BStr, PResult, Parser,
 };
 
@@ -34,6 +35,8 @@ use crate::{
 };
 
 pub struct TextStateParameters {
+    /// $T_c$ parameter.
+    ///
     /// Spacing between characters, in unscaled text space units. Added to the horizontal or
     /// vertical component of the glyph's displacement, depending on the writing mode.
     ///
@@ -43,6 +46,8 @@ pub struct TextStateParameters {
     /// Note that since the origin is located in the lower-left corner of the glyph, positive
     /// values move the glyph **up** in vertical writing mode..
     pub character_spacing: f32,
+    /// $T_w$ parameter.
+    ///
     /// Spacing between words, in unscaled text space units. Works the same way as
     /// [character spacing](Self::character_spacing).
     ///
@@ -53,15 +58,23 @@ pub struct TextStateParameters {
     /// > code 32 as a single-byte code. It shall not apply to occurrences of the byte value 32
     /// > in multiple-byte codes
     pub word_spacing: f32,
+    /// $T_h$ parameter.
+    ///
     /// Horizontal scaling: adjusts the width of glyphs by stretching or compressing them in the
     /// horizontal direction. Specified as a percentage of the normal width of the glyph, 100
     /// being the normal width.
     pub horizontal_scaling: f32,
+    /// $T_l$ parameter.
+    ///
     /// Vertical distance between the baselines of two consecutive lines of text, in unscaled text
     /// units.
     pub leading: f32,
+    /// $T_{mode}$ parameter.
+    ///
     /// Text rendering mode.
     pub rendering_mode: RenderingMode,
+    /// $T_{rise}$ parameter.
+    ///
     /// Distance to move the baseline up or down from its default location. Contrary to character
     /// spacing, positive values move the baseline up, negative values move it down.
     pub rise: f32,
@@ -149,18 +162,20 @@ pub enum RenderingMode {
 }
 
 impl Extract<'_> for RenderingMode {
-    fn extract(input: &mut &'_ winnow::BStr) -> winnow::PResult<Self> {
-        match u8::extract(input)? {
-            0 => Ok(Self::Fill),
-            1 => Ok(Self::Stroke),
-            2 => Ok(Self::FillThenStroke),
-            3 => Ok(Self::Invisible),
-            4 => Ok(Self::FillAndClip),
-            5 => Ok(Self::StrokeAndClip),
-            6 => Ok(Self::FillThenStrokeAndClip),
-            7 => Ok(Self::AddTextAndClip),
-            _ => Err(ErrMode::Backtrack(ContextError::new())),
+    fn extract(input: &mut &BStr) -> PResult<Self> {
+        dispatch! {
+            any;
+            b'0' => empty.value(Self::Fill),
+            b'1' => empty.value(Self::Stroke),
+            b'2' => empty.value(Self::FillThenStroke),
+            b'3' => empty.value(Self::Invisible),
+            b'4' => empty.value(Self::FillAndClip),
+            b'5' => empty.value(Self::StrokeAndClip),
+            b'6' => empty.value(Self::FillThenStrokeAndClip),
+            b'7' => empty.value(Self::AddTextAndClip),
+            _ => fail
         }
+        .parse_next(input)
     }
 }
 
@@ -209,6 +224,28 @@ impl TextObject {
     }
     pub fn set_horizontal_scaling(&mut self, scaling: f32) {
         self.parameters.horizontal_scaling = scaling;
+    }
+}
+
+impl TextObject {
+    /// Compute the displacement (the width in user space) from a character code.
+    fn displacement(&self, mut displacement: f32, is_space: bool) -> f32 {
+        displacement *= self.font_size;
+        displacement += self.parameters.character_spacing;
+
+        if is_space {
+            displacement += self.parameters.word_spacing;
+        }
+
+        displacement
+    }
+
+    pub fn horizontal_displacement(&self, displacement: f32, is_space: bool) -> f32 {
+        // FIXME: we may benefit from performance improvements by pre-computing the scale
+        // Idea: create a `HorizontalScaling` extractable type? That way we get the benefits
+        // of pre-computation, while having a natural vehicle to document the transformation.
+        let scale = self.parameters.horizontal_scaling / 100.0;
+        self.displacement(displacement, is_space) * scale
     }
 }
 
@@ -295,16 +332,24 @@ impl Iterator for TextObject {
                         self.text_buffer = Some(text);
                         break;
                     }
-                    TextArrayElement::Offset(offset) => {
-                        // NOTE: offset is given in thousandths of a unit of text space
-                        self.matrix.move_to(-offset / 1_000.0, 0.0);
+                    TextArrayElement::Offset(mut offset) => {
+                        // NOTE: offset is given in Glyph space, i.e. thousandths
+                        // of a unit of text space
+                        offset /= 1_000.0;
+
+                        let scale = self.parameters.horizontal_scaling / 100.0;
+
+                        // FIXME: we assume the writing mode to be horizontal here.
+                        self.matrix.move_to(-offset * self.font_size * scale, 0.0);
                     }
                 }
             }
         }
 
         // FIXME: this is merely a placeholder.
-        // Actual logic will invlove the font object.
+        // Actual logic will involve the font object to determine which character
+        // is being painted, and transform the text matrix to account for the glyph's
+        // displacement.
         let text = self.text_buffer.take()?;
 
         Some((self.matrix.position(), text))

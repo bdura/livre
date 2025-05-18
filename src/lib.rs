@@ -4,6 +4,7 @@
 pub mod content;
 pub mod extraction;
 pub mod follow_refs;
+pub mod fonts;
 pub mod structure;
 
 mod document;

@@ -9,7 +9,7 @@ use winnow::{
 };
 
 use crate::extraction::{
-    extract, HexadecimalString, Id, LiteralString, MaybeArray, Name, Object, Rectangle,
+    extract, HexadecimalString, Id, LiteralString, MaybeArray, Name, Object, Rectangle, Repeated,
 };
 
 use super::{Builder, BuilderParser, Built};
@@ -114,6 +114,26 @@ where
                 ),
                 (multispace0, b']'),
             ),
+        )
+        .parse_next(input)
+    }
+}
+
+impl<T> Build for Repeated<T>
+where
+    T: Build,
+{
+    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
+    where
+        B: Builder,
+    {
+        trace(
+            "livre-repeated",
+            repeat(
+                0..,
+                preceded(multispace0, builder.as_parser().map(|Built(item)| item)),
+            )
+            .map(Self),
         )
         .parse_next(input)
     }
