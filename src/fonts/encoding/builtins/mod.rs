@@ -9,6 +9,16 @@
 //! > This subclause describes the character encoding scheme used with simple PDF fonts.
 //! > Composite fonts (Type 0) use a different character mapping algorithm,
 //!
+//! For now, like [`lopdf`][lopdf], Livre uses an array of 256 `Option<u16>`
+//! to represent built-it encodings. Although using `[T; 256]` is probably
+//! the right strategy, we may switch to using `&str` instead of `u16` -
+//! which would bring some advantages, among which:
+//!
+//! - direct utf-8 conversion
+//! - more general approach, allowing complex utf-8 strings to be used
+//!   (see example 2 from section 9.10.3 in the specification, which discusses
+//!   the representation of the `ff`, `fi` and `ffi` ligatures)
+//!
 //! [lopdf]: https://github.com/J-F-Liu/lopdf
 
 use enum_dispatch::enum_dispatch;
@@ -43,6 +53,7 @@ pub use symbol::SymbolEncoding;
 mod pdf_doc;
 pub use pdf_doc::PdfDocEncoding;
 
+/// Built-in PDF encoding that maps single-byte character codes to Unicode values.
 #[enum_dispatch(Decode)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BuiltInEncoding {
