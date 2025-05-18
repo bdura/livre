@@ -68,5 +68,7 @@
 
 pub mod encoding;
 
+pub mod cmap;
+
 mod descriptor;
 mod simple_fonts;
