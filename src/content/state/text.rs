@@ -13,8 +13,9 @@
 use std::collections::VecDeque;
 
 use winnow::{
-    combinator::trace,
-    error::{ContextError, ErrMode},
+    combinator::{empty, fail, trace},
+    dispatch,
+    token::any,
     BStr, PResult, Parser,
 };
 
@@ -162,18 +163,19 @@ pub enum RenderingMode {
 
 impl Extract<'_> for RenderingMode {
     fn extract(input: &mut &BStr) -> PResult<Self> {
-        // FIXME: use dispatch here, to avoid u8 conversion?
-        match u8::extract(input)? {
-            0 => Ok(Self::Fill),
-            1 => Ok(Self::Stroke),
-            2 => Ok(Self::FillThenStroke),
-            3 => Ok(Self::Invisible),
-            4 => Ok(Self::FillAndClip),
-            5 => Ok(Self::StrokeAndClip),
-            6 => Ok(Self::FillThenStrokeAndClip),
-            7 => Ok(Self::AddTextAndClip),
-            _ => Err(ErrMode::Backtrack(ContextError::new())),
+        dispatch! {
+            any;
+            b'0' => empty.value(Self::Fill),
+            b'1' => empty.value(Self::Stroke),
+            b'2' => empty.value(Self::FillThenStroke),
+            b'3' => empty.value(Self::Invisible),
+            b'4' => empty.value(Self::FillAndClip),
+            b'5' => empty.value(Self::StrokeAndClip),
+            b'6' => empty.value(Self::FillThenStrokeAndClip),
+            b'7' => empty.value(Self::AddTextAndClip),
+            _ => fail
         }
+        .parse_next(input)
     }
 }
 
