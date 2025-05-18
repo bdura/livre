@@ -7,9 +7,12 @@
 //! With a simple font, each byte of the string shall be treated as a separate
 //! character code. The character code shall then be looked up in the font’s
 //! encoding to select the glyph, as described in 9.6.5, "Character encoding".
+//!
+//! Moreover, simple fonts are assigned a special behaviour for content retrieval,
+//! and their encoding directly map to Unicode values.
 
 use crate::{
-    extraction::{Name, Reference, Todo},
+    extraction::{Name, Todo},
     follow_refs::BuildFromRawDict,
 };
 use widths::Widths;
@@ -25,12 +28,16 @@ pub struct SimpleFont {
     pub widths: Widths,
     /// A font descriptor describing the font’s metrics other than its glyph widths
     pub font_descriptor: FontDescriptor,
-    pub encoding: Option<Encoding>,
+    /// The font's character encoding. In the absence of a `ToUnicode` key,
+    /// dictates the mapping to Unicode values.
+    #[livre(default)]
+    pub encoding: Encoding,
+    /// Optional `CMap` that maps character codes to Unicode values.
     pub to_unicode: Option<Todo>,
 }
 
 impl SimpleFont {
-    fn width(&self, code: u8) -> f32 {
+    pub fn width(&self, code: u8) -> f32 {
         self.widths
             .width(code as usize)
             .unwrap_or(self.font_descriptor.missing_width)
