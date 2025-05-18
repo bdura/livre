@@ -139,7 +139,7 @@ checksum = "b248f5224d1d606005e02c97f5aa4e88eeb230488bcc03bc9ca4d7991399f2b5"
 
 [[package]]
 name = "livre"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "enum_dispatch",
  "flate2",
@@ -153,7 +153,7 @@ dependencies = [
 
 [[package]]
 name = "livre-derive"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "proc-macro2",
  "quote",
