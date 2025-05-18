@@ -40,6 +40,24 @@
 //! - Text space
 //! - User space
 //!
+//! ### Content retrieval
+//!
+//! Fonts are also the single source of truth to extract text from the arguments supplied
+//! to text-showing operators. Indeed, those work with codes that link to glyphs,
+//! not characters - although in effect there is a one-to-one correspondence in most cases,
+//! but that is *not* guaranteed. In fact, there is no guarantee that encoding
+//! can be mapped back to unicode characters...
+//!
+//! Bear in mind that the purpose of a PDF document is less to *store* text than to *show*
+//! it on a screen. To put it another way, the PDF format is more concerned about which glyph
+//! to paint than what abstract character(s) the latter represents, hence the "lossy"
+//! encoding scheme.
+//!
+//! The PDF specification stipulates the following strategy for accessing the original text:
+//!
+//! 1. If the font a `ToUnicode` mapping, use it.
+//! 2. If the font is a simple font, use its [`Encoding`](encoding::Encoding).
+//! 3. TODO: TBD
 //!
 //! [Type0]: https://en.wikipedia.org/wiki/PostScript_fonts#Type_0
 //! [Type1]: https://en.wikipedia.org/wiki/PostScript_fonts#Type_1
