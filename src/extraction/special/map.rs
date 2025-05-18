@@ -47,7 +47,7 @@ impl<T> BuildFromRawDict for Map<T>
 where
     T: Build,
 {
-    fn build_from_raw_dict<B>(dict: &mut RawDict<'_>, builder: &B) -> PResult<Self>
+    fn build_from_raw_dict<B>(dict: &mut RawDict<'_>, builder: &B) -> ModalResult<Self>
     where
         B: Builder,
     {
