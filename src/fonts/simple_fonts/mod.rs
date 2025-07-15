@@ -17,7 +17,10 @@ use crate::{
 };
 use widths::Widths;
 
-use super::{descriptor::FontDescriptor, encoding::Encoding};
+use super::{
+    descriptor::FontDescriptor,
+    encoding::{Decode, Encoding},
+};
 
 mod widths;
 
@@ -42,6 +45,12 @@ impl SimpleFont {
             .width(code as usize)
             .unwrap_or(self.font_descriptor.missing_width)
             / 1000.0
+    }
+
+    pub fn decode(&self, code: u8) -> String {
+        // FIXME: should use [`Self::to_unicode`] if present...
+        let utf16 = self.encoding.decode(code);
+        String::from_utf16(&[utf16]).unwrap()
     }
 }
 

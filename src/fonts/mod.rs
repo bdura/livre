@@ -66,9 +66,49 @@
 //! [TrueType]: https://en.wikipedia.org/wiki/TrueType
 //! [CIDFont]: https://en.wikipedia.org/wiki/PostScript_fonts#CID
 
+use simple_fonts::SimpleFont;
+use winnow::PResult;
+
+use crate::{
+    extraction::{RawDict, RawValue},
+    follow_refs::{BuildFromRawDict, Builder},
+};
+
 pub mod encoding;
 
 pub mod cmap;
 
 mod descriptor;
 mod simple_fonts;
+
+#[derive(Debug, Clone, Default, PartialEq)]
+pub enum Font {
+    Simple(SimpleFont),
+    #[default]
+    UnknownFont,
+}
+
+impl From<SimpleFont> for Font {
+    fn from(value: SimpleFont) -> Self {
+        Self::Simple(value)
+    }
+}
+
+impl BuildFromRawDict for Font {
+    fn build_from_raw_dict<B>(dict: &mut RawDict<'_>, builder: &B) -> PResult<Self>
+    where
+        B: Builder,
+    {
+        // FIXME: proper error reporting
+        let RawValue(subtype) = dict
+            .pop(&b"Subtype".into())
+            .expect("Subtype key should be present");
+
+        let result = match subtype.as_ref() {
+            b"Type1" => SimpleFont::build_from_raw_dict(dict, builder)?.into(),
+            _ => Self::UnknownFont,
+        };
+
+        Ok(result)
+    }
+}
