@@ -50,7 +50,7 @@ pub use from_raw_dict::FromRawDict;
 
 pub use special::{
     multicomment0, multicomment1, Comment, Date, HexadecimalString, Id, Indirect, LiteralString,
-    Map, MaybeArray, Name, Nil, Object, OptRef, PDFString, RawDict, Rectangle, Reference,
+    Map, MaybeArray, Name, Nil, Object, OptRef, PDFString, RawDict, RawValue, Rectangle, Reference,
     ReferenceId, Repeated, Stream, Todo,
 };
 

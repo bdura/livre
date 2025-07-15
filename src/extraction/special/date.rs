@@ -5,7 +5,10 @@ use winnow::{
     BStr, ModalResult, Parser,
 };
 
-use crate::extraction::Extract;
+use crate::{
+    extraction::{extract, Extract},
+    follow_refs::{Build, Builder},
+};
 
 /// Standard date used in PDF, with a bespoke format.
 ///
@@ -93,6 +96,15 @@ impl Extract<'_> for Date {
             Ok(date)
         })
         .parse_next(input)
+    }
+}
+
+impl Build for Date {
+    fn build<B>(input: &mut &BStr, _builder: &B) -> PResult<Self>
+    where
+        B: Builder,
+    {
+        extract(input)
     }
 }
 

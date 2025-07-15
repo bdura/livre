@@ -15,7 +15,7 @@ mod todo;
 pub use comments::{multicomment0, multicomment1, Comment};
 pub use date::Date;
 pub use id::Id;
-pub use map::{Map, Nil, RawDict};
+pub use map::{Map, Nil, RawDict, RawValue};
 pub use maybe_array::MaybeArray;
 pub use name::Name;
 pub use object::Object;
