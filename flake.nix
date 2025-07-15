@@ -27,6 +27,8 @@
             clippy
             rust-analyzer
             rustfmt
+
+            watchexec
           ];
 
           RUSTFLAGS = "-Dwarnings";
