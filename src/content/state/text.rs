@@ -10,7 +10,7 @@
 //! > the horizontal or vertical displacement of each glyph painted as well as
 //! > any character or word-spacing parameters in the text state.
 
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 
 use winnow::{
     combinator::{empty, fail, trace},
@@ -31,6 +31,7 @@ use crate::{
         },
     },
     extraction::{extract, Extract, Name, PDFString},
+    fonts::Font,
 };
 
 pub struct TextStateParameters {
@@ -183,10 +184,10 @@ impl Extract<'_> for RenderingMode {
 /// Can be iterated over to extract text elements. Text is decoded
 /// from raw [`PDFString`] bytes using best-effort heuristics
 /// (UTF-16BE if a BOM is present, Latin-1 otherwise).
-pub struct TextObject {
+pub struct TextObject<'font> {
     /// Font name.
     /// NOTE: this is set to become an actual object in the future.
-    pub font: Name,
+    pub font: Option<&'font Font>,
     /// Font size, a scaling factor applied to every glyph's size parameters.
     pub font_size: f32,
     /// Text matrix. Governs the transformation of text space to user space.
@@ -200,7 +201,7 @@ pub struct TextObject {
     pub buffer: Option<VecDeque<TextArrayElement>>,
 }
 
-impl TextObject {
+impl TextObject<'_> {
     pub fn move_to(&mut self, x: f32, y: f32) {
         self.matrix.move_to(x, y);
     }
@@ -227,7 +228,7 @@ impl TextObject {
     }
 }
 
-impl TextObject {
+impl TextObject<'_> {
     /// Compute the displacement (the width in user space) from a character code.
     fn displacement(&self, mut displacement: f32, is_space: bool) -> f32 {
         displacement *= self.font_size;
@@ -250,16 +251,16 @@ impl TextObject {
 }
 
 /// The `TextObjectStream` holds a text object and a stream of operators that apply to it.
-pub struct TextObjectStream<Ops> {
-    text_object: TextObject,
+pub struct TextObjectStream<'font, Ops> {
+    text_object: TextObject<'font>,
     ops: Ops,
 }
 
-impl<Ops> TextObjectStream<Ops>
+impl<'font, Ops> TextObjectStream<'font, Ops>
 where
     Ops: Iterator<Item = Operator>,
 {
-    fn build(mut ops: Ops) -> Result<Self> {
+    fn build(mut ops: Ops, fonts: &'font HashMap<Name, Font>) -> Result<Self> {
         let mut matrix = Default::default();
         let mut parameters = Default::default();
 
@@ -268,6 +269,8 @@ where
                 Operator::Text(TextOperator::TextStateOperator(
                     TextStateOperator::SetFontAndFontSize(SetFontAndFontSize(font, font_size)),
                 )) => {
+                    // FIXME: use proper error reporting
+                    let font = fonts.get(&font);
                     let text_object = TextObject {
                         font,
                         font_size,
@@ -302,13 +305,16 @@ where
 ///
 /// Skips over any operators until it finds the `BT` operator, which marks the beginning of a text,
 /// and returns an object that can be used to iterate over the text elements.
-pub fn parse_text_object<Ops>(mut ops: Ops) -> Result<Option<TextObjectStream<Ops>>>
+pub fn parse_text_object<Ops>(
+    mut ops: Ops,
+    fonts: &HashMap<Name, Font>,
+) -> Result<Option<TextObjectStream<Ops>>>
 where
     Ops: Iterator<Item = Operator>,
 {
     while let Some(op) = ops.next() {
         match op {
-            Operator::BeginText(_) => return Some(TextObjectStream::build(ops)).transpose(),
+            Operator::BeginText(_) => return Some(TextObjectStream::build(ops, fonts)).transpose(),
             _ => {
                 // NOTE: just skip any other operators until we find the text object
             }
@@ -317,7 +323,7 @@ where
     Ok(None)
 }
 
-impl Iterator for TextObject {
+impl Iterator for TextObject<'_> {
     // NOTE: text is decoded from raw PDF string bytes using best-effort heuristics
     // (UTF-16BE if a BOM is present, Latin-1 otherwise). Actual decoding requires
     // the font's encoding map.
@@ -358,7 +364,7 @@ impl Iterator for TextObject {
     }
 }
 
-impl<Ops> Iterator for TextObjectStream<Ops>
+impl<Ops> Iterator for TextObjectStream<'_, Ops>
 where
     Ops: Iterator<Item = Operator>,
 {
