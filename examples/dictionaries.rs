@@ -32,7 +32,7 @@ fn iter_dictionaries(
 }
 
 fn main() {
-    let doc = read_document("tests/resources/text.pdf");
+    let doc = read_document("tests/resources/letter.pdf");
 
     for (reference_id, dictionary) in iter_dictionaries(&doc).filter(|(_, d)| {
         d.get(&b"Type".into())
@@ -40,8 +40,9 @@ fn main() {
     }) {
         println!();
         println!("{reference_id:?}");
-        for (key, value) in &dictionary {
-            println!("{key:?}: {value:?}");
-        }
+        println!("{:?}", dictionary[&b"Subtype".into()]);
+        // for (key, value) in &dictionary {
+        //     println!("{key:?}: {value:?}");
+        // }
     }
 }
