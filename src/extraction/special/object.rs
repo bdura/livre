@@ -1,6 +1,8 @@
 use winnow::{
-    combinator::{alt, fail, peek},
+    ascii::multispace0,
+    combinator::{alt, fail, peek, preceded},
     dispatch,
+    error::ContextError,
     token::any,
     BStr, PResult, Parser,
 };
@@ -8,7 +10,7 @@ use winnow::{
 use crate::extraction::{extract, Extract};
 
 use super::{
-    map::Map,
+    map::{Map, RawDict},
     name::Name,
     refs::Reference,
     stream::Stream,
@@ -185,12 +187,30 @@ fn number(input: &mut &BStr) -> PResult<Object> {
 }
 
 fn map_or_stream(input: &mut &BStr) -> PResult<Object> {
-    // TODO: avoid parsing twice. This will do for now.
-    alt((
-        extract::<Stream<Map<Object>>>.map(Object::Stream),
-        Map::<Object>::extract.map(Object::Dictionary),
-    ))
-    .parse_next(input)
+    // Recognise the `<<...>>` block without fully parsing it, save the start position,
+    // then peek past optional whitespace for the `stream` keyword. This lets us dispatch
+    // to the right parser with a single parse of the dictionary bytes.
+    let start = *input;
+    // Use `RawDict::recognize` rather than `Map<Object>::recognize`: the latter defaults to
+    // calling `extract` and discarding the result (expensive), while `RawDict::recognize`
+    // delegates to `DoubleAngles::recognize`, which simply scans for the closing `>>`.
+    RawDict::recognize(input)?;
+
+    let is_stream = preceded(multispace0::<&BStr, ContextError>, peek(b"stream"))
+        .parse_next(input)
+        .is_ok();
+
+    *input = start;
+
+    if is_stream {
+        extract::<Stream<Map<Object>>>
+            .map(Object::Stream)
+            .parse_next(input)
+    } else {
+        Map::<Object>::extract
+            .map(Object::Dictionary)
+            .parse_next(input)
+    }
 }
 
 #[cfg(test)]
