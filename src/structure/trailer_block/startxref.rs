@@ -1,6 +1,10 @@
 use std::fmt::Debug;
 
-use winnow::{ascii::multispace1, token::take_until, BStr, PResult, Parser};
+use winnow::{
+    ascii::multispace1,
+    error::{ContextError, ErrMode},
+    BStr, PResult, Parser,
+};
 
 use crate::extraction::{extract, Extract};
 
@@ -17,14 +21,22 @@ impl Extract<'_> for StartXRef {
 
 impl StartXRef {
     pub fn find(input: &BStr) -> PResult<Self> {
-        const MAXIMUM_XREF_LEN: usize = 30;
+        // The PDF spec requires `%%EOF` to appear within the last 1024 bytes,
+        // so `startxref` is always within this window.
+        const SEARCH_WINDOW: usize = 1024;
 
-        // Rush to the end
-        let i = &mut &input[(input.len().saturating_sub(MAXIMUM_XREF_LEN))..];
-        // Look for the tag
-        take_until(0.., b"startxref".as_slice()).parse_next(i)?;
-        // Extract tag + value
-        Self::extract(i)
+        const TAG: &[u8] = b"startxref";
+
+        let window = &input[input.len().saturating_sub(SEARCH_WINDOW)..];
+
+        // Scan backward to find the *last* `startxref` — incremental PDF updates
+        // append new xref tables at the end, so the last occurrence is the one we want.
+        let pos = window
+            .windows(TAG.len())
+            .rposition(|w| w == TAG)
+            .ok_or(ErrMode::Cut(ContextError::new()))?;
+
+        Self::extract(&mut window[pos..].into())
     }
 }
 
@@ -37,26 +49,30 @@ mod tests {
     #[test]
     fn startxref() {
         let input = indoc! {b"
-            test
-            test
-            test
-            test
-            test
-            test
-            test
-            test
-            test
-            test
             startxref
             7
         "}
         .as_slice();
 
-        assert_eq!(input.len(), 62);
+        let StartXRef(value) = StartXRef::find(input.as_ref()).unwrap();
+        assert_eq!(value, 7);
+    }
+
+    /// When a PDF has been incrementally updated, multiple `startxref` markers
+    /// exist in the file. `find` must return the last one (the most recent xref).
+    #[test]
+    fn startxref_picks_last_occurrence() {
+        let input = indoc! {b"
+            startxref
+            7
+            %%EOF
+            startxref
+            42
+            %%EOF
+        "}
+        .as_slice();
 
         let StartXRef(value) = StartXRef::find(input.as_ref()).unwrap();
-
-        assert_eq!(input.len(), 62);
-        assert_eq!(value, 7);
+        assert_eq!(value, 42);
     }
 }
