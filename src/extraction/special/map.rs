@@ -4,6 +4,7 @@ use winnow::{
     ascii::multispace0,
     combinator::{iterator, peek, separated_pair, terminated, trace},
     dispatch,
+    error::{ContextError, ErrMode},
     token::{any, take_till},
     BStr, PResult, Parser,
 };
@@ -121,11 +122,11 @@ impl<'de> Extract<'de> for RawValue<'de> {
             b'[' => Brackets::recognize,
             b'(' => Parentheses::recognize,
             b'<' => Angles::recognize,
-            // NOTE: provided we do not encounter a name *within a tuple*, this last case
-            // handles every other option.
-            // NOTE: I tried using `take_till_delimiter`, which failed miserably.
-            // Values can contain tuples or references...
-            // FIXME: remove that failure case.
+            // Catch-all for values that start with bytes other than the dispatch arms above:
+            // numbers (e.g. `42`, `-3.14`), booleans (`true`, `false`), and indirect references
+            // (`1 0 R`). These all end at the next `/` (the start of the next key) or at `>>`.
+            // TODO: replace this with per-type dispatch once all value kinds are covered, so that
+            // truly invalid input is rejected rather than silently consumed.
             _ => take_till(0.., b'/').map(remove_trailing_spaces),
         }
         .map(Self::from)
@@ -179,13 +180,12 @@ impl<'de> Extract<'de> for RawDict<'de> {
             let map = it.collect();
             let (i, _) = it.finish()?;
 
-            // TODO: remove this panic... Useful for now, it lets us know if
-            // something went wrong.
-            assert!(
-                i.is_empty(),
-                "Input not empty after parsing a dictionary: {:?}",
-                i
-            );
+            // Fail if there is unconsumed input left inside the `<<...>>` block.
+            // At this point the opening delimiters have already been consumed, so we
+            // escalate to `Cut` to prevent spurious backtracking in callers.
+            if !i.is_empty() {
+                return Err(ErrMode::Cut(ContextError::new()));
+            }
 
             Ok(Self(map))
         })
