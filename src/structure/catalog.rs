@@ -1,7 +1,7 @@
 use winnow::{
     combinator::{fail, trace},
     error::{ContextError, ErrMode},
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use crate::{
@@ -33,7 +33,7 @@ pub enum PageLayout {
 }
 
 impl Extract<'_> for PageLayout {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
         trace("livre-page-layout", move |i: &mut &BStr| {
             let Name(value) = extract(i)?;
 
@@ -71,7 +71,7 @@ pub enum PageMode {
 }
 
 impl Extract<'_> for PageMode {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
         trace("livre-page-mode", move |i: &mut &BStr| {
             let Name(value) = extract(i)?;
 
@@ -108,7 +108,7 @@ pub struct Catalog {
 }
 
 impl Build for Catalog {
-    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, builder: &B) -> ModalResult<Self>
     where
         B: Builder,
     {
@@ -185,7 +185,7 @@ mod tests {
     //}
     //
     //impl Builder for DummyBuilder {
-    //    fn build_reference<T>(&self, reference: Reference<T>) -> PResult<T>
+    //    fn build_reference<T>(&self, reference: Reference<T>) -> ModalResult<T>
     //    where
     //        T: Build,
     //    {

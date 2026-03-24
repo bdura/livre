@@ -2,7 +2,7 @@ use winnow::{
     ascii::multispace0,
     combinator::{delimited, preceded, repeat, trace},
     error::{ContextError, ErrMode},
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use crate::extraction::Extract;
@@ -11,7 +11,7 @@ impl<'de, T, const N: usize> Extract<'de> for [T; N]
 where
     T: Extract<'de>,
 {
-    fn extract(input: &mut &'de BStr) -> PResult<Self> {
+    fn extract(input: &mut &'de BStr) -> ModalResult<Self> {
         trace("livre-array", move |i: &mut &'de BStr| {
             let vec: Vec<T> = delimited(
                 b'[',
@@ -40,7 +40,7 @@ mod tests {
 
     use rstest::rstest;
 
-    use winnow::PResult;
+    use winnow::ModalResult;
 
     use crate::extraction::{extract, Extract, HexadecimalString};
 
@@ -64,7 +64,7 @@ mod tests {
     // Too many elements.
     #[case(b"[1 2 3]")]
     fn array_wrong_length(#[case] input: &[u8]) {
-        let res: PResult<[i32; 2]> = extract(&mut input.as_ref());
+        let res: ModalResult<[i32; 2]> = extract(&mut input.as_ref());
         assert!(res.is_err());
     }
 }

@@ -3,7 +3,7 @@ use winnow::{
     error::ContextError,
     stream::Range,
     token::{any, take, take_till},
-    BStr, PResult, Parser,
+    BStr, ModalParser, ModalResult, Parser,
 };
 
 use paste::paste;
@@ -39,7 +39,7 @@ impl WithinBalancedParser {
 }
 
 impl<'a> Parser<&'a BStr, &'a [u8], ContextError> for WithinBalancedParser {
-    fn parse_next(&mut self, input: &mut &'a BStr) -> PResult<&'a [u8], ContextError> {
+    fn parse_next(&mut self, input: &mut &'a BStr) -> ModalResult<&'a [u8], ContextError> {
         // Check that the first byte is an opening byte.
         // PERF: by relying on a `Parser` trait with implementation for common types
         // (here, `u8`), Winnow makes this quite easy
@@ -85,7 +85,7 @@ static DELIMITERS: &[u8] = b"()<>[]{}/% \t\r\n";
 /// Useful for recognizing elements.
 pub fn take_till_delimiter<'a>(
     occurrences: impl Into<Range>,
-) -> impl Parser<&'a BStr, &'a [u8], ContextError> {
+) -> impl ModalParser<&'a BStr, &'a [u8], ContextError> {
     trace("livre-till-delimiter", take_till(occurrences, DELIMITERS))
 }
 
@@ -97,7 +97,7 @@ fn take_within_balanced<'a>(
     opening: u8,
     closing: u8,
     escaped: Option<u8>,
-) -> impl Parser<&'a BStr, &'a [u8], ContextError> {
+) -> impl ModalParser<&'a BStr, &'a [u8], ContextError> {
     WithinBalancedParser::new(opening, closing, escaped)
 }
 
@@ -108,7 +108,7 @@ macro_rules! delimited {
             pub struct $name<'de>(pub &'de BStr);
 
             impl<'de> Extract<'de> for $name<'de> {
-                fn extract(input: &mut &'de BStr) -> PResult<Self> {
+                fn extract(input: &mut &'de BStr) -> ModalResult<Self> {
                     trace(
                         stringify!(livre-[<$name:snake>]),
                         take_within_balanced($opening, $closing, $escaped)
@@ -131,7 +131,7 @@ delimited!(Angles: b'<' -> b'>');
 pub struct DoubleAngles<'de>(pub &'de BStr);
 
 impl<'de> Extract<'de> for DoubleAngles<'de> {
-    fn extract(input: &mut &'de BStr) -> PResult<Self> {
+    fn extract(input: &mut &'de BStr) -> ModalResult<Self> {
         let Angles(inside) = delimited(b'<', extract, b'>').parse_next(input)?;
         Ok(Self(inside))
     }

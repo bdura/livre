@@ -1,5 +1,5 @@
 pub use livre_derive::FromRawDict;
-use winnow::{BStr, PResult};
+use winnow::{BStr, ModalResult};
 
 use super::{Extract, RawDict};
 
@@ -14,7 +14,7 @@ pub trait FromRawDict<'de>: Sized {
     ///
     /// This means that we can break a single [`RawDict`] into multiple structured objects,
     /// which is particularly useful for compound PDF objects such as [`Stream`](super::Stream)s.
-    fn from_raw_dict(dict: &mut RawDict<'de>) -> PResult<Self>;
+    fn from_raw_dict(dict: &mut RawDict<'de>) -> ModalResult<Self>;
 }
 
 /// Any type that is [`FromRawDict`] is trivially [`Extract`]: you first extract the [`RawDict`],
@@ -23,7 +23,7 @@ impl<'de, T> Extract<'de> for T
 where
     T: FromRawDict<'de>,
 {
-    fn extract(input: &mut &'de BStr) -> PResult<Self> {
+    fn extract(input: &mut &'de BStr) -> ModalResult<Self> {
         let mut dict = RawDict::extract(input)?;
         let result = Self::from_raw_dict(&mut dict)?;
         Ok(result)

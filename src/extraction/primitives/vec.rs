@@ -1,6 +1,6 @@
 use winnow::ascii::multispace0;
 use winnow::combinator::{delimited, preceded, repeat, trace};
-use winnow::{BStr, PResult, Parser};
+use winnow::{BStr, ModalResult, Parser};
 
 use super::Extract;
 
@@ -24,7 +24,7 @@ impl<'de, T> Extract<'de> for Vec<T>
 where
     T: Extract<'de>,
 {
-    fn extract(input: &mut &'de BStr) -> PResult<Self> {
+    fn extract(input: &mut &'de BStr) -> ModalResult<Self> {
         trace(
             "livre-vec",
             delimited(

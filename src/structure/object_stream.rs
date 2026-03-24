@@ -7,7 +7,7 @@ use winnow::{
     ascii::multispace0,
     combinator::{iterator, preceded, trace},
     error::{ContextError, ErrMode},
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use crate::{
@@ -55,7 +55,7 @@ impl ObjectStream {
 
 impl ObjectStream {
     /// Build an object contained within the `ObjectStream`. Returns an error if the key is absent.
-    pub fn build_object<B, T>(&self, reference: &ReferenceId, builder: &B) -> PResult<T>
+    pub fn build_object<B, T>(&self, reference: &ReferenceId, builder: &B) -> ModalResult<T>
     where
         T: Build,
         B: Builder,
@@ -73,7 +73,7 @@ impl ObjectStream {
     ///
     /// This is only available to owned types because while following the linked list, we
     /// instantiate transient objects that cannot be referenced into.
-    pub fn build_owned_object<B, T>(&self, reference: &ReferenceId, builder: &B) -> PResult<T>
+    pub fn build_owned_object<B, T>(&self, reference: &ReferenceId, builder: &B) -> ModalResult<T>
     where
         T: Build,
         B: Builder,
@@ -92,7 +92,7 @@ impl ObjectStream {
 }
 
 impl Build for ObjectStream {
-    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, builder: &B) -> ModalResult<Self>
     where
         B: Builder,
     {

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use winnow::{
     error::{ContextError, ErrMode},
-    BStr, PResult,
+    BStr, ModalResult,
 };
 
 use crate::{
@@ -12,7 +12,7 @@ use crate::{
 };
 
 impl Builder for HashMap<ReferenceId, &BStr> {
-    fn build_reference<T>(&self, Reference { id, .. }: Reference<T>) -> PResult<T>
+    fn build_reference<T>(&self, Reference { id, .. }: Reference<T>) -> ModalResult<T>
     where
         T: Build,
     {
@@ -41,7 +41,7 @@ pub struct InMemoryBuilder {
 }
 
 impl Builder for InMemoryBuilder {
-    fn build_reference<T>(&self, Reference { id, .. }: Reference<T>) -> PResult<T>
+    fn build_reference<T>(&self, Reference { id, .. }: Reference<T>) -> ModalResult<T>
     where
         T: Build,
     {
@@ -86,7 +86,7 @@ pub struct InMemoryDocument {
 }
 
 impl Extract<'_> for InMemoryDocument {
-    fn extract(i: &mut &BStr) -> winnow::PResult<Self> {
+    fn extract(i: &mut &BStr) -> winnow::ModalResult<Self> {
         let input = *i;
 
         let StartXRef(start) = StartXRef::find(i)?;
@@ -136,7 +136,7 @@ impl Extract<'_> for InMemoryDocument {
 }
 
 impl Builder for InMemoryDocument {
-    fn build_reference<T>(&self, reference: Reference<T>) -> PResult<T>
+    fn build_reference<T>(&self, reference: Reference<T>) -> ModalResult<T>
     where
         T: Build,
     {
@@ -145,7 +145,7 @@ impl Builder for InMemoryDocument {
 }
 
 impl InMemoryDocument {
-    pub fn pages(&self) -> PResult<Vec<Page>> {
+    pub fn pages(&self) -> ModalResult<Vec<Page>> {
         self.catalog.pages.list_pages(self)
     }
 }

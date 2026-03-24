@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use winnow::{
     combinator::{alt, trace},
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use crate::{
@@ -49,7 +49,7 @@ pub struct XRefTrailerBlock {
 }
 
 impl Extract<'_> for XRefTrailerBlock {
-    fn extract(input: &mut &'_ BStr) -> PResult<Self> {
+    fn extract(input: &mut &'_ BStr) -> ModalResult<Self> {
         trace("livre-xref-block", alt((plain::block, stream::block))).parse_next(input)
     }
 }

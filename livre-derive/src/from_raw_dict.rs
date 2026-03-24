@@ -29,7 +29,7 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let expanded = quote! {
         // The generated impl.
         impl #impl_generics crate::extraction::FromRawDict<'de> for #name #ty_generics #where_clause {
-            fn from_raw_dict(dict: &mut crate::extraction::RawDict<'de>) -> ::winnow::PResult<Self> {
+            fn from_raw_dict(dict: &mut crate::extraction::RawDict<'de>) -> ::winnow::ModalResult<Self> {
                 #extraction
                 Ok(res)
             }

@@ -5,7 +5,7 @@ use winnow::{
     combinator::{delimited, trace},
     error::{ContextError, ErrMode},
     token::take,
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use crate::{
@@ -31,7 +31,7 @@ pub struct StreamConfig {
 }
 
 impl Parser<&BStr, Vec<u8>, ContextError> for StreamConfig {
-    fn parse_next(&mut self, input: &mut &BStr) -> PResult<Vec<u8>> {
+    fn parse_next(&mut self, input: &mut &BStr) -> ModalResult<Vec<u8>> {
         let content = trace(
             "livre-stream-content",
             delimited(
@@ -100,7 +100,7 @@ impl<'de, T> Extract<'de> for Stream<T>
 where
     T: FromRawDict<'de>,
 {
-    fn extract(input: &mut &'de BStr) -> PResult<Self> {
+    fn extract(input: &mut &'de BStr) -> ModalResult<Self> {
         trace("livre-stream", move |i: &mut &'de BStr| {
             let mut dict: RawDict = extract(i)?;
             let StreamDict {
@@ -123,7 +123,7 @@ impl<T> Build for Stream<T>
 where
     T: BuildFromRawDict,
 {
-    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, builder: &B) -> ModalResult<Self>
     where
         B: Builder,
     {
@@ -146,7 +146,7 @@ where
 }
 
 impl Extract<'_> for Stream<()> {
-    fn extract(input: &mut &'_ BStr) -> PResult<Self> {
+    fn extract(input: &mut &'_ BStr) -> ModalResult<Self> {
         let Stream {
             structured: Nil,
             content,
@@ -160,7 +160,7 @@ impl Extract<'_> for Stream<()> {
 }
 
 impl Build for Stream<()> {
-    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, builder: &B) -> ModalResult<Self>
     where
         B: Builder,
     {

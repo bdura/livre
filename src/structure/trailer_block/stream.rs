@@ -4,7 +4,7 @@ use winnow::{
     combinator::{repeat, trace},
     error::ContextError,
     token::take,
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use crate::{
@@ -23,7 +23,7 @@ struct SubSection {
 }
 
 impl Extract<'_> for SubSection {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
         let (start, n) = extract(input)?;
         Ok(Self { start, n })
     }
@@ -45,7 +45,7 @@ struct FieldSize {
 }
 
 impl Extract<'_> for FieldSize {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
         let [f1, f2, f3] = extract(input)?;
         Ok(Self {
             f1,
@@ -108,7 +108,7 @@ enum EntryType {
 }
 
 impl Parser<&BStr, Option<RefLocation>, ContextError> for EntryType {
-    fn parse_next(&mut self, input: &mut &BStr) -> PResult<Option<RefLocation>> {
+    fn parse_next(&mut self, input: &mut &BStr) -> ModalResult<Option<RefLocation>> {
         match self {
             Self::Type0 => Ok(None),
             Self::Type1 {
@@ -137,7 +137,7 @@ impl Parser<&BStr, Option<RefLocation>, ContextError> for EntryType {
 
 impl FieldSize {
     /// Extract the reference entry type.
-    fn parse_ref_type(&self, input: &mut &BStr) -> PResult<EntryType> {
+    fn parse_ref_type(&self, input: &mut &BStr) -> ModalResult<EntryType> {
         if self.f1 == 0 {
             Ok(EntryType::Type0)
         } else {
@@ -162,7 +162,7 @@ impl FieldSize {
 }
 
 impl Parser<&BStr, Option<RefLocation>, ContextError> for FieldSize {
-    fn parse_next(&mut self, input: &mut &BStr) -> PResult<Option<RefLocation>> {
+    fn parse_next(&mut self, input: &mut &BStr) -> ModalResult<Option<RefLocation>> {
         let mut ref_type = self.parse_ref_type(input)?;
         ref_type.parse_next(input)
     }
@@ -182,7 +182,7 @@ struct XRefStreamConfig {
 struct XRefStreamBlock(pub XRefTrailerBlock);
 
 impl Extract<'_> for XRefStreamBlock {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
         let Stream {
             content,
             structured: XRefStreamConfig { index, w, trailer },
@@ -212,7 +212,7 @@ impl Extract<'_> for XRefStreamBlock {
     }
 }
 
-pub fn block(input: &mut &BStr) -> PResult<XRefTrailerBlock> {
+pub fn block(input: &mut &BStr) -> ModalResult<XRefTrailerBlock> {
     trace("livre-xref-stream", move |i: &mut &BStr| {
         let Indirect {
             inner: XRefStreamBlock(block),

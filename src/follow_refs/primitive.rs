@@ -1,4 +1,4 @@
-use winnow::{combinator::trace, BStr, PResult, Parser};
+use winnow::{combinator::trace, BStr, ModalResult, Parser};
 
 use crate::extraction::OptRef;
 
@@ -12,7 +12,7 @@ impl<T> Build for Built<T>
 where
     T: Build,
 {
-    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, builder: &B) -> ModalResult<Self>
     where
         B: Builder,
     {

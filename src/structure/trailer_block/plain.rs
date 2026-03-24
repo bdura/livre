@@ -8,7 +8,7 @@ use winnow::{
     combinator::{alt, delimited, iterator, repeat, separated_pair, terminated, trace},
     error::ContextError,
     token::take_while,
-    BStr, PResult, Parser,
+    BStr, ModalParser, ModalResult, Parser,
 };
 
 use crate::extraction::{extract, Extract, ReferenceId};
@@ -16,7 +16,7 @@ use crate::extraction::{extract, Extract, ReferenceId};
 use super::{RefLocation, XRefTrailerBlock};
 
 /// Decimal number, with fixed number of characters.
-fn dec_num<'de, T, E>(count: usize) -> impl Parser<&'de BStr, T, ContextError>
+fn dec_num<'de, T, E>(count: usize) -> impl ModalParser<&'de BStr, T, ContextError>
 where
     T: FromStr<Err = E>,
     E: Debug,
@@ -43,7 +43,7 @@ where
 ///      |     5-digit generation number
 ///  10-digit byte offset of the indirect object
 /// ```
-fn xref_entry(input: &mut &BStr) -> PResult<(usize, u16, bool)> {
+fn xref_entry(input: &mut &BStr) -> ModalResult<(usize, u16, bool)> {
     trace("livre-ref-entry", move |i: &mut &BStr| {
         let (offset, gen) = separated_pair(dec_num(10), b' ', dec_num(5)).parse_next(i)?;
 
@@ -66,7 +66,7 @@ fn xref_entry(input: &mut &BStr) -> PResult<(usize, u16, bool)> {
 /// 0000000003 65535 f   -> Cross-reference entry
 /// 0000000017 00000 n   -> Another Xref entry
 /// ```
-fn xref_subsection(input: &mut &BStr) -> PResult<Vec<(ReferenceId, usize)>> {
+fn xref_subsection(input: &mut &BStr) -> ModalResult<Vec<(ReferenceId, usize)>> {
     let (initial, n) = separated_pair(usize::extract, b' ', usize::extract).parse_next(input)?;
 
     line_ending(input)?;
@@ -88,7 +88,7 @@ fn xref_subsection(input: &mut &BStr) -> PResult<Vec<(ReferenceId, usize)>> {
 }
 
 /// Extract the full cross-reference table.
-pub fn xref(input: &mut &BStr) -> PResult<Vec<(ReferenceId, RefLocation)>> {
+pub fn xref(input: &mut &BStr) -> ModalResult<Vec<(ReferenceId, RefLocation)>> {
     (b"xref", multispace1).parse_next(input)?;
 
     let mut it = iterator(*input, terminated(xref_subsection, multispace0));
@@ -101,7 +101,7 @@ pub fn xref(input: &mut &BStr) -> PResult<Vec<(ReferenceId, RefLocation)>> {
     Ok(res)
 }
 
-pub fn block(input: &mut &BStr) -> PResult<XRefTrailerBlock> {
+pub fn block(input: &mut &BStr) -> ModalResult<XRefTrailerBlock> {
     trace("livre-xref-plain", move |i: &mut &BStr| {
         let xrefs = xref(i)?;
 

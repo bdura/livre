@@ -16,7 +16,7 @@ license = "MIT"
 keywords = ["pdf"]
 
 [dependencies]
-winnow = "0.6"
+winnow = "0.6.26"
 
 enum_dispatch = "0.3"
 

@@ -57,7 +57,7 @@ impl From<LiteralString> for PDFString {
 }
 
 impl Extract<'_> for PDFString {
-    fn extract(input: &mut &'_ winnow::BStr) -> winnow::PResult<Self> {
+    fn extract(input: &mut &'_ winnow::BStr) -> winnow::ModalResult<Self> {
         trace(
             "livre-pdfstring",
             alt((

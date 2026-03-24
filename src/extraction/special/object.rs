@@ -4,7 +4,7 @@ use winnow::{
     dispatch,
     error::ContextError,
     token::any,
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use crate::extraction::{extract, Extract};
@@ -159,7 +159,7 @@ impl From<Reference<Object>> for Object {
 }
 
 impl Extract<'_> for Object {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
         dispatch! {peek(any);
             b'n' => b"null".map(|_| Object::Null),
             b't' | b'f' => bool::extract.map(Object::Boolean),
@@ -175,7 +175,7 @@ impl Extract<'_> for Object {
     }
 }
 
-fn number(input: &mut &BStr) -> PResult<Object> {
+fn number(input: &mut &BStr) -> ModalResult<Object> {
     alt((
         f32::extract
             .with_taken()
@@ -186,7 +186,7 @@ fn number(input: &mut &BStr) -> PResult<Object> {
     .parse_next(input)
 }
 
-fn map_or_stream(input: &mut &BStr) -> PResult<Object> {
+fn map_or_stream(input: &mut &BStr) -> ModalResult<Object> {
     // Recognise the `<<...>>` block without fully parsing it, save the start position,
     // then peek past optional whitespace for the `stream` keyword. This lets us dispatch
     // to the right parser with a single parse of the dictionary bytes.

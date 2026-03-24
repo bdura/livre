@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use winnow::{
     combinator::{alt, terminated, trace},
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use super::ReferenceId;
@@ -46,7 +46,7 @@ impl<T> Clone for Reference<T> {
 impl<T> Copy for Reference<T> {}
 
 impl<T> Extract<'_> for Reference<T> {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
         trace(
             "livre-reference",
             terminated(ReferenceId::extract, b" R").map(Self::from),
@@ -85,7 +85,7 @@ impl<T> Build for OptRef<T>
 where
     T: Build,
 {
-    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, builder: &B) -> ModalResult<Self>
     where
         B: Builder,
     {
@@ -101,7 +101,7 @@ where
 }
 
 impl<T> Build for Reference<T> {
-    fn build<B>(input: &mut &BStr, _: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, _: &B) -> ModalResult<Self>
     where
         B: Builder,
     {

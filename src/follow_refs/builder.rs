@@ -1,6 +1,6 @@
 use winnow::{
     error::{ContextError, ErrMode},
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use crate::extraction::Reference;
@@ -15,7 +15,7 @@ use super::Build;
 pub trait Builder: Sized {
     /// Build an object from the input. Direct analogue to the
     /// [`extract`](crate::extraction::extract) function.
-    fn build<T>(&self, input: &mut &BStr) -> PResult<T>
+    fn build<T>(&self, input: &mut &BStr) -> ModalResult<T>
     where
         T: Build,
     {
@@ -28,7 +28,7 @@ pub trait Builder: Sized {
     /// if that is not the case. It includes the mechanism to extract a *indirect object*.
     ///
     /// This method is usually the one that is used in practice.
-    fn build_reference<T>(&self, reference: Reference<T>) -> PResult<T>
+    fn build_reference<T>(&self, reference: Reference<T>) -> ModalResult<T>
     where
         T: Build;
     //{
@@ -50,7 +50,7 @@ pub trait Builder: Sized {
 /// The unit type is a context-less builder, making `().as_parser` somewhat equivalent to
 /// `extact`: it will simply error if there is any reference to instantiate.
 impl Builder for () {
-    fn build_reference<T>(&self, _: Reference<T>) -> PResult<T>
+    fn build_reference<T>(&self, _: Reference<T>) -> ModalResult<T>
     where
         T: Build,
     {
@@ -87,7 +87,7 @@ where
     B: Builder,
     T: Build,
 {
-    fn parse_next(&mut self, input: &mut &BStr) -> PResult<T, ContextError> {
+    fn parse_next(&mut self, input: &mut &BStr) -> ModalResult<T, ContextError> {
         self.0.build(input)
     }
 }

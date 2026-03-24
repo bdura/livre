@@ -1,7 +1,7 @@
 use winnow::combinator::{fail, trace};
 use winnow::dispatch;
 use winnow::token::any;
-use winnow::{BStr, PResult, Parser};
+use winnow::{BStr, ModalResult, Parser};
 
 use super::Extract;
 
@@ -10,7 +10,7 @@ use super::Extract;
 /// > Boolean objects represent the logical values of true and false.
 /// > They appear in PDF files using the keywords true and false.
 impl Extract<'_> for bool {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
         trace(
             "livre-boolean",
             dispatch! {

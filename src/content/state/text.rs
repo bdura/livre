@@ -15,7 +15,7 @@ use std::collections::VecDeque;
 use winnow::{
     combinator::trace,
     error::{ContextError, ErrMode},
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use crate::{
@@ -90,7 +90,7 @@ pub struct TextMatrix {
 }
 
 impl Extract<'_> for TextMatrix {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
         trace(
             "livre-text-matrix",
             extract.map(|(a, b, c, d, e, f)| Self { a, b, c, d, e, f }),
@@ -148,7 +148,7 @@ pub enum RenderingMode {
 }
 
 impl Extract<'_> for RenderingMode {
-    fn extract(input: &mut &'_ winnow::BStr) -> winnow::PResult<Self> {
+    fn extract(input: &mut &'_ winnow::BStr) -> winnow::ModalResult<Self> {
         match u8::extract(input)? {
             0 => Ok(Self::Fill),
             1 => Ok(Self::Stroke),
