@@ -29,6 +29,5 @@ thiserror = "2.0.11"
 tracing = "0.1.44"
 
 [dev-dependencies]
-rstest = "0.25"
+rstest = "0.26"
 indoc = "2"
-
