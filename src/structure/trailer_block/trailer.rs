@@ -1,4 +1,7 @@
-use crate::{extraction::{FromRawDict, Id, Reference}, structure::Catalog};
+use crate::{
+    extraction::{FromRawDict, Id, Reference},
+    structure::Catalog,
+};
 
 /// PDF file trailer.
 ///
@@ -30,7 +33,6 @@ pub struct Trailer {
     // The PDF file’s [information dictionary](Info).
     // Not required.
     // pub info: Option<Reference<Info>>,
-
     /// The PDF identifier.
     ///
     /// Interestingly, the specification gives a few clarifications on the exact format of the PDF
@@ -68,11 +70,11 @@ mod tests {
             /Index[ 1 1 7 1 14 1 16 1 91807 1006]
             /Length 1>>\
         "},
-        Trailer{ 
-            size: 92813, 
+        Trailer {
+            size: 92813,
             id: Some([[0x2b, 0x55, 0x2b, 0x55], [0x0a, 0x12, 0x2b, 0x55]].into()),
             prev: Some(116),
-            root: Reference::from((90794, 0)), 
+            root: Reference::from((90794, 0)),
             //info: TypedReference::new(90792, 0), 
         }
     )]

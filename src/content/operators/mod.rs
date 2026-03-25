@@ -29,6 +29,7 @@ use winnow::{
     ascii::multispace0,
     combinator::{fail, peek, preceded, repeat, trace},
     dispatch,
+    error::ErrMode,
     token::any,
     BStr, ModalResult, Parser,
 };
@@ -90,7 +91,7 @@ fn recognize_operand<'de>(input: &mut &'de BStr) -> ModalResult<&'de [u8]> {
         b'[' => Brackets::recognize,
         b'(' => Parentheses::recognize,
         b'<' => Angles::recognize,
-        b'+' | b'-' | b'.' | b'0'..=b'9' => take_till_delimiter(1..),
+        b'+' | b'-' | b'.' | b'0'..=b'9' => take_till_delimiter(1..).map_err(ErrMode::Backtrack),
         _ => fail
     }
     .parse_next(input)
@@ -116,7 +117,11 @@ fn parse_operator(input: &mut &BStr) -> ModalResult<Operator> {
         .map(|()| ())
         .parse_next(input)?;
 
-    let op = preceded(multispace0, take_till_delimiter(1..=3)).parse_next(input)?;
+    let op = preceded(
+        multispace0,
+        take_till_delimiter(1..=3).map_err(ErrMode::Backtrack),
+    )
+    .parse_next(input)?;
 
     let operator = match op {
         // Text object operators

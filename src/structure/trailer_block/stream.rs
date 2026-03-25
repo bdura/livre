@@ -107,8 +107,8 @@ enum EntryType {
     Unknown,
 }
 
-impl Parser<&BStr, Option<RefLocation>, ErrMode<ContextError>> for EntryType {
-    fn parse_next(&mut self, input: &mut &BStr) -> ModalResult<Option<RefLocation>> {
+impl Parser<&BStr, Option<RefLocation>, ContextError> for EntryType {
+    fn parse_next(&mut self, input: &mut &BStr) -> Result<Option<RefLocation>, ContextError> {
         match self {
             Self::Type0 => Ok(None),
             Self::Type1 {
@@ -137,7 +137,7 @@ impl Parser<&BStr, Option<RefLocation>, ErrMode<ContextError>> for EntryType {
 
 impl FieldSize {
     /// Extract the reference entry type.
-    fn parse_ref_type(&self, input: &mut &BStr) -> ModalResult<EntryType> {
+    fn parse_ref_type(&self, input: &mut &BStr) -> Result<EntryType, ContextError> {
         if self.f1 == 0 {
             Ok(EntryType::Type0)
         } else {
@@ -161,8 +161,8 @@ impl FieldSize {
     }
 }
 
-impl Parser<&BStr, Option<RefLocation>, ErrMode<ContextError>> for FieldSize {
-    fn parse_next(&mut self, input: &mut &BStr) -> ModalResult<Option<RefLocation>> {
+impl Parser<&BStr, Option<RefLocation>, ContextError> for FieldSize {
+    fn parse_next(&mut self, input: &mut &BStr) -> Result<Option<RefLocation>, ContextError> {
         let mut ref_type = self.parse_ref_type(input)?;
         ref_type.parse_next(input)
     }
@@ -198,7 +198,8 @@ impl Extract<'_> for XRefStreamBlock {
         let mut xrefs = Vec::new();
 
         for SubSection { start, n } in index {
-            let subsection: Vec<Option<RefLocation>> = repeat(n, w).parse_next(input)?;
+            let subsection: Vec<Option<RefLocation>> =
+                repeat(n, w).parse_next(input).map_err(ErrMode::Backtrack)?;
 
             let iter = subsection
                 .into_iter()

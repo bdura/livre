@@ -3,7 +3,7 @@ use winnow::{
     error::{ContextError, ErrMode},
     stream::Range,
     token::{any, take, take_till},
-    BStr, ModalParser, ModalResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use paste::paste;
@@ -38,8 +38,8 @@ impl WithinBalancedParser {
     }
 }
 
-impl<'a> Parser<&'a BStr, &'a [u8], ErrMode<ContextError>> for WithinBalancedParser {
-    fn parse_next(&mut self, input: &mut &'a BStr) -> ModalResult<&'a [u8]> {
+impl<'a> Parser<&'a BStr, &'a [u8], ContextError> for WithinBalancedParser {
+    fn parse_next(&mut self, input: &mut &'a BStr) -> Result<&'a [u8], ContextError> {
         // Check that the first byte is an opening byte.
         // PERF: by relying on a `Parser` trait with implementation for common types
         // (here, `u8`), Winnow makes this quite easy
@@ -85,7 +85,7 @@ static DELIMITERS: &[u8] = b"()<>[]{}/% \t\r\n";
 /// Useful for recognizing elements.
 pub fn take_till_delimiter<'a>(
     occurrences: impl Into<Range>,
-) -> impl ModalParser<&'a BStr, &'a [u8], ContextError> {
+) -> impl Parser<&'a BStr, &'a [u8], ContextError> {
     trace("livre-till-delimiter", take_till(occurrences, DELIMITERS))
 }
 
@@ -97,7 +97,7 @@ fn take_within_balanced<'a>(
     opening: u8,
     closing: u8,
     escaped: Option<u8>,
-) -> impl ModalParser<&'a BStr, &'a [u8], ContextError> {
+) -> impl Parser<&'a BStr, &'a [u8], ContextError> {
     WithinBalancedParser::new(opening, closing, escaped)
 }
 
@@ -113,7 +113,7 @@ macro_rules! delimited {
                         stringify!(livre-[<$name:snake>]),
                         take_within_balanced($opening, $closing, $escaped)
                             .map(|inside| Self(inside.as_ref())),
-                    ).parse_next(input)
+                    ).parse_next(input).map_err(ErrMode::Backtrack)
                 }
             }
         }

@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use winnow::{combinator::fail, error::{ContextError, ErrMode}, BStr, ModalResult, Parser};
+use winnow::{combinator::fail, error::ContextError, BStr, Parser};
 
 /// Parse an escaped sequence.
 pub fn escaped_sequence<'de, N, E, T>(
@@ -9,9 +9,9 @@ pub fn escaped_sequence<'de, N, E, T>(
     transform: T,
 ) -> EscapedSequenceParser<N, E, T>
 where
-    N: Parser<&'de BStr, &'de [u8], ErrMode<ContextError>>,
-    E: Parser<&'de BStr, (), ErrMode<ContextError>>,
-    T: Parser<&'de BStr, Cow<'de, [u8]>, ErrMode<ContextError>>,
+    N: Parser<&'de BStr, &'de [u8], ContextError>,
+    E: Parser<&'de BStr, (), ContextError>,
+    T: Parser<&'de BStr, Cow<'de, [u8]>, ContextError>,
 {
     EscapedSequenceParser {
         normal,
@@ -26,14 +26,14 @@ pub struct EscapedSequenceParser<N, E, T> {
     transform: T,
 }
 
-impl<'de, N, E, T> Parser<&'de BStr, Cow<'de, [u8]>, ErrMode<ContextError>>
+impl<'de, N, E, T> Parser<&'de BStr, Cow<'de, [u8]>, ContextError>
     for EscapedSequenceParser<N, E, T>
 where
-    N: Parser<&'de BStr, &'de [u8], ErrMode<ContextError>>,
-    E: Parser<&'de BStr, (), ErrMode<ContextError>>,
-    T: Parser<&'de BStr, Cow<'de, [u8]>, ErrMode<ContextError>>,
+    N: Parser<&'de BStr, &'de [u8], ContextError>,
+    E: Parser<&'de BStr, (), ContextError>,
+    T: Parser<&'de BStr, Cow<'de, [u8]>, ContextError>,
 {
-    fn parse_next(&mut self, input: &mut &'de BStr) -> ModalResult<Cow<'de, [u8]>> {
+    fn parse_next(&mut self, input: &mut &'de BStr) -> Result<Cow<'de, [u8]>, ContextError> {
         let n = input.len();
 
         let normal = self.normal.parse_next(input)?;
@@ -76,13 +76,13 @@ mod tests {
         combinator::{dispatch, fail, peek},
         error::ContextError,
         token::{any, take_till},
-        BStr, ModalParser, Parser,
+        BStr, Parser,
     };
 
     use super::escaped_sequence;
 
     /// Escape transform for tests: `n` → `\n`, `t` → `\t`, `\\` → `\\`.
-    fn test_transform<'de>(input: &mut &'de BStr) -> winnow::ModalResult<Cow<'de, [u8]>> {
+    fn test_transform<'de>(input: &mut &'de BStr) -> Result<Cow<'de, [u8]>, ContextError> {
         static NEWLINE: &[u8] = b"\n";
         static TAB: &[u8] = b"\t";
         static BACKSLASH: &[u8] = b"\\";
@@ -95,7 +95,7 @@ mod tests {
         .parse_next(input)
     }
 
-    fn parser<'de>() -> impl ModalParser<&'de BStr, Cow<'de, [u8]>, ContextError> {
+    fn parser<'de>() -> impl Parser<&'de BStr, Cow<'de, [u8]>, ContextError> {
         escaped_sequence(take_till(0.., b'\\'), b'\\'.void(), test_transform)
     }
 

@@ -3,7 +3,7 @@ use std::{borrow::Cow, fmt::Debug, ops::Deref};
 use winnow::{
     ascii::hex_uint,
     combinator::{preceded, trace},
-    error::StrContext,
+    error::{ContextError, ErrMode, StrContext},
     token::{take, take_till},
     BStr, ModalResult, Parser,
 };
@@ -55,10 +55,11 @@ impl<'de> Extract<'de> for Name {
         })
         .context(StrContext::Label("name"))
         .parse_next(input)
+        .map_err(ErrMode::Backtrack)
     }
 }
 
-fn escape_name<'de>(input: &mut &'de BStr) -> ModalResult<Cow<'de, [u8]>> {
+fn escape_name<'de>(input: &mut &'de BStr) -> Result<Cow<'de, [u8]>, ContextError> {
     let mut num = take(2usize).parse_next(input)?;
     let n = hex_uint(&mut num)?;
 
