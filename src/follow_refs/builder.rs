@@ -82,7 +82,7 @@ impl<B> BuilderParser for B where B: Builder {}
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct LivreBuilder<'b, B>(&'b B);
 
-impl<T, B> Parser<&BStr, T, ContextError> for LivreBuilder<'_, B>
+impl<T, B> Parser<&BStr, T, ErrMode<ContextError>> for LivreBuilder<'_, B>
 where
     B: Builder,
     T: Build,

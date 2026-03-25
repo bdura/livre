@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use winnow::{combinator::fail, error::ContextError, BStr, ModalResult, Parser};
+use winnow::{combinator::fail, error::{ContextError, ErrMode}, BStr, ModalResult, Parser};
 
 /// Parse an escaped sequence.
 pub fn escaped_sequence<'de, N, E, T>(
@@ -9,9 +9,9 @@ pub fn escaped_sequence<'de, N, E, T>(
     transform: T,
 ) -> EscapedSequenceParser<N, E, T>
 where
-    N: Parser<&'de BStr, &'de [u8], ContextError>,
-    E: Parser<&'de BStr, (), ContextError>,
-    T: Parser<&'de BStr, Cow<'de, [u8]>, ContextError>,
+    N: Parser<&'de BStr, &'de [u8], ErrMode<ContextError>>,
+    E: Parser<&'de BStr, (), ErrMode<ContextError>>,
+    T: Parser<&'de BStr, Cow<'de, [u8]>, ErrMode<ContextError>>,
 {
     EscapedSequenceParser {
         normal,
@@ -26,12 +26,12 @@ pub struct EscapedSequenceParser<N, E, T> {
     transform: T,
 }
 
-impl<'de, N, E, T> Parser<&'de BStr, Cow<'de, [u8]>, ContextError>
+impl<'de, N, E, T> Parser<&'de BStr, Cow<'de, [u8]>, ErrMode<ContextError>>
     for EscapedSequenceParser<N, E, T>
 where
-    N: Parser<&'de BStr, &'de [u8], ContextError>,
-    E: Parser<&'de BStr, (), ContextError>,
-    T: Parser<&'de BStr, Cow<'de, [u8]>, ContextError>,
+    N: Parser<&'de BStr, &'de [u8], ErrMode<ContextError>>,
+    E: Parser<&'de BStr, (), ErrMode<ContextError>>,
+    T: Parser<&'de BStr, Cow<'de, [u8]>, ErrMode<ContextError>>,
 {
     fn parse_next(&mut self, input: &mut &'de BStr) -> ModalResult<Cow<'de, [u8]>> {
         let n = input.len();

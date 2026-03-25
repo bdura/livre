@@ -2,7 +2,7 @@ use std::num::NonZeroU8;
 
 use winnow::{
     combinator::{repeat, trace},
-    error::ContextError,
+    error::{ContextError, ErrMode},
     token::take,
     BStr, ModalResult, Parser,
 };
@@ -107,7 +107,7 @@ enum EntryType {
     Unknown,
 }
 
-impl Parser<&BStr, Option<RefLocation>, ContextError> for EntryType {
+impl Parser<&BStr, Option<RefLocation>, ErrMode<ContextError>> for EntryType {
     fn parse_next(&mut self, input: &mut &BStr) -> ModalResult<Option<RefLocation>> {
         match self {
             Self::Type0 => Ok(None),
@@ -161,7 +161,7 @@ impl FieldSize {
     }
 }
 
-impl Parser<&BStr, Option<RefLocation>, ContextError> for FieldSize {
+impl Parser<&BStr, Option<RefLocation>, ErrMode<ContextError>> for FieldSize {
     fn parse_next(&mut self, input: &mut &BStr) -> ModalResult<Option<RefLocation>> {
         let mut ref_type = self.parse_ref_type(input)?;
         ref_type.parse_next(input)

@@ -1,7 +1,7 @@
 use winnow::{
     ascii::multispace1,
     combinator::{delimited, trace},
-    error::ContextError,
+    error::{ContextError, ErrMode},
     BStr, ModalResult, Parser,
 };
 
@@ -36,7 +36,7 @@ impl<'de, T> Indirect<T> {
     /// although it does serve as a kind of sanity check.
     pub fn parse<P>(input: &mut &'de BStr, parser: P) -> ModalResult<Self>
     where
-        P: Parser<&'de BStr, T, ContextError>,
+        P: Parser<&'de BStr, T, ErrMode<ContextError>>,
     {
         trace(
             "livre-indirect",

@@ -1,6 +1,6 @@
 use winnow::{
     combinator::{delimited, fail, terminated, trace},
-    error::ContextError,
+    error::{ContextError, ErrMode},
     stream::Range,
     token::{any, take, take_till},
     BStr, ModalParser, ModalResult, Parser,
@@ -38,8 +38,8 @@ impl WithinBalancedParser {
     }
 }
 
-impl<'a> Parser<&'a BStr, &'a [u8], ContextError> for WithinBalancedParser {
-    fn parse_next(&mut self, input: &mut &'a BStr) -> ModalResult<&'a [u8], ContextError> {
+impl<'a> Parser<&'a BStr, &'a [u8], ErrMode<ContextError>> for WithinBalancedParser {
+    fn parse_next(&mut self, input: &mut &'a BStr) -> ModalResult<&'a [u8]> {
         // Check that the first byte is an opening byte.
         // PERF: by relying on a `Parser` trait with implementation for common types
         // (here, `u8`), Winnow makes this quite easy

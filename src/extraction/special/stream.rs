@@ -30,7 +30,7 @@ pub struct StreamConfig {
     filter: Vec<Filter>,
 }
 
-impl Parser<&BStr, Vec<u8>, ContextError> for StreamConfig {
+impl Parser<&BStr, Vec<u8>, ErrMode<ContextError>> for StreamConfig {
     fn parse_next(&mut self, input: &mut &BStr) -> ModalResult<Vec<u8>> {
         let content = trace(
             "livre-stream-content",
