@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0](https://github.com/bdura/livre/compare/livre-v0.5.0...livre-v0.6.0) - 2026-03-25
+
+### Added
+
+- add best-effort decoding ([#53](https://github.com/bdura/livre/pull/53))
+- add `BuildFromRawDict` derive macro ([#44](https://github.com/bdura/livre/pull/44))
+
+### Other
+
+- use nix develop action ([#48](https://github.com/bdura/livre/pull/48))
+- upgrade winnow ([#52](https://github.com/bdura/livre/pull/52))
+- spring cleanup ([#51](https://github.com/bdura/livre/pull/51))
+- *(deps)* bump actions/checkout from 4 to 6 ([#50](https://github.com/bdura/livre/pull/50))
+- add flake ([#46](https://github.com/bdura/livre/pull/46))
+
 ## [0.5.0](https://github.com/bdura/livre/compare/livre-v0.4.0...livre-v0.5.0) - 2025-03-09
 
 ### Added
