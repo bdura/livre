@@ -165,8 +165,9 @@ impl Extract<'_> for RenderingMode {
 
 /// A text object.
 ///
-/// Can be iterated over to extract text elements. For now, since we lack a proper font object,
-/// we merely yield the text elements as they are (as [`PDFString`]s). This behaviour will change.
+/// Can be iterated over to extract text elements. Text is decoded
+/// from raw [`PDFString`] bytes using best-effort heuristics
+/// (UTF-16BE if a BOM is present, Latin-1 otherwise).
 pub struct TextObject {
     /// Font name.
     /// NOTE: this is set to become an actual object in the future.
@@ -280,8 +281,10 @@ where
 }
 
 impl Iterator for TextObject {
-    // FIXME: return `char`s instead of `PDFString`
-    type Item = ((f32, f32), PDFString);
+    // NOTE: text is decoded from raw PDF string bytes using best-effort heuristics
+    // (UTF-16BE if a BOM is present, Latin-1 otherwise). Actual decoding requires
+    // the font's encoding map.
+    type Item = ((f32, f32), String);
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.text_buffer.is_none() {
@@ -301,9 +304,8 @@ impl Iterator for TextObject {
             }
         }
 
-        // FIXME: this is merely a placeholder.
-        // Actual logic will invlove the font object.
-        let text = self.text_buffer.take()?;
+        // NOTE: decoding is best-effort; see `PDFString::decode` for the heuristic.
+        let text = self.text_buffer.take()?.decode();
 
         Some((self.matrix.position(), text))
     }
@@ -313,7 +315,7 @@ impl<Ops> Iterator for TextObjectStream<Ops>
 where
     Ops: Iterator<Item = Operator>,
 {
-    type Item = ((f32, f32), PDFString);
+    type Item = ((f32, f32), String);
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {

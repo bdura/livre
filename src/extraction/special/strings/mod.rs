@@ -28,13 +28,13 @@ pub struct PDFString(pub Vec<u8>);
 
 impl Debug for PDFString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "PDFString({})", String::from_utf8_lossy(&self.0))
+        write!(f, "PDFString({})", self.decode())
     }
 }
 
 impl Display for PDFString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", String::from_utf8_lossy(&self.0))
+        write!(f, "{}", self.decode())
     }
 }
 
@@ -53,6 +53,47 @@ impl From<HexadecimalString> for PDFString {
 impl From<LiteralString> for PDFString {
     fn from(LiteralString(value): LiteralString) -> Self {
         Self(value)
+    }
+}
+
+impl PDFString {
+    /// Decode the raw PDF string bytes into a Rust `String` using best-effort heuristics.
+    ///
+    /// PDF strings carry no explicit encoding metadata at the byte level. The correct
+    /// decoding depends on the font's `Encoding` entry, `ToUnicode` CMap, and whether
+    /// the font is a simple or composite font — none of which are available here.
+    ///
+    /// Until full font infrastructure is in place, we apply the following heuristics in order:
+    ///
+    /// 1. **UTF-16BE BOM** (`\xFE\xFF`): decoded as UTF-16BE. Surrogate pairs are handled by
+    ///    `char::decode_utf16`; unpaired surrogates are replaced with U+FFFD.
+    /// 2. **Otherwise**: bytes are interpreted as ISO 8859-1 (Latin-1). Every byte value maps
+    ///    directly to the Unicode codepoint of the same value — always lossless.
+    ///    Covers ASCII-range PDFs and WinAnsi-encoded strings.
+    pub fn decode(&self) -> String {
+        let bytes = &self.0;
+
+        if bytes.starts_with(&[0xFE, 0xFF]) {
+            // Skip the two-byte BOM, then group remaining bytes into u16 pairs.
+            // Odd trailing bytes (malformed input) are silently dropped by chunks_exact.
+            let utf16_units: Vec<u16> = bytes[2..]
+                .chunks_exact(2)
+                .map(|pair| u16::from_be_bytes([pair[0], pair[1]]))
+                .collect();
+
+            char::decode_utf16(utf16_units)
+                .map(|r| r.unwrap_or(char::REPLACEMENT_CHARACTER))
+                .collect()
+        } else {
+            // ISO 8859-1: the Unicode codepoint equals the byte value for all 256 values,
+            // so char::from_u32 is infallible here.
+            bytes
+                .iter()
+                .map(|&b| {
+                    char::from_u32(b as u32).expect("all u8 values are valid Latin-1 codepoints")
+                })
+                .collect()
+        }
     }
 }
 
