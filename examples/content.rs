@@ -24,9 +24,10 @@ fn main() {
 
         for page in doc.pages().unwrap().iter() {
             let content = page.build_content(&doc).unwrap();
+            let mut stream = BStr::new(&content);
 
             let mut it = iterator(
-                content.as_slice().as_ref(),
+                &mut stream,
                 preceded(multispace0, Operator::extract.with_taken()),
             );
 
@@ -34,16 +35,16 @@ fn main() {
                 println!("{:>20} {:?}", String::from_utf8_lossy(slice), operator);
             }
 
-            let input = &mut it.finish().unwrap().0;
+            it.finish().unwrap();
 
-            multispace0::<&BStr, ContextError>(input).unwrap();
+            multispace0::<&BStr, ContextError>(&mut stream).unwrap();
 
-            if input.len() != 0 {
+            if !stream.is_empty() {
                 println!();
                 println!("Issue while parsing");
                 println!(
                     "{}",
-                    String::from_utf8_lossy(&input[..500.min(input.len())])
+                    String::from_utf8_lossy(&stream[..500.min(stream.len())])
                 );
                 panic!("Parsing did not consume the entire input");
             }

@@ -175,15 +175,15 @@ impl<'de> Extract<'de> for RawDict<'de> {
             multispace0(&mut inside)?;
 
             // `parse_key_value` includes trailing spaces
-            let mut it = iterator(inside, parse_key_value);
+            let mut it = iterator(&mut inside, parse_key_value);
 
             let map = it.collect();
-            let (i, _) = it.finish()?;
+            it.finish()?;
 
             // Fail if there is unconsumed input left inside the `<<...>>` block.
             // At this point the opening delimiters have already been consumed, so we
             // escalate to `Cut` to prevent spurious backtracking in callers.
-            if !i.is_empty() {
+            if !inside.is_empty() {
                 return Err(ErrMode::Cut(ContextError::new()));
             }
 

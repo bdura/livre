@@ -91,12 +91,12 @@ fn xref_subsection(input: &mut &BStr) -> ModalResult<Vec<(ReferenceId, usize)>> 
 pub fn xref(input: &mut &BStr) -> ModalResult<Vec<(ReferenceId, RefLocation)>> {
     (b"xref", multispace1).parse_next(input)?;
 
-    let mut it = iterator(*input, terminated(xref_subsection, multispace0));
+    let mut it = iterator(&mut *input, terminated(xref_subsection, multispace0));
     let res = it
         .flatten()
         .map(|(r, loc)| (r, RefLocation::Plain(loc)))
         .collect();
-    *input = it.finish()?.0;
+    it.finish()?;
 
     Ok(res)
 }

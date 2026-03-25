@@ -26,19 +26,18 @@ fn test_content(#[case] path: &str) {
     for page in doc.pages().unwrap().iter() {
         let content = page.build_content(&doc).unwrap();
 
-        let mut it = iterator(
-            content.as_slice().as_ref(),
-            preceded(multispace0, Operator::extract),
-        );
+        let mut stream = BStr::new(&content);
+
+        let mut it = iterator(&mut stream, preceded(multispace0, Operator::extract));
 
         for operator in &mut it {
             println!("{:?}", operator);
         }
 
-        let (mut input, _) = it.finish().unwrap();
+        it.finish().unwrap();
 
         (multispace0::<&BStr, ContextError>, eof)
-            .parse_next(&mut input)
+            .parse_next(&mut stream)
             .unwrap();
     }
 }

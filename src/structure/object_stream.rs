@@ -105,7 +105,8 @@ impl Build for ObjectStream {
             let (i, content) = content.split_at(first);
             let content = content.to_vec();
 
-            let mut it = iterator(i.as_ref(), preceded(multispace0, extract));
+            let mut stream_dict = BStr::new(&i);
+            let mut it = iterator(&mut stream_dict, preceded(multispace0, extract));
 
             let map = it
                 .map(|(object, offset)| (ReferenceId::first(object), offset))

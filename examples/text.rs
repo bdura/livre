@@ -8,6 +8,7 @@ use livre::{
 use winnow::{
     ascii::multispace0,
     combinator::{iterator, preceded},
+    BStr,
 };
 
 fn read_document(path: &str) -> InMemoryDocument {
@@ -26,11 +27,9 @@ fn main() {
 
         for page in doc.pages().unwrap().iter() {
             let content = page.build_content(&doc).unwrap();
+            let mut stream = BStr::new(&content);
 
-            let mut it = iterator(
-                content.as_slice().as_ref(),
-                preceded(multispace0, Operator::extract),
-            );
+            let mut it = iterator(&mut stream, preceded(multispace0, Operator::extract));
 
             for operator in &mut it {
                 match operator {
