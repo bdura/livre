@@ -2,7 +2,7 @@ use crate::extraction::Extract;
 
 use winnow::ascii::multispace1;
 use winnow::combinator::trace;
-use winnow::{BStr, PResult, Parser};
+use winnow::{BStr, ModalResult, Parser};
 
 use paste::paste;
 
@@ -14,7 +14,7 @@ macro_rules! impl_tuple {
                 $first: Extract<'de>,
                 $( $ty: Extract<'de>),+
             {
-                fn extract(input: &mut &'de BStr) -> PResult<Self> {
+                fn extract(input: &mut &'de BStr) -> ModalResult<Self> {
                     trace(concat!("livre-{}-tuple", $len), move |i: &mut &'de BStr| {
                         let [<$first:lower>] = $first::extract(i)?;
                         $(
@@ -48,7 +48,7 @@ impl<'de, T> Extract<'de> for (T,)
 where
     T: Extract<'de>,
 {
-    fn extract(input: &mut &'de BStr) -> PResult<Self> {
+    fn extract(input: &mut &'de BStr) -> ModalResult<Self> {
         trace("tuple", move |i: &mut &'de BStr| {
             let t = T::extract(i)?;
             Ok((t,))

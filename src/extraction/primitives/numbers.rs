@@ -6,7 +6,7 @@ use std::{
 use winnow::{
     ascii::{digit1, float},
     combinator::{alt, opt, preceded, trace},
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use crate::extraction::Extract;
@@ -66,7 +66,7 @@ where
     result
 }
 
-fn parse_unsigned<T>(input: &mut &BStr) -> PResult<T>
+fn parse_unsigned<T>(input: &mut &BStr) -> ModalResult<T>
 where
     T: From<u8> + MulAssign<T> + AddAssign<T>,
 {
@@ -77,7 +77,7 @@ where
     .parse_next(input)
 }
 
-fn is_neg(input: &mut &BStr) -> PResult<bool> {
+fn is_neg(input: &mut &BStr) -> ModalResult<bool> {
     trace(
         "livre-is-neg",
         opt(alt((b'-', b'+'))).map(|s| s == Some(b'-')),
@@ -85,11 +85,11 @@ fn is_neg(input: &mut &BStr) -> PResult<bool> {
     .parse_next(input)
 }
 
-fn parse_signed<T>(input: &mut &BStr) -> PResult<T>
+fn parse_signed<T>(input: &mut &BStr) -> ModalResult<T>
 where
     T: From<i8> + MulAssign<T> + AddAssign<T> + Neg<Output = T>,
 {
-    fn inner<T>(input: &mut &BStr) -> PResult<T>
+    fn inner<T>(input: &mut &BStr) -> ModalResult<T>
     where
         T: From<i8> + MulAssign<T> + AddAssign<T> + Neg<Output = T>,
     {
@@ -110,7 +110,7 @@ macro_rules! unsigned {
     ($($name:ident)+) => {
         $(
             impl Extract<'_> for $name {
-                fn extract(input: &mut &BStr) -> PResult<Self> {
+                fn extract(input: &mut &BStr) -> ModalResult<Self> {
                     parse_unsigned(input)
                 }
             }
@@ -122,7 +122,7 @@ macro_rules! signed {
     ($($name:ident)+) => {
         $(
             impl Extract<'_> for $name {
-                fn extract(input: &mut &BStr) -> PResult<Self> {
+                fn extract(input: &mut &BStr) -> ModalResult<Self> {
                     parse_signed(input)
                 }
             }
@@ -134,7 +134,7 @@ macro_rules! real {
     ($($name:ident)+) => {
         $(
             impl Extract<'_> for $name {
-                fn extract(input: &mut &BStr) -> PResult<Self> {
+                fn extract(input: &mut &BStr) -> ModalResult<Self> {
                     float(input)
                 }
             }
@@ -166,7 +166,7 @@ real! {
 }
 
 impl Extract<'_> for NonZeroU8 {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
         let n = u8::extract.verify(|&r| r != 0).parse_next(input)?;
 
         // SAFETY: the verification happens at the parser level ↑

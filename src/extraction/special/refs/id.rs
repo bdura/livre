@@ -1,6 +1,6 @@
 use winnow::{
     combinator::{separated_pair, trace},
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use crate::extraction::{extract, Extract};
@@ -33,7 +33,7 @@ impl ReferenceId {
 }
 
 impl Extract<'_> for ReferenceId {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
         trace(
             "livre-reference-id",
             separated_pair(extract, b' ', extract).map(ReferenceId::from),

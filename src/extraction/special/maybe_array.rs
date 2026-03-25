@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use winnow::{
     combinator::{alt, trace},
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use crate::extraction::Extract;
@@ -40,7 +40,7 @@ impl<'de, T> Extract<'de> for MaybeArray<T>
 where
     T: Extract<'de>,
 {
-    fn extract(input: &mut &'de BStr) -> PResult<Self> {
+    fn extract(input: &mut &'de BStr) -> ModalResult<Self> {
         trace(
             "livre-maybe-array",
             alt((T::extract.map(|t| vec![t]), Vec::<T>::extract)).map(Self),

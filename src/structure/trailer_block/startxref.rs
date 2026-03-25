@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use winnow::{
     ascii::multispace1,
     error::{ContextError, ErrMode},
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use crate::extraction::{extract, Extract};
@@ -13,14 +13,14 @@ use crate::extraction::{extract, Extract};
 pub struct StartXRef(pub usize);
 
 impl Extract<'_> for StartXRef {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
         let (_, _, value) = (b"startxref", multispace1, extract).parse_next(input)?;
         Ok(Self(value))
     }
 }
 
 impl StartXRef {
-    pub fn find(input: &BStr) -> PResult<Self> {
+    pub fn find(input: &BStr) -> ModalResult<Self> {
         // The PDF spec requires `%%EOF` to appear within the last 1024 bytes,
         // so `startxref` is always within this window.
         const SEARCH_WINDOW: usize = 1024;

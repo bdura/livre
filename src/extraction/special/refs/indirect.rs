@@ -1,8 +1,8 @@
 use winnow::{
     ascii::multispace1,
     combinator::{delimited, trace},
-    error::ContextError,
-    BStr, PResult, Parser,
+    error::{ContextError, ErrMode},
+    BStr, ModalResult, Parser,
 };
 
 use crate::{
@@ -34,9 +34,9 @@ impl<'de, T> Indirect<T> {
     ///
     /// We go the extra mile and extract the trailing `endobj` tag. This is not actually needed,
     /// although it does serve as a kind of sanity check.
-    pub fn parse<P>(input: &mut &'de BStr, parser: P) -> PResult<Self>
+    pub fn parse<P>(input: &mut &'de BStr, parser: P) -> ModalResult<Self>
     where
-        P: Parser<&'de BStr, T, ContextError>,
+        P: Parser<&'de BStr, T, ErrMode<ContextError>>,
     {
         trace(
             "livre-indirect",
@@ -54,7 +54,7 @@ impl<'de, T> Extract<'de> for Indirect<T>
 where
     T: Extract<'de>,
 {
-    fn extract(input: &mut &'de BStr) -> PResult<Self> {
+    fn extract(input: &mut &'de BStr) -> ModalResult<Self> {
         Self::parse(input, extract)
     }
 }
@@ -63,7 +63,7 @@ impl<T> Build for Indirect<T>
 where
     T: Build,
 {
-    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, builder: &B) -> ModalResult<Self>
     where
         B: Builder,
     {

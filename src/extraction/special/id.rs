@@ -37,7 +37,7 @@ impl Id {
 }
 
 impl Extract<'_> for Id {
-    fn extract(input: &mut &'_ winnow::BStr) -> winnow::PResult<Self> {
+    fn extract(input: &mut &'_ winnow::BStr) -> winnow::ModalResult<Self> {
         let [HexadecimalString(creation), HexadecimalString(modification)] = extract(input)?;
         Ok(Self {
             creation,

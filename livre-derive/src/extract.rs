@@ -31,7 +31,7 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let expanded = quote! {
         // The generated impl.
         impl #impl_generics crate::extraction::Extract<'de> for #name #ty_generics #where_clause {
-            fn extract(input: &mut &'de ::winnow::stream::BStr) -> ::winnow::PResult<Self> {
+            fn extract(input: &mut &'de ::winnow::stream::BStr) -> ::winnow::ModalResult<Self> {
                 #extraction
             }
         }

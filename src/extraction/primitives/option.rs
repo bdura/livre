@@ -1,6 +1,6 @@
 use winnow::{
     combinator::{alt, trace},
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use super::Extract;
@@ -14,7 +14,7 @@ impl<'de, T> Extract<'de> for Option<T>
 where
     T: Extract<'de>,
 {
-    fn extract(input: &mut &'de BStr) -> PResult<Self> {
+    fn extract(input: &mut &'de BStr) -> ModalResult<Self> {
         trace(
             "livre-optional",
             alt((T::extract.map(Some), b"null".map(|_| None))),

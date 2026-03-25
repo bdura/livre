@@ -1,4 +1,4 @@
-use winnow::{combinator::trace, BStr, PResult, Parser};
+use winnow::{combinator::trace, BStr, ModalResult, Parser};
 
 use crate::extraction::{extract, Extract};
 
@@ -22,7 +22,7 @@ impl From<(f32, f32, f32, f32)> for Rectangle {
 }
 
 impl Extract<'_> for Rectangle {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
         trace("livre-rectangle", move |i: &mut &BStr| {
             let [xmin, ymin, xmax, ymax] = extract(i)?;
             Ok(Self {

@@ -1,5 +1,5 @@
 pub use livre_derive::BuildFromRawDict;
-use winnow::{BStr, PResult};
+use winnow::{BStr, ModalResult};
 
 use crate::extraction::{extract, RawDict};
 
@@ -14,7 +14,7 @@ use super::{Build, Builder};
 /// keys from a mutable reference to a [`RawDict`], we can give more structure to otherwise flat
 /// dictionary structures.
 pub trait BuildFromRawDict: Sized {
-    fn build_from_raw_dict<B>(dict: &mut RawDict<'_>, builder: &B) -> PResult<Self>
+    fn build_from_raw_dict<B>(dict: &mut RawDict<'_>, builder: &B) -> ModalResult<Self>
     where
         B: Builder;
 }
@@ -27,7 +27,7 @@ impl<T> Build for T
 where
     T: BuildFromRawDict,
 {
-    fn build<B>(input: &mut &BStr, builder: &B) -> winnow::PResult<Self>
+    fn build<B>(input: &mut &BStr, builder: &B) -> winnow::ModalResult<Self>
     where
         B: Builder,
     {

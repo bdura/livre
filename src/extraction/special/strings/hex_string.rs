@@ -6,7 +6,7 @@ use winnow::{
     error::ContextError,
     stream::AsChar,
     token::take_while,
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use crate::extraction::Extract;
@@ -41,7 +41,7 @@ impl Debug for HexadecimalString {
 }
 
 impl Extract<'_> for HexadecimalString {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
         trace(
             "livre-hexadecimal-string",
             delimited(b'<', repeat(1.., parse_hexadecimal_bigram), b'>').map(Self),
@@ -66,7 +66,7 @@ where
 ///
 /// > If the final digit of a hexadecimal string is missing — that is, if there
 /// > is an odd number of digits — the final digit shall be assumed to be 0.
-fn parse_hexadecimal_bigram(input: &mut &BStr) -> PResult<u8> {
+fn parse_hexadecimal_bigram(input: &mut &BStr) -> ModalResult<u8> {
     trace("livre-hex-bigram", move |i: &mut &BStr| {
         let num = take_while(1..=2, |b: u8| b.is_hex_digit()).parse_next(i)?;
 

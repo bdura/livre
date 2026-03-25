@@ -29,8 +29,9 @@ use winnow::{
     ascii::multispace0,
     combinator::{fail, peek, preceded, repeat, trace},
     dispatch,
+    error::ErrMode,
     token::any,
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use crate::extraction::{take_till_delimiter, Angles, Brackets, Extract, Name, Parentheses};
@@ -77,27 +78,27 @@ macro_rules! impl_from {
 impl_from!(BeginText, EndText,);
 
 impl Extract<'_> for Operator {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
         trace("livre-operator", parse_operator).parse_next(input)
     }
 }
 
 /// Recognize an operand, without parsing it. Thanks to the
 /// [`recognize`](Extract::recognize) static method, we can efficiently skip over the operands.
-fn recognize_operand<'de>(input: &mut &'de BStr) -> PResult<&'de [u8]> {
+fn recognize_operand<'de>(input: &mut &'de BStr) -> ModalResult<&'de [u8]> {
     dispatch! {peek(any);
         b'/' => Name::recognize,
         b'[' => Brackets::recognize,
         b'(' => Parentheses::recognize,
         b'<' => Angles::recognize,
-        b'+' | b'-' | b'.' | b'0'..=b'9' => take_till_delimiter(1..),
+        b'+' | b'-' | b'.' | b'0'..=b'9' => take_till_delimiter(1..).map_err(ErrMode::Backtrack),
         _ => fail
     }
     .parse_next(input)
 }
 
 /// Helper function that extracts an operator and converts it to [`Operator`].
-fn extract_operator<'a, T>(input: &mut &'a BStr) -> PResult<Operator>
+fn extract_operator<'a, T>(input: &mut &'a BStr) -> ModalResult<Operator>
 where
     T: Extract<'a>,
     Operator: From<T>,
@@ -109,14 +110,18 @@ where
 ///
 /// Defining the parsing logic at the [`Operator`] level allows us to use a single alternative,
 /// which is more efficient than using nested parsing logic.
-fn parse_operator(input: &mut &BStr) -> PResult<Operator> {
+fn parse_operator(input: &mut &BStr) -> ModalResult<Operator> {
     let mut cursor = *input;
 
     repeat(0.., preceded(multispace0, recognize_operand))
         .map(|()| ())
         .parse_next(input)?;
 
-    let op = preceded(multispace0, take_till_delimiter(1..=3)).parse_next(input)?;
+    let op = preceded(
+        multispace0,
+        take_till_delimiter(1..=3).map_err(ErrMode::Backtrack),
+    )
+    .parse_next(input)?;
 
     let operator = match op {
         // Text object operators

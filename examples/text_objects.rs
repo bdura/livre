@@ -28,11 +28,9 @@ fn main() {
 
         for page in doc.pages().unwrap().iter() {
             let content = page.build_content(&doc).unwrap();
+            let mut stream = BStr::new(&content);
 
-            let mut it = iterator(
-                content.as_slice().as_ref(),
-                preceded(multispace0, Operator::extract),
-            );
+            let mut it = iterator(&mut stream, preceded(multispace0, Operator::extract));
 
             while let Some(mut text_state) = parse_text_object(&mut it).unwrap() {
                 println!("NEW TEXT OBJECT");
@@ -43,16 +41,14 @@ fn main() {
                 println!();
             }
 
-            let input = &mut it.finish().unwrap().0;
+            multispace0::<&BStr, ContextError>(&mut stream).unwrap();
 
-            multispace0::<&BStr, ContextError>(input).unwrap();
-
-            if input.len() != 0 {
+            if !stream.is_empty() {
                 println!();
                 println!("Issue while parsing");
                 println!(
                     "{}",
-                    String::from_utf8_lossy(&input[..500.min(input.len())])
+                    String::from_utf8_lossy(&stream[..500.min(stream.len())])
                 );
                 panic!("Parsing did not consume the entire input");
             }

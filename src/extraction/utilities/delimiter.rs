@@ -1,9 +1,9 @@
 use winnow::{
     combinator::{delimited, fail, terminated, trace},
-    error::ContextError,
+    error::{ContextError, ErrMode},
     stream::Range,
     token::{any, take, take_till},
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use paste::paste;
@@ -39,7 +39,7 @@ impl WithinBalancedParser {
 }
 
 impl<'a> Parser<&'a BStr, &'a [u8], ContextError> for WithinBalancedParser {
-    fn parse_next(&mut self, input: &mut &'a BStr) -> PResult<&'a [u8], ContextError> {
+    fn parse_next(&mut self, input: &mut &'a BStr) -> Result<&'a [u8], ContextError> {
         // Check that the first byte is an opening byte.
         // PERF: by relying on a `Parser` trait with implementation for common types
         // (here, `u8`), Winnow makes this quite easy
@@ -108,12 +108,12 @@ macro_rules! delimited {
             pub struct $name<'de>(pub &'de BStr);
 
             impl<'de> Extract<'de> for $name<'de> {
-                fn extract(input: &mut &'de BStr) -> PResult<Self> {
+                fn extract(input: &mut &'de BStr) -> ModalResult<Self> {
                     trace(
                         stringify!(livre-[<$name:snake>]),
                         take_within_balanced($opening, $closing, $escaped)
                             .map(|inside| Self(inside.as_ref())),
-                    ).parse_next(input)
+                    ).parse_next(input).map_err(ErrMode::Backtrack)
                 }
             }
         }
@@ -131,7 +131,7 @@ delimited!(Angles: b'<' -> b'>');
 pub struct DoubleAngles<'de>(pub &'de BStr);
 
 impl<'de> Extract<'de> for DoubleAngles<'de> {
-    fn extract(input: &mut &'de BStr) -> PResult<Self> {
+    fn extract(input: &mut &'de BStr) -> ModalResult<Self> {
         let Angles(inside) = delimited(b'<', extract, b'>').parse_next(input)?;
         Ok(Self(inside))
     }
