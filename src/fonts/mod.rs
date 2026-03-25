@@ -67,7 +67,7 @@
 //! [CIDFont]: https://en.wikipedia.org/wiki/PostScript_fonts#CID
 
 use simple_fonts::SimpleFont;
-use winnow::PResult;
+use winnow::ModalResult;
 
 use crate::{
     extraction::{RawDict, RawValue},
@@ -95,7 +95,7 @@ impl From<SimpleFont> for Font {
 }
 
 impl BuildFromRawDict for Font {
-    fn build_from_raw_dict<B>(dict: &mut RawDict<'_>, builder: &B) -> PResult<Self>
+    fn build_from_raw_dict<B>(dict: &mut RawDict<'_>, builder: &B) -> ModalResult<Self>
     where
         B: Builder,
     {

@@ -100,7 +100,7 @@ impl Extract<'_> for Date {
 }
 
 impl Build for Date {
-    fn build<B>(input: &mut &BStr, _builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, _builder: &B) -> ModalResult<Self>
     where
         B: Builder,
     {

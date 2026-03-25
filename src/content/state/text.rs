@@ -305,10 +305,10 @@ where
 ///
 /// Skips over any operators until it finds the `BT` operator, which marks the beginning of a text,
 /// and returns an object that can be used to iterate over the text elements.
-pub fn parse_text_object<Ops>(
+pub fn parse_text_object<'font, Ops>(
     mut ops: Ops,
-    fonts: &HashMap<Name, Font>,
-) -> Result<Option<TextObjectStream<Ops>>>
+    fonts: &'font HashMap<Name, Font>,
+) -> Result<Option<TextObjectStream<'font, Ops>>>
 where
     Ops: Iterator<Item = Operator>,
 {
