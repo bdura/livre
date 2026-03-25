@@ -5,7 +5,7 @@ use std::io::Read;
 use winnow::{
     combinator::fail,
     error::{ContextError, ErrMode, StrContext},
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use flate2::read::ZlibDecoder;
@@ -42,7 +42,7 @@ pub trait Filtering {
 }
 
 impl Extract<'_> for Filter {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
         let Name(value) = extract(input)?;
 
         match value.as_slice() {
@@ -57,7 +57,7 @@ impl Extract<'_> for Filter {
 }
 
 impl Build for Filter {
-    fn build<B>(input: &mut &BStr, _builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, _builder: &B) -> ModalResult<Self>
     where
         B: Builder,
     {

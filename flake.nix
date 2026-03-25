@@ -22,8 +22,15 @@
       {
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
-            rustup
+            rustc
+            cargo
+            clippy
+            rust-analyzer
+            rustfmt
           ];
+
+          RUSTFLAGS = "-Dwarnings";
+          RUST_BACKTRACE = "1";
         };
       }
     );

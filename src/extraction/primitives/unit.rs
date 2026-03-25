@@ -1,9 +1,9 @@
-use winnow::{combinator::trace, BStr, PResult, Parser};
+use winnow::{combinator::trace, BStr, ModalResult, Parser};
 
 use crate::extraction::Extract;
 
 impl Extract<'_> for () {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
         trace("livre-unit", b"null".value(())).parse_next(input)
     }
 }

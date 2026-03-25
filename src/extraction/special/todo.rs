@@ -1,4 +1,4 @@
-use winnow::{BStr, PResult};
+use winnow::{BStr, ModalResult};
 
 use crate::{extraction::Extract, follow_refs::Build};
 
@@ -8,13 +8,13 @@ use crate::{extraction::Extract, follow_refs::Build};
 pub struct Todo;
 
 impl Extract<'_> for Todo {
-    fn extract(_: &mut &BStr) -> PResult<Self> {
+    fn extract(_: &mut &BStr) -> ModalResult<Self> {
         Ok(Self)
     }
 }
 
 impl Build for Todo {
-    fn build<B>(_: &mut &BStr, _: &B) -> PResult<Self>
+    fn build<B>(_: &mut &BStr, _: &B) -> ModalResult<Self>
     where
         B: crate::follow_refs::Builder,
     {

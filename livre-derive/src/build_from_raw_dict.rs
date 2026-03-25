@@ -48,7 +48,7 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let expanded = quote! {
         impl #impl_generics crate::follow_refs::BuildFromRawDict for #name #ty_generics #where_clause {
-            fn build_from_raw_dict<B>(dict: &mut crate::extraction::RawDict<'_>, builder: &B) -> ::winnow::PResult<Self>
+            fn build_from_raw_dict<B>(dict: &mut crate::extraction::RawDict<'_>, builder: &B) -> ::winnow::ModalResult<Self>
             where
                 B: crate::follow_refs::Builder,
             {

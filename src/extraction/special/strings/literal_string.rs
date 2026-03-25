@@ -3,8 +3,9 @@ use std::{borrow::Cow, fmt::Debug};
 use winnow::{
     combinator::{fail, peek, trace},
     dispatch,
+    error::{ContextError, ErrMode},
     token::{any, take_till, take_while},
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use crate::extraction::{
@@ -73,7 +74,7 @@ impl<'a> From<Cow<'a, [u8]>> for LiteralString {
 }
 
 impl Extract<'_> for LiteralString {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
         // NOTE: we have to parse the entire sequence first, otherwise we would not
         // know what to do with a closing parenthesis.
         // This contrast with the extraction strategy for `Vec<T>` for instance,
@@ -86,6 +87,7 @@ impl Extract<'_> for LiteralString {
             escaped_sequence(take_till(0.., b'\\'), b'\\'.void(), escape_string).map(Self::from),
         )
         .parse_next(&mut inner)
+        .map_err(ErrMode::Backtrack)
     }
 }
 
@@ -100,7 +102,7 @@ static RIGHT_PAR: &[u8] = b")";
 static BACKSLASH: &[u8] = b"\\";
 
 /// Escape [`LiteralString`] characters.
-fn escape_string<'de>(input: &mut &'de BStr) -> PResult<Cow<'de, [u8]>> {
+fn escape_string<'de>(input: &mut &'de BStr) -> Result<Cow<'de, [u8]>, ContextError> {
     dispatch! {peek(any);
         b'\n' => any.value(Cow::Borrowed(EMPTY)),
         b'n' => any.value(Cow::Borrowed(NEWLINE)),
@@ -121,7 +123,7 @@ fn escape_string<'de>(input: &mut &'de BStr) -> PResult<Cow<'de, [u8]>> {
 ///
 /// NOTE: the PDF specs allow 1 to 3 digits for the octal escape sequence.
 /// Contrary to Hexadecimal Strings, missing digits are interpreted as *leading* zeros.
-fn parse_octal(input: &mut &BStr) -> PResult<u8> {
+fn parse_octal(input: &mut &BStr) -> Result<u8, ContextError> {
     trace("livre-octal", |i: &mut &BStr| {
         let num = take_while(1..=3, b'0'..b'8').parse_next(i)?;
 

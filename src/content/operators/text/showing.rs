@@ -3,7 +3,7 @@
 use std::fmt::Display;
 
 use enum_dispatch::enum_dispatch;
-use winnow::{combinator::peek, dispatch, token::any, BStr, PResult, Parser};
+use winnow::{combinator::peek, dispatch, token::any, BStr, ModalResult, Parser};
 
 use crate::{
     content::state::TextObject,
@@ -179,7 +179,7 @@ impl From<f32> for TextArrayElement {
 }
 
 impl Extract<'_> for TextArrayElement {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
         dispatch! {peek(any);
             b'(' => LiteralString::extract.map(TextArrayElement::from),
             b'<' => HexadecimalString::extract.map(TextArrayElement::from),

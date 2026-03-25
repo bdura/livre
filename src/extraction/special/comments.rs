@@ -2,7 +2,7 @@ use winnow::{
     ascii::{line_ending, multispace1, till_line_ending},
     combinator::{alt, delimited, repeat, trace},
     token::take_while,
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use crate::extraction::Extract;
@@ -13,7 +13,7 @@ use crate::extraction::Extract;
 pub struct Comment<'de>(pub &'de [u8]);
 
 impl<'de> Extract<'de> for Comment<'de> {
-    fn extract(input: &mut &'de BStr) -> PResult<Self> {
+    fn extract(input: &mut &'de BStr) -> ModalResult<Self> {
         trace(
             "livre-comment",
             delimited(
@@ -26,7 +26,7 @@ impl<'de> Extract<'de> for Comment<'de> {
         .parse_next(input)
     }
 
-    fn recognize(input: &mut &'de BStr) -> PResult<&'de [u8]> {
+    fn recognize(input: &mut &'de BStr) -> ModalResult<&'de [u8]> {
         (b'%', till_line_ending, line_ending)
             .take()
             .parse_next(input)
@@ -34,7 +34,7 @@ impl<'de> Extract<'de> for Comment<'de> {
 }
 
 /// Parses 0 or more comment/multispace
-pub fn multicomment0<'de>(input: &mut &'de BStr) -> PResult<&'de [u8]> {
+pub fn multicomment0<'de>(input: &mut &'de BStr) -> ModalResult<&'de [u8]> {
     trace(
         "livre-comments-whitespace",
         repeat::<_, _, (), _, _>(0.., alt((Comment::recognize, multispace1))).take(),
@@ -43,7 +43,7 @@ pub fn multicomment0<'de>(input: &mut &'de BStr) -> PResult<&'de [u8]> {
 }
 
 /// Parses at least one comment/multispace
-pub fn multicomment1<'de>(input: &mut &'de BStr) -> PResult<&'de [u8]> {
+pub fn multicomment1<'de>(input: &mut &'de BStr) -> ModalResult<&'de [u8]> {
     trace(
         "livre-comments-whitespace",
         repeat::<_, _, (), _, _>(1.., alt((Comment::recognize, multispace1))).take(),

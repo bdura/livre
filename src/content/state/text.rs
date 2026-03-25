@@ -15,7 +15,7 @@ use std::collections::VecDeque;
 use winnow::{
     combinator::trace,
     error::{ContextError, ErrMode},
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use crate::{
@@ -29,7 +29,6 @@ use crate::{
             Operator,
         },
     },
-    debug,
     extraction::{extract, Extract, Name, PDFString},
 };
 
@@ -91,7 +90,7 @@ pub struct TextMatrix {
 }
 
 impl Extract<'_> for TextMatrix {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
         trace(
             "livre-text-matrix",
             extract.map(|(a, b, c, d, e, f)| Self { a, b, c, d, e, f }),
@@ -149,7 +148,7 @@ pub enum RenderingMode {
 }
 
 impl Extract<'_> for RenderingMode {
-    fn extract(input: &mut &'_ winnow::BStr) -> winnow::PResult<Self> {
+    fn extract(input: &mut &'_ winnow::BStr) -> winnow::ModalResult<Self> {
         match u8::extract(input)? {
             0 => Ok(Self::Fill),
             1 => Ok(Self::Stroke),
@@ -252,8 +251,7 @@ where
                     return Err(ContentError::UnexpectedTextShowingOperator(op));
                 }
                 _ => {
-                    // FIXME: Use proper logging.
-                    debug!("Skipping operator: {:?}", operator);
+                    tracing::debug!("Skipping operator: {:?}", operator);
                 }
             }
         }
@@ -328,7 +326,7 @@ where
                 Operator::EndText(_) => return None,
                 Operator::Text(op) => op.apply(&mut self.text_object),
                 _ => {
-                    debug!("Skipping operator: {:?}", op);
+                    tracing::debug!("Skipping operator: {:?}", op);
                 }
             }
         }

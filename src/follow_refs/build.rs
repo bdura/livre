@@ -5,7 +5,7 @@ use paste::paste;
 use winnow::{
     ascii::{multispace0, multispace1},
     combinator::{alt, delimited, preceded, repeat, trace},
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use crate::extraction::{
@@ -28,7 +28,7 @@ pub trait Build: Sized {
     /// The [`Build`] trait, like the [`Extract`](crate::extraction::Extract) trait, is a linear
     /// parser above all, hence we supply an `input`. References found during parsing, if any,
     /// are first parsed as such, and then instantiated by the `builder`.
-    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, builder: &B) -> ModalResult<Self>
     where
         B: Builder;
 }
@@ -37,7 +37,7 @@ macro_rules! impl_build_for_primitive {
     ($($t:ty)+) => {
         $(
             impl Build for $t {
-                fn build<B>(input: &mut &BStr, _builder: &B) -> PResult<Self>
+                fn build<B>(input: &mut &BStr, _builder: &B) -> ModalResult<Self>
                 where
                     B: Builder,
                 {
@@ -64,7 +64,7 @@ impl<T> Build for Option<T>
 where
     T: Build,
 {
-    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, builder: &B) -> ModalResult<Self>
     where
         B: Builder,
     {
@@ -80,7 +80,7 @@ impl<T> Build for MaybeArray<T>
 where
     T: Build,
 {
-    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, builder: &B) -> ModalResult<Self>
     where
         B: Builder,
     {
@@ -100,7 +100,7 @@ impl<T> Build for Vec<T>
 where
     T: Build,
 {
-    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, builder: &B) -> ModalResult<Self>
     where
         B: Builder,
     {
@@ -123,12 +123,12 @@ impl<T, const N: usize> Build for [T; N]
 where
     T: Build + Debug,
 {
-    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, builder: &B) -> ModalResult<Self>
     where
         B: Builder,
     {
         trace(
-            concat!("livre-{N}-array"),
+            "livre-array",
             delimited(
                 b'[',
                 repeat(
@@ -153,7 +153,7 @@ macro_rules! impl_tuple {
                 $first: Build,
                 $( $ty: Build),+
             {
-                fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
+                fn build<B>(input: &mut &BStr, builder: &B) -> ModalResult<Self>
                 where
                     B: Builder,
                 {

@@ -7,11 +7,10 @@ use winnow::{
     ascii::multispace0,
     combinator::{iterator, preceded, trace},
     error::{ContextError, ErrMode},
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use crate::{
-    debug,
     extraction::{extract, Reference, ReferenceId, Stream},
     follow_refs::{Build, BuildFromRawDict, Builder, BuilderParser},
 };
@@ -56,7 +55,7 @@ impl ObjectStream {
 
 impl ObjectStream {
     /// Build an object contained within the `ObjectStream`. Returns an error if the key is absent.
-    pub fn build_object<B, T>(&self, reference: &ReferenceId, builder: &B) -> PResult<T>
+    pub fn build_object<B, T>(&self, reference: &ReferenceId, builder: &B) -> ModalResult<T>
     where
         T: Build,
         B: Builder,
@@ -74,7 +73,7 @@ impl ObjectStream {
     ///
     /// This is only available to owned types because while following the linked list, we
     /// instantiate transient objects that cannot be referenced into.
-    pub fn build_owned_object<B, T>(&self, reference: &ReferenceId, builder: &B) -> PResult<T>
+    pub fn build_owned_object<B, T>(&self, reference: &ReferenceId, builder: &B) -> ModalResult<T>
     where
         T: Build,
         B: Builder,
@@ -82,9 +81,7 @@ impl ObjectStream {
         if let Some(mut input) = self.get_data(reference) {
             builder.as_parser().parse_next(&mut input)
         } else if let Some(extends) = self.extends {
-            // FIXME: use some actual logging framework.
-
-            debug!("Reference not found in this stream. Checking the extended stream.");
+            tracing::debug!("Reference not found in this stream. Checking the extended stream.");
 
             let stream = builder.build_reference(extends)?;
             stream.build_object(reference, builder)
@@ -95,7 +92,7 @@ impl ObjectStream {
 }
 
 impl Build for ObjectStream {
-    fn build<B>(input: &mut &BStr, builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, builder: &B) -> ModalResult<Self>
     where
         B: Builder,
     {
@@ -108,7 +105,8 @@ impl Build for ObjectStream {
             let (i, content) = content.split_at(first);
             let content = content.to_vec();
 
-            let mut it = iterator(i.as_ref(), preceded(multispace0, extract));
+            let mut stream_dict = BStr::new(&i);
+            let mut it = iterator(&mut stream_dict, preceded(multispace0, extract));
 
             let map = it
                 .map(|(object, offset)| (ReferenceId::first(object), offset))

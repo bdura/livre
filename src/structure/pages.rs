@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use winnow::{
     error::{ContextError, ErrMode},
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use crate::{
@@ -30,7 +30,7 @@ pub enum RotationAngle {
 }
 
 impl Extract<'_> for RotationAngle {
-    fn extract(input: &mut &'_ BStr) -> PResult<Self> {
+    fn extract(input: &mut &'_ BStr) -> ModalResult<Self> {
         extract
             .verify_map(|i: u16| match i {
                 0 => Some(Self::Zero),
@@ -44,7 +44,7 @@ impl Extract<'_> for RotationAngle {
 }
 
 impl Build for RotationAngle {
-    fn build<B>(input: &mut &BStr, _builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, _builder: &B) -> ModalResult<Self>
     where
         B: Builder,
     {
@@ -207,7 +207,7 @@ pub struct PageTreeNode {
 }
 
 impl Build for PageTreeNode {
-    fn build<B>(input: &mut &BStr, _: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, _: &B) -> ModalResult<Self>
     where
         B: Builder,
     {
@@ -216,7 +216,7 @@ impl Build for PageTreeNode {
 }
 
 impl PageTreeNode {
-    pub fn list_pages<B>(&self, builder: &B) -> PResult<Vec<Page>>
+    pub fn list_pages<B>(&self, builder: &B) -> ModalResult<Vec<Page>>
     where
         B: Builder,
     {
@@ -271,11 +271,11 @@ pub struct Page {
 }
 
 impl Page {
-    pub fn build_content<B>(&self, builder: &B) -> PResult<Vec<u8>>
+    pub fn build_content<B>(&self, builder: &B) -> ModalResult<Vec<u8>>
     where
         B: Builder,
     {
-        let contents: PResult<Vec<Vec<u8>>> = self
+        let contents: ModalResult<Vec<Vec<u8>>> = self
             .contents
             .iter()
             .copied()
@@ -311,7 +311,7 @@ impl PageElement {
 }
 
 impl FromRawDict<'_> for PageElement {
-    fn from_raw_dict(dict: &mut RawDict<'_>) -> PResult<Self> {
+    fn from_raw_dict(dict: &mut RawDict<'_>) -> ModalResult<Self> {
         let Name(page_type) = dict
             .pop_and_extract(&"Type".into())
             .ok_or(ErrMode::Cut(ContextError::new()))??;
@@ -327,7 +327,7 @@ impl FromRawDict<'_> for PageElement {
 }
 
 impl Build for PageElement {
-    fn build<B>(input: &mut &BStr, _builder: &B) -> PResult<Self>
+    fn build<B>(input: &mut &BStr, _builder: &B) -> ModalResult<Self>
     where
         B: Builder,
     {

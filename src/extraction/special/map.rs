@@ -4,8 +4,9 @@ use winnow::{
     ascii::multispace0,
     combinator::{iterator, peek, separated_pair, terminated, trace},
     dispatch,
+    error::{ContextError, ErrMode},
     token::{any, take_till},
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use crate::{
@@ -26,7 +27,7 @@ impl<'de, T> FromRawDict<'de> for Map<T>
 where
     T: Extract<'de>,
 {
-    fn from_raw_dict(dict: &mut RawDict<'de>) -> PResult<Self> {
+    fn from_raw_dict(dict: &mut RawDict<'de>) -> ModalResult<Self> {
         let mut map = Map::with_capacity(dict.0.len());
 
         for (key, value) in dict.0.drain() {
@@ -43,7 +44,7 @@ where
 }
 
 /// Parse a single key-value pair. Consumes trailing whitespace if there is any.
-fn parse_key_value<'de, T>(input: &mut &'de BStr) -> PResult<(Name, T)>
+fn parse_key_value<'de, T>(input: &mut &'de BStr) -> ModalResult<(Name, T)>
 where
     T: Extract<'de>,
 {
@@ -75,7 +76,7 @@ pub struct RawValue<'de>(pub &'de BStr);
 
 impl<'de> RawValue<'de> {
     /// Extract the raw value into a strongly typed object.
-    pub fn extract<T>(mut self) -> PResult<T>
+    pub fn extract<T>(mut self) -> ModalResult<T>
     where
         T: Extract<'de>,
     {
@@ -83,7 +84,7 @@ impl<'de> RawValue<'de> {
     }
 
     /// Build the raw value into a strongly typed object.
-    pub fn build<T, B>(mut self, builder: &B) -> PResult<T>
+    pub fn build<T, B>(mut self, builder: &B) -> ModalResult<T>
     where
         T: Build,
         B: Builder,
@@ -115,17 +116,17 @@ fn remove_trailing_spaces(input: &[u8]) -> &[u8] {
 }
 
 impl<'de> Extract<'de> for RawValue<'de> {
-    fn extract(input: &mut &'de BStr) -> PResult<Self> {
+    fn extract(input: &mut &'de BStr) -> ModalResult<Self> {
         dispatch! {peek(any);
             b'/' => Name::recognize,
             b'[' => Brackets::recognize,
             b'(' => Parentheses::recognize,
             b'<' => Angles::recognize,
-            // NOTE: provided we do not encounter a name *within a tuple*, this last case
-            // handles every other option.
-            // NOTE: I tried using `take_till_delimiter`, which failed miserably.
-            // Values can contain tuples or references...
-            // FIXME: remove that failure case.
+            // Catch-all for values that start with bytes other than the dispatch arms above:
+            // numbers (e.g. `42`, `-3.14`), booleans (`true`, `false`), and indirect references
+            // (`1 0 R`). These all end at the next `/` (the start of the next key) or at `>>`.
+            // TODO: replace this with per-type dispatch once all value kinds are covered, so that
+            // truly invalid input is rejected rather than silently consumed.
             _ => take_till(0.., b'/').map(remove_trailing_spaces),
         }
         .map(Self::from)
@@ -148,7 +149,7 @@ impl<'de> RawDict<'de> {
         self.0.remove(key)
     }
 
-    pub fn pop_and_extract<T>(&mut self, key: &Name) -> Option<PResult<T>>
+    pub fn pop_and_extract<T>(&mut self, key: &Name) -> Option<ModalResult<T>>
     where
         T: Extract<'de>,
     {
@@ -156,7 +157,7 @@ impl<'de> RawDict<'de> {
         Some(value.extract())
     }
 
-    pub fn pop_and_build<T, B>(&mut self, key: &Name, builder: &B) -> PResult<Option<T>>
+    pub fn pop_and_build<T, B>(&mut self, key: &Name, builder: &B) -> ModalResult<Option<T>>
     where
         T: Build,
         B: Builder,
@@ -166,7 +167,7 @@ impl<'de> RawDict<'de> {
 }
 
 impl<'de> Extract<'de> for RawDict<'de> {
-    fn extract(input: &mut &'de BStr) -> PResult<Self> {
+    fn extract(input: &mut &'de BStr) -> ModalResult<Self> {
         trace("livre-map", |i: &mut &'de BStr| {
             let DoubleAngles(mut inside) = extract(i)?;
 
@@ -174,25 +175,24 @@ impl<'de> Extract<'de> for RawDict<'de> {
             multispace0(&mut inside)?;
 
             // `parse_key_value` includes trailing spaces
-            let mut it = iterator(inside, parse_key_value);
+            let mut it = iterator(&mut inside, parse_key_value);
 
             let map = it.collect();
-            let (i, _) = it.finish()?;
+            it.finish()?;
 
-            // TODO: remove this panic... Useful for now, it lets us know if
-            // something went wrong.
-            assert!(
-                i.is_empty(),
-                "Input not empty after parsing a dictionary: {:?}",
-                i
-            );
+            // Fail if there is unconsumed input left inside the `<<...>>` block.
+            // At this point the opening delimiters have already been consumed, so we
+            // escalate to `Cut` to prevent spurious backtracking in callers.
+            if !inside.is_empty() {
+                return Err(ErrMode::Cut(ContextError::new()));
+            }
 
             Ok(Self(map))
         })
         .parse_next(input)
     }
 
-    fn recognize(input: &mut &'de BStr) -> PResult<&'de [u8]> {
+    fn recognize(input: &mut &'de BStr) -> ModalResult<&'de [u8]> {
         DoubleAngles::recognize(input)
     }
 }
@@ -215,13 +215,13 @@ where
 pub struct Nil;
 
 impl FromRawDict<'_> for Nil {
-    fn from_raw_dict(_: &mut crate::extraction::special::RawDict<'_>) -> PResult<Self> {
+    fn from_raw_dict(_: &mut crate::extraction::special::RawDict<'_>) -> ModalResult<Self> {
         Ok(Nil)
     }
 }
 
 impl BuildFromRawDict for Nil {
-    fn build_from_raw_dict<B>(_dict: &mut RawDict<'_>, _builder: &B) -> PResult<Self>
+    fn build_from_raw_dict<B>(_dict: &mut RawDict<'_>, _builder: &B) -> ModalResult<Self>
     where
         B: Builder,
     {

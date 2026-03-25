@@ -2,7 +2,7 @@ use winnow::{
     combinator::{fail, opt, trace},
     dispatch,
     token::{any, take},
-    BStr, PResult, Parser,
+    BStr, ModalResult, Parser,
 };
 
 use crate::extraction::Extract;
@@ -24,7 +24,7 @@ pub struct Date {
     pub offset: Option<i16>,
 }
 
-fn utc_diff_as_minutes(input: &mut &BStr) -> PResult<i16> {
+fn utc_diff_as_minutes(input: &mut &BStr) -> ModalResult<i16> {
     let mut minutes = take(2usize)
         .parse_to()
         .map(|n: i16| n * 60)
@@ -39,7 +39,7 @@ fn utc_diff_as_minutes(input: &mut &BStr) -> PResult<i16> {
     Ok(minutes)
 }
 
-fn utc_diff(input: &mut &BStr) -> PResult<i16> {
+fn utc_diff(input: &mut &BStr) -> ModalResult<i16> {
     dispatch! {any;
         b'Z' => opt(b"00'".and_then(opt(b"00"))).value(0),
         b'+' => utc_diff_as_minutes,
@@ -49,7 +49,7 @@ fn utc_diff(input: &mut &BStr) -> PResult<i16> {
     .parse_next(input)
 }
 
-fn parse_date_without_offset(input: &mut &BStr) -> PResult<Date> {
+fn parse_date_without_offset(input: &mut &BStr) -> ModalResult<Date> {
     let year = take(4usize).parse_to().parse_next(input)?;
 
     let mut date = Date {
@@ -85,7 +85,7 @@ fn parse_date_without_offset(input: &mut &BStr) -> PResult<Date> {
 }
 
 impl Extract<'_> for Date {
-    fn extract(input: &mut &BStr) -> PResult<Self> {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
         trace("livre-date", move |i: &mut &BStr| {
             b"D:".parse_next(i)?;
             let mut date = parse_date_without_offset(i)?;
