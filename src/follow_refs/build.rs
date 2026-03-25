@@ -128,7 +128,7 @@ where
         B: Builder,
     {
         trace(
-            concat!("livre-{N}-array"),
+            "livre-array",
             delimited(
                 b'[',
                 repeat(

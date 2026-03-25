@@ -29,7 +29,6 @@ use crate::{
             Operator,
         },
     },
-    debug,
     extraction::{extract, Extract, Name, PDFString},
 };
 
@@ -252,8 +251,7 @@ where
                     return Err(ContentError::UnexpectedTextShowingOperator(op));
                 }
                 _ => {
-                    // FIXME: Use proper logging.
-                    debug!("Skipping operator: {:?}", operator);
+                    tracing::debug!("Skipping operator: {:?}", operator);
                 }
             }
         }
@@ -328,7 +326,7 @@ where
                 Operator::EndText(_) => return None,
                 Operator::Text(op) => op.apply(&mut self.text_object),
                 _ => {
-                    debug!("Skipping operator: {:?}", op);
+                    tracing::debug!("Skipping operator: {:?}", op);
                 }
             }
         }
