@@ -2,10 +2,6 @@
 
 How to use Livre to parse PDF documents and extract their content.
 
-## Index
-
-- [usage](usage.md) — How to use the library.
-
 ## Quick Start
 
 ```rust

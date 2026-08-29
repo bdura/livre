@@ -2,10 +2,6 @@
 
 How to extract text and other content from PDF pages.
 
-## Index
-
-- [content-extraction](content-extraction.md) — Extracting text and content from pages.
-
 ## Content Streams
 
 Each PDF page contains one or more **content streams** that define how to render the page's content. These streams contain a sequence of **operators** that:

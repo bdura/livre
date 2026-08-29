@@ -2,10 +2,6 @@
 
 This page documents the key architectural decisions made in Livre and their rationale.
 
-## Index
-
-- [architecture](architecture.md) — Design decisions and architecture overview.
-
 ## Design Philosophy
 
 ### Type Safety First

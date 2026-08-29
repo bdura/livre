@@ -2,20 +2,18 @@
 
 Details on how Livre parses PDF documents.
 
-## Index
-
-- [parsing](parsing.md) — Details on the parsing approach.
-
 ## PDF Parsing Strategy
 
-Livre follows the PDF specification's recommendation to parse from the end of the file:
+Livre follows the PDF specification's recommendation to parse from the end of the
+file:
 
 1. **Find `startxref`** - Locate the byte offset to the last cross-reference table
 2. **Parse xref table** - Read the cross-reference table and trailer
 3. **Follow xref chain** - If there's a previous xref table, follow it
 4. **Build xref map** - Create a complete mapping of object IDs to byte offsets
 5. **Parse catalog** - Extract the root catalog object using the xref map
-6. **Return document** - Provide access to the catalog and xref map via `InMemoryDocument`
+6. **Return document** - Provide access to the catalog and xref map via
+   `InMemoryDocument`
 
 ## Parsing Layers
 
@@ -38,13 +36,15 @@ pub trait Extract<'de> {
 ```
 
 All parsing is done using `winnow` combinators, which provide:
+
 - Composable parsers
 - Excellent error context
 - Backtracking support
 
 ### Structure Layer
 
-Located in `src/structure/`, this layer composes primitives to represent PDF document structure:
+Located in `src/structure/`, this layer composes primitives to represent PDF
+document structure:
 
 - **Trailer block**: `StartXRef`, `XRefTrailerBlock`, `Trailer`, `RefLocation`
 - **Cross-reference**: `block.rs` for xref entries, `stream.rs` for compressed xrefs
@@ -56,7 +56,8 @@ This layer does **not** resolve references - it only parses the structure.
 
 ### Reference-Following Layer
 
-Located in `src/follow_refs/`, this layer provides the mechanism to resolve indirect references:
+Located in `src/follow_refs/`, this layer provides the mechanism to resolve
+indirect references:
 
 - **`Build` trait**: Defines how to resolve a type that may contain references
 - **`Builder` trait**: Defines how to follow a reference and extract the object
@@ -180,6 +181,7 @@ The xref table is the most critical part of PDF parsing. Livre handles:
 ### Plain XRef Tables
 
 Format:
+
 ```pdf
 xref
 0 5
@@ -199,7 +201,8 @@ Parsed into `RefLocation::Compressed { stream_id, index }` entries.
 
 ### XRef Chain
 
-PDFs can have multiple xref tables (for incremental updates). Livre follows the chain:
+PDFs can have multiple xref tables (for incremental updates). Livre follows the
+chain:
 
 ```pdf
 trailer
@@ -245,12 +248,14 @@ Livre uses winnow's error system:
 - **`ErrMode::Assert`**: Internal assertion failed
 
 Context is automatically added for:
+
 - Expected tokens
 - Expected types
 - Expected structures
 
 Example error:
-```
+
+```text
 Error: expected integer, found 'a' at byte offset 1234
 ```
 

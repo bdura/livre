@@ -2,10 +2,6 @@
 
 How Livre handles PDF indirect objects and reference resolution.
 
-## Index
-
-- [reference-resolution](reference-resolution.md) — How Livre handles PDF indirect objects.
-
 ## The Problem
 
 PDF documents use **indirect objects** to enable:

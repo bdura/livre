@@ -4,7 +4,6 @@ Knowledge base for the livre PDF parsing library.
 
 ## Index
 
-- [home](index.md) — Main knowledge base entry point.
 - [features](features.md) — Core features and capabilities.
 - [architecture](architecture.md) — Design decisions and architecture overview.
 - [usage](usage.md) — How to use the library.
