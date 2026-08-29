@@ -4,7 +4,7 @@ How to extract text and other content from PDF pages.
 
 ## Index
 
-- [content-extraction](content-extraction.md) — **active.** Extracting text and content from pages.
+- [content-extraction](content-extraction.md) — Extracting text and content from pages.
 
 ## Content Streams
 

@@ -4,4 +4,4 @@ Full specifications for future features.
 
 ## Index
 
-- [specs](specs/index.md) — **active.** Specifications index.
+- [specs](specs/index.md) — Specifications index.

@@ -4,4 +4,4 @@ Implementation plans for features.
 
 ## Index
 
-- [plans](plans/index.md) — **active.** Plans index.
+- [plans](plans/index.md) — Plans index.

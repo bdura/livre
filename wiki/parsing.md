@@ -4,7 +4,7 @@ Details on how Livre parses PDF documents.
 
 ## Index
 
-- [parsing](parsing.md) — **active.** Details on the parsing approach.
+- [parsing](parsing.md) — Details on the parsing approach.
 
 ## PDF Parsing Strategy
 

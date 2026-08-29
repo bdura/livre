@@ -4,7 +4,7 @@ Livre is a type-safe PDF parser written in Rust. It provides comprehensive tools
 
 ## Index
 
-- [features](features.md) — **active.** Core features and capabilities.
+- [features](features.md) — Core features and capabilities.
 
 ## Core Capabilities
 

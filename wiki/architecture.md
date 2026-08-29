@@ -4,7 +4,7 @@ This page documents the key architectural decisions made in Livre and their rati
 
 ## Index
 
-- [architecture](architecture.md) — **active.** Design decisions and architecture overview.
+- [architecture](architecture.md) — Design decisions and architecture overview.
 
 ## Design Philosophy
 
