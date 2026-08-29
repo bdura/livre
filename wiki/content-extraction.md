@@ -4,14 +4,16 @@ How to extract text and other content from PDF pages.
 
 ## Content Streams
 
-Each PDF page contains one or more **content streams** that define how to render the page's content. These streams contain a sequence of **operators** that:
+Each PDF page contains one or more **content streams** that define how to render
+the page's content. These streams contain a sequence of **operators** that:
 
 - Set graphics state (color, line width, etc.)
 - Define paths and shapes
 - Show text
 - Show images
 
-Livre focuses on **text extraction**, with support for other content types planned for future versions.
+Livre focuses on **text extraction**, with support for other content types planned
+for future versions.
 
 ## Text Operators
 
@@ -22,11 +24,13 @@ Livre parses text operators into the `TextOperator` enum:
 These operators display text:
 
 - **`Tj`** - Show text string
+
   ```rust
   TextOperator::TextShowingOperator(PDFString)
   ```
 
 - **`TJ`** - Show text array (with individual glyph positioning)
+
   ```rust
   TextOperator::TextShowingOperator(Vec<TextArrayElement>)
   ```
@@ -39,11 +43,13 @@ These operators display text:
 These operators move the text position:
 
 - **`Td`** - Move text position
+
   ```rust
   TextOperator::TextPositioningOperator { tx: f32, ty: f32 }
   ```
 
 - **`TD`** - Move text position and set leading
+
   ```rust
   TextOperator::TextPositioningOperator { tx: f32, ty: f32, leading: Option<f32> }
   ```
@@ -56,6 +62,7 @@ These operators move the text position:
 These operators modify text state:
 
 - **`Tf`** - Set font and font size
+
   ```rust
   TextOperator::TextStateOperator(TextStateOperator::SetFontAndFontSize { font: Name, size: f32 })
   ```
@@ -162,7 +169,8 @@ pub struct TextMatrix {
 ```
 
 This is a 3x3 affine transformation matrix:
-```
+
+```text
 [ a  b  0 ]
 [ c  d  0 ]
 [ e  f  1 ]
@@ -240,7 +248,8 @@ Standard PDF encoding for text in the PDF document itself.
 
 ### Font-Specific Encoding
 
-Each font defines its own encoding. Livre currently does not parse font encodings (planned for v0.6.0).
+Each font defines its own encoding. Livre currently does not parse font encodings
+(planned for v0.6.0).
 
 ### Unicode
 
@@ -249,6 +258,7 @@ Modern PDFs typically use Unicode (UTF-16BE) for text.
 ### Handling Encodings
 
 Livre returns text as `PDFString` which can be:
+
 - `LiteralString` - Text in parentheses: `(Hello)`
 - `HexadecimalString` - Text in angle brackets: `<48656C6C6F>`
 
@@ -277,7 +287,8 @@ As of v0.5.0, Livre's content extraction has these limitations:
 
 ### Text-Specific Limitations
 
-- **Character positioning**: Without font metrics, character positions are approximate
+- **Character positioning**: Without font metrics, character positions are
+  approximate
 - **Ligatures**: Not handled specially
 - **Kerning**: Not applied
 - **Text direction**: Always left-to-right (no RTL, vertical, or bidirectional text)
@@ -288,6 +299,7 @@ As of v0.5.0, Livre's content extraction has these limitations:
 ### v0.6.0: Font Parsing
 
 Planned features:
+
 - Parse font dictionaries
 - Extract font metrics (widths, bounding boxes)
 - Calculate accurate character positions
@@ -306,6 +318,7 @@ Planned features:
 ### Handling Line Breaks
 
 PDF doesn't have explicit line break characters. Look for:
+
 - `T*` operator (move to next line)
 - `Td` with ty != 0 (vertical movement)
 - `TD` operator (movement with leading)
@@ -313,6 +326,7 @@ PDF doesn't have explicit line break characters. Look for:
 ### Handling Spacing
 
 Text spacing comes from multiple sources:
+
 - Character spacing (`Tc` operator)
 - Word spacing (`Tw` operator)
 - Horizontal scaling (`Tz` operator)
@@ -321,21 +335,25 @@ Text spacing comes from multiple sources:
 ### Handling Fonts
 
 Without font parsing, you can still:
+
 - Get font names from the `Tf` operator
 - Get font sizes
 - Extract text content
 - Get approximate positioning
 
-For accurate rendering, you'll need to wait for v0.6.0 or implement font parsing yourself.
+For accurate rendering, you'll need to wait for v0.6.0 or implement font parsing
+yourself.
 
 ### Performance
 
 Content parsing can be slow for pages with:
+
 - Many text operators
 - Complex paths
 - Large images
 
 For better performance:
+
 - Only parse pages you need
 - Use `parse_text_object` for text-focused extraction
 - Avoid holding all pages in memory at once

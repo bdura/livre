@@ -1,12 +1,14 @@
 # Livre Features
 
-Livre is a type-safe PDF parser written in Rust. It provides comprehensive tools for reading and extracting data from PDF documents.
+Livre is a type-safe PDF parser written in Rust. It provides comprehensive tools
+for reading and extracting data from PDF documents.
 
 ## Core Capabilities
 
 ### Type-Safe Parsing
 
-Livre's primary feature is **type-safe extraction of PDF objects**. Every PDF primitive type has a dedicated Rust type:
+Livre's primary feature is **type-safe extraction of PDF objects**. Every PDF
+primitive type has a dedicated Rust type:
 
 - **Booleans**: `bool`
 - **Integers**: `i32`, `i64`
@@ -59,6 +61,7 @@ PDF streams can be compressed. Livre currently supports:
 - **FlateDecode**: Zlib compression (most common)
 
 Planned support for:
+
 - ASCII85Decode
 - ASCIIHexDecode
 - LZWDecode
@@ -75,7 +78,8 @@ Livre provides proc-macro derive support for:
 
 - **`#[derive(Extract)]`**: Generate parsing logic for custom types
 - **`#[derive(FromRawDict)]`**: Generate dictionary extraction logic
-- **`#[derive(BuildFromRawDict)]`**: Generate reference-resolving dictionary extraction
+- **`#[derive(BuildFromRawDict)]`**: Generate reference-resolving dictionary
+  extraction
 
 ## Current Limitations
 

@@ -5,17 +5,20 @@ How Livre handles PDF indirect objects and reference resolution.
 ## The Problem
 
 PDF documents use **indirect objects** to enable:
+
 - Random access to objects
 - Object reuse (multiple references to the same object)
 - Append-only modifications
 
 Each indirect object has a unique identifier: `N M` where:
+
 - `N` = object number
 - `M` = generation number (usually 0)
 
 References to these objects use the syntax: `N M R`
 
 Example:
+
 ```pdf
 % Object definition
 1 0 obj
@@ -41,7 +44,8 @@ pub struct Reference<T> {
 }
 ```
 
-The generic parameter `T` ensures type safety - you can't accidentally use a reference to a `Page` where a reference to a `Font` is expected.
+The generic parameter `T` ensures type safety - you can't accidentally use a
+reference to a `Page` where a reference to a `Font` is expected.
 
 ### 2. Build Trait
 
@@ -56,6 +60,7 @@ pub trait Build {
 ```
 
 This is implemented for:
+
 - Primitive types (they don't contain references, so just `Extract`)
 - `Reference<T>` (follow the reference using the builder)
 - `OptRef<T>` (either direct value or reference)
@@ -88,18 +93,23 @@ When `build_reference` is called:
 ```rust
 fn build_reference<T>(&self, Reference { id, .. }: Reference<T>) -> ModalResult<T> {
     // 1. Look up the object's location in the xref table
-    let &offset = self.xrefs.get(&id)
+    let &offset = self
+        .xrefs
+        .get(&id)
         .ok_or(ErrMode::Backtrack(ContextError::new()))?;
-    
+
     // 2. Get the bytes at that location
     let input = &mut self.input[offset..].as_ref();
-    
+
     // 3. Parse the Indirect object
-    let Indirect { id: reference_id, inner } = Indirect::parse(input, self.as_parser())?;
-    
+    let Indirect {
+        id: reference_id,
+        inner,
+    } = Indirect::parse(input, self.as_parser())?;
+
     // 4. Verify the ID matches
     debug_assert_eq!(reference_id, id);
-    
+
     // 5. Return the inner value
     Ok(inner)
 }
@@ -112,6 +122,7 @@ Livre supports two types of reference locations:
 ### Plain References
 
 Most common format. The xref table contains:
+
 ```pdf
 0000000100 00000 n 
 ```
@@ -142,6 +153,7 @@ The xref table points to the stream object, and the index within it:
 Parsed as: `RefLocation::Compressed { stream_id, index }`
 
 When resolving:
+
 1. Parse the object stream
 2. Extract the specific object at the given index
 
@@ -180,7 +192,8 @@ pub trait BuildFromRawDict {
 }
 ```
 
-This is automatically derived for structs with the `#[derive(BuildFromRawDict)]` macro.
+This is automatically derived for structs with the `#[derive(BuildFromRawDict)]`
+macro.
 
 ## Lazy Resolution
 
@@ -198,6 +211,7 @@ let page: Page = builder.build_reference(page_ref)?;
 ```
 
 This means:
+
 - You can have many references without parsing everything
 - Only accessed objects are parsed
 - Memory usage is proportional to what you actually use
@@ -205,21 +219,25 @@ This means:
 
 ## Multiple Builder Strategies
 
-While `InMemoryBuilder` is the primary implementation, the `Builder` trait allows other strategies:
+While `InMemoryBuilder` is the primary implementation, the `Builder` trait allows
+other strategies:
 
 ### Potential Future Implementations
 
 **FileBackedBuilder**:
+
 - Keep PDF on disk
 - Only load object bytes when needed
 - Better for very large PDFs
 
 **CachedBuilder**:
+
 - Cache parsed objects
 - Avoid re-parsing the same object multiple times
 - Useful when the same object is referenced many times
 
 **ValidatingBuilder**:
+
 - Validate objects as they're parsed
 - Check for corruption
 - Verify cross-references
@@ -276,11 +294,13 @@ let catalog = builder.build_reference(doc.catalog)?;
 ## Performance
 
 Reference resolution is very fast:
+
 - HashMap lookup: O(1)
 - Byte slice: O(1) (just a pointer)
 - Parsing: Depends on object complexity
 
 For a typical PDF with 1000 objects:
+
 - Building xref map: ~1ms
 - Resolving a reference: ~1-10μs
 - Parsing a simple object: ~1-5μs

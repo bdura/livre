@@ -39,6 +39,7 @@ let doc = InMemoryDocument::extract(&mut input)?;
 ```
 
 The `InMemoryDocument` contains:
+
 - `catalog`: The root `Catalog` object
 - `builder`: An `InMemoryBuilder` for resolving references
 
@@ -175,7 +176,7 @@ match InMemoryDocument::extract(&mut input) {
 ### Implementing Extract
 
 ```rust
-use livre::extraction::{Extract, extract};
+use livre::extraction::{extract, Extract};
 use winnow::{combinator::trace, BStr, ModalResult, Parser};
 
 struct MyType {
@@ -225,11 +226,14 @@ let parser = trace("my-parser", |i: &mut &BStr| {
 
 ### Handling Compressed Objects
 
-Livre automatically handles object streams (compressed cross-reference tables). You don't need to do anything special - the `InMemoryBuilder` handles it transparently.
+Livre automatically handles object streams (compressed cross-reference tables).
+You don't need to do anything special - the `InMemoryBuilder` handles it
+transparently.
 
 ### Memory Considerations
 
 `InMemoryDocument` loads the entire PDF into memory. For very large PDFs:
+
 - Consider processing pages one at a time
 - Don't hold references to all pages simultaneously
 - Use streaming parsers for content when possible
@@ -237,6 +241,7 @@ Livre automatically handles object streams (compressed cross-reference tables). 
 ## Examples
 
 See the `examples/` directory for runnable examples:
+
 - `content.rs` - Extract raw content streams
 - `doc.rs` - Parse document and extract page content
 - `text.rs` - Extract text operators from pages
