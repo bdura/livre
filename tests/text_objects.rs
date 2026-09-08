@@ -1,4 +1,4 @@
-use std::{fs::File, io::Read};
+use std::{collections::HashMap, fs::File, io::Read};
 
 use livre::{
     content::{operators::Operator, parse_text_object},
@@ -24,7 +24,7 @@ fn read_document(path: &str) -> InMemoryDocument {
 #[rstest]
 #[case("tests/resources/letter.pdf")]
 #[case("tests/resources/text.pdf")]
-fn test_content(#[case] path: &str) {
+fn test_objects(#[case] path: &str) {
     let doc = read_document(path);
 
     for page in doc.pages().unwrap().iter() {
@@ -33,7 +33,7 @@ fn test_content(#[case] path: &str) {
 
         let mut it = iterator(&mut stream, preceded(multispace0, Operator::extract));
 
-        while let Some(mut text_state) = parse_text_object(&mut it).unwrap() {
+        while let Some(mut text_state) = parse_text_object(&mut it, &HashMap::new()).unwrap() {
             println!();
             for (position, text) in &mut text_state {
                 println!("- {:?} {:?}", position, text);

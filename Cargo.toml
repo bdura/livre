@@ -4,9 +4,9 @@ members = ["livre-derive"]
 [package]
 name = "livre"
 version = "0.5.0"
-edition = "2021"
+edition = "2024"
 authors = ["Basile Dura <basile@bdura.me>"]
-rust-version = "1.82.0"
+rust-version = "1.85.0"
 
 readme = "README.md"
 description = "Livre: a type-safe PDF parser"
@@ -19,6 +19,7 @@ keywords = ["pdf"]
 winnow = "1.0"
 
 enum_dispatch = "0.3"
+phf = { version = "0.13", features = ["macros"] }
 
 # Filtering
 flate2 = "1"

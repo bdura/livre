@@ -1,4 +1,4 @@
-use std::{fs::File, io::Read};
+use std::{collections::HashMap, fs::File, io::Read};
 
 use livre::{
     content::{operators::Operator, parse_text_object},
@@ -32,7 +32,7 @@ fn main() {
 
             let mut it = iterator(&mut stream, preceded(multispace0, Operator::extract));
 
-            while let Some(mut text_state) = parse_text_object(&mut it).unwrap() {
+            while let Some(mut text_state) = parse_text_object(&mut it, &HashMap::new()).unwrap() {
                 println!("NEW TEXT OBJECT");
                 for (position, text) in &mut text_state {
                     println!("- {:?} {:?}", position, text);

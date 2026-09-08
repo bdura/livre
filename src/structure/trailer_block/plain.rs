@@ -4,14 +4,14 @@
 use std::{fmt::Debug, str::FromStr};
 
 use winnow::{
+    BStr, ModalParser, ModalResult, Parser,
     ascii::{line_ending, multispace0, multispace1},
     combinator::{alt, delimited, iterator, repeat, separated_pair, terminated, trace},
     error::ContextError,
     token::take_while,
-    BStr, ModalParser, ModalResult, Parser,
 };
 
-use crate::extraction::{extract, Extract, ReferenceId};
+use crate::extraction::{Extract, ReferenceId, extract};
 
 use super::{RefLocation, XRefTrailerBlock};
 
@@ -45,7 +45,7 @@ where
 /// ```
 fn xref_entry(input: &mut &BStr) -> ModalResult<(usize, u16, bool)> {
     trace("livre-ref-entry", move |i: &mut &BStr| {
-        let (offset, gen) = separated_pair(dec_num(10), b' ', dec_num(5)).parse_next(i)?;
+        let (offset, generation) = separated_pair(dec_num(10), b' ', dec_num(5)).parse_next(i)?;
 
         let in_use = delimited(
             b' ',
@@ -54,7 +54,7 @@ fn xref_entry(input: &mut &BStr) -> ModalResult<(usize, u16, bool)> {
         )
         .parse_next(i)?;
 
-        Ok((offset, gen, in_use))
+        Ok((offset, generation, in_use))
     })
     .parse_next(input)
 }
@@ -76,11 +76,11 @@ fn xref_subsection(input: &mut &BStr) -> ModalResult<Vec<(ReferenceId, usize)>> 
     let res = entries
         .into_iter()
         .enumerate()
-        .filter_map(|(i, (offset, gen, in_use))| {
+        .filter_map(|(i, (offset, generation, in_use))| {
             if !in_use {
                 return None;
             }
-            Some((ReferenceId::new(initial + i, gen), offset))
+            Some((ReferenceId::new(initial + i, generation), offset))
         })
         .collect();
 

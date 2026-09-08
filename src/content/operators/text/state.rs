@@ -47,12 +47,22 @@ impl PreTextOperation for SetWordSpacing {
 }
 
 /// `Tz` operator.
+///
+/// Adjusts the width of glyphs by stretching or compressing them in the horizontal direction.
+/// Its value is the normalized value of the operand to the Tz operator which shall be specified
+/// as a percentage of the normal width of the glyphs, with 100 being the normal width of 100%,
+/// representing a scaling value of 1.0 for $T_h$.
+///
+/// ```raw
+/// 100 Tz
+/// 50 Tz
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Extract)]
 pub struct SetHorizontalScaling(f32);
 
 impl PreTextOperation for SetHorizontalScaling {
     fn preapply(self, _: &mut TextMatrix, parameters: &mut TextStateParameters) {
-        parameters.horizontal_scaling = self.0;
+        parameters.horizontal_scaling = self.0 / 100.0;
     }
 }
 

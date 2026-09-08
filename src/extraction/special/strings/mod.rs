@@ -44,6 +44,12 @@ impl From<&str> for PDFString {
     }
 }
 
+impl From<String> for PDFString {
+    fn from(value: String) -> Self {
+        Self(value.into())
+    }
+}
+
 impl From<HexadecimalString> for PDFString {
     fn from(HexadecimalString(value): HexadecimalString) -> Self {
         Self(value)
