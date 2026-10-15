@@ -1,0 +1,39 @@
+# PDF fixtures, byte for byte: trailing spaces and line endings are syntax.
+exclude = "^tests/resources/"
+
+[[repos]]
+repo = "builtin"
+hooks = [
+  # Rust string literals hold PDF fixtures too; rustfmt covers the code.
+  { id = "trailing-whitespace", exclude = "\\.rs$" },
+  { id = "end-of-file-fixer" },
+  { id = "mixed-line-ending" },
+  { id = "check-merge-conflict" },
+  { id = "check-added-large-files" },
+  { id = "check-case-conflict" },
+  { id = "check-toml" },
+  { id = "check-yaml" },
+  { id = "detect-private-key" },
+  { id = "check-executables-have-shebangs" },
+]
+
+[[repos]]
+repo = "local"
+
+[[repos.hooks]]
+id = "cargo-fmt"
+name = "cargo fmt"
+entry = "cargo fmt --all"
+language = "system"
+types = ["rust"]
+pass_filenames = false
+
+# Slower than a commit should wait for, so it runs on push.
+[[repos.hooks]]
+id = "cargo-clippy"
+name = "cargo clippy"
+entry = "cargo clippy --locked --workspace --all-features --all-targets -- --deny warnings"
+language = "system"
+types = ["rust"]
+pass_filenames = false
+stages = ["pre-push"]
