@@ -8,7 +8,6 @@
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    # The checks; crane takes no inputs of its own.
     crane.url = "github:ipetkov/crane";
   };
 
