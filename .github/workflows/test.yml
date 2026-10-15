@@ -4,31 +4,17 @@ on:
   pull_request:
 
 jobs:
+  # Every check is a flake check: `nix flake check` locally runs the same.
   required:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout & Nix setup
       - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
+      # The Nix store cache, in the repository's Actions cache: without it
+      # every run rebuilds the dependencies.
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - uses: DeterminateSystems/flake-checker-action@main
-      - uses: nicknovitski/nix-develop@v1
 
-      # Rust setup
-      - uses: Swatinem/rust-cache@v2
-      - name: cargo generate-lockfile
-        # enable this ci template to run regardless of whether the lockfile is checked in or not
-        if: hashFiles('Cargo.lock') == ''
-        run: cargo generate-lockfile
-
-      - name: cargo fmt --check
-        run: cargo fmt --check
-      - name: cargo clippy --locked
-        run: cargo clippy --locked --all-features --all-targets
-      # https://twitter.com/jonhoo/status/1571290371124260865
-      - name: cargo test --locked
-        run: cargo test --locked --all-features --all-targets -- --include-ignored
-      # https://github.com/rust-lang/cargo/issues/6669
-      - name: cargo test --doc
-        run: cargo test --locked --all-features --doc
+      - name: nix flake check
+        run: nix flake check -L --keep-going
