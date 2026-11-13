@@ -20,7 +20,10 @@ fn read_document(path: &str) -> InMemoryDocument {
 }
 
 fn main() {
-    let paths = &["tests/resources/letter.pdf"];
+    let paths = &[concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/resources/letter.pdf"
+    )];
 
     for path in paths {
         let doc = read_document(path);

@@ -62,7 +62,7 @@ type-safe manner.
 
 ## Entry Point
 
-Execution begins in `src/lib.rs` which exports the main `InMemoryDocument` type.
+Execution begins in `crates/livre/src/lib.rs` which exports the main `InMemoryDocument` type.
 The primary entry point for users is:
 
 ```rust
@@ -87,6 +87,19 @@ From there, users can call `doc.pages()` to get the page tree, then iterate over
 pages and extract their content.
 
 ## Code Map
+
+The repository is a virtual Cargo workspace: every crate lives under `crates/`,
+and the root manifest only lists the members and their shared package metadata.
+
+```text
+├── Cargo.toml                 # Virtual workspace: members, shared package metadata
+├── crates/
+│   ├── livre/                 # The library, with its examples, tests and changelog
+│   └── livre-derive/          # Proc-macro crate for the derive macros
+└── nix/                       # Flake checks (crane) and toolchains
+```
+
+### `crates/livre/`
 
 ```text
 ├── src/
@@ -139,17 +152,6 @@ pages and extract their content.
 │           ├── mod.rs
 │           └── text.rs
 │
-├── livre-derive/              # Proc-macro crate for derive macros
-│   ├── src/
-│   │   ├── lib.rs            # Entry points and crate docs (shapes, attributes)
-│   │   ├── attrs.rs          # Syntactic parse of #[livre(...)], duplicates rejected
-│   │   ├── plan.rs           # FieldPlan / ContainerPlan: modes, keys, validation
-│   │   ├── dict.rs           # Generator for FromRawDict and BuildFromRawDict
-│   │   ├── extract.rs        # Generator for Extract
-│   │   └── generics.rs       # Trait bounds on type parameters
-│   ├── README.md
-│   └── Cargo.toml
-│
 ├── examples/                  # Runnable examples
 │   ├── content.rs            # Extract raw content streams
 │   ├── doc.rs               # Parse document and extract page content
@@ -165,7 +167,23 @@ pages and extract their content.
     └── resources/            # Test PDF files
 ```
 
+### `crates/livre-derive/`
+
+```text
+├── src/
+│   ├── lib.rs            # Entry points and crate docs (shapes, attributes)
+│   ├── attrs.rs          # Syntactic parse of #[livre(...)], duplicates rejected
+│   ├── plan.rs           # FieldPlan / ContainerPlan: modes, keys, validation
+│   ├── dict.rs           # Generator for FromRawDict and BuildFromRawDict
+│   ├── extract.rs        # Generator for Extract
+│   └── generics.rs       # Trait bounds on type parameters
+├── README.md
+└── Cargo.toml
+```
+
 ### Key Components
+
+Paths are relative to `crates/livre/src/`.
 
 **`InMemoryDocument`** (document.rs): The main document type. Holds the catalog
 and a builder that can resolve references. Provides the `pages()` method to access
