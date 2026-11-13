@@ -52,6 +52,23 @@
           rev = self.rev or self.dirtyRev or "unknown";
         };
 
+        # Serves the built demo locally; extra arguments go to static-web-server.
+        apps.demo = {
+          type = "app";
+          program = pkgs.lib.getExe (pkgs.writeShellApplication {
+            name = "demo";
+            runtimeInputs = [pkgs.static-web-server];
+            text = ''
+              port=''${PORT:-8000}
+              echo "Serving the livre demo on http://localhost:$port"
+              # Without `--cache-control-headers false`, the browser keeps `app.js` and the
+              # wasm bindings for up to a year: their names do not change between builds.
+              exec static-web-server --root ${self.packages.${system}.demo} --host 127.0.0.1 --port "$port" \
+                --cache-control-headers false "$@"
+            '';
+          });
+        };
+
         # Writes the generated fixtures into the tree; run from the repository root.
         apps.fixtures = {
           type = "app";
