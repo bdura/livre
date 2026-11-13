@@ -96,6 +96,8 @@
             pkgs.prek
             # The browser demo's crate pins `wasm-bindgen` to this version.
             pkgs.wasm-bindgen-cli
+            # Compiles the demo page's `tailwind.css` into `style.css`.
+            pkgs.tailwindcss_4
           ];
 
           RUST_BACKTRACE = "1";

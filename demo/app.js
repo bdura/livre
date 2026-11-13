@@ -10,17 +10,19 @@ const PDFJS = "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.5.438/build";
 const pdfjs = await import(`${PDFJS}/pdf.min.mjs`);
 pdfjs.GlobalWorkerOptions.workerSrc = `${PDFJS}/pdf.worker.min.mjs`;
 
-const ISSUES = "https://github.com/bdura/livre/issues/new";
+const REPOSITORY = "https://github.com/bdura/livre";
+const ISSUES = `${REPOSITORY}/issues/new`;
 
 const $ = (id) => document.getElementById(id);
 const ui = {
   fixture: $("fixture"),
+  fileOption: $("file-option"),
+  open: $("open"),
   file: $("file"),
   prev: $("prev"),
   next: $("next"),
   page: $("page"),
   total: $("total"),
-  filename: $("filename"),
   banners: $("banners"),
   dropzone: $("dropzone"),
   viewer: $("viewer"),
@@ -30,6 +32,19 @@ const ui = {
   version: $("version"),
   layerLivre: $("layer-livre"),
   layerPdfjs: $("layer-pdfjs"),
+  tabs: [...document.querySelectorAll('[role="tab"]')],
+  objects: $("objects"),
+  objectsCount: $("objects-count"),
+  runEmpty: $("run-empty"),
+  runDetails: $("run-details"),
+  runText: $("run-text"),
+  runPinned: $("run-pinned"),
+  runFont: $("run-font"),
+  runOrigin: $("run-origin"),
+  runBytes: $("run-bytes"),
+  countRuns: $("count-runs"),
+  countObjects: $("count-objects"),
+  countItems: $("count-items"),
 };
 
 /**
@@ -49,6 +64,8 @@ export const state = {
   pageNumber: 1,
   numPages: 0,
   viewport: null,
+  /** The run the inspector keeps showing, as `{ object, run }` indices, or null. */
+  pinned: null,
 };
 
 /**
@@ -60,7 +77,11 @@ export const overlays = [];
 // With no DTO for the page (livre failed earlier), draw nothing: the banner explains why.
 overlays.push((svg, { viewport }) => {
   const page = livrePage();
-  if (page) drawLivreLayer(svg, page, viewport);
+  if (!page) return;
+  drawLivreLayer(svg, page, viewport);
+  // The markers are new elements, after a resize say: mark them again.
+  markActiveRun(hoveredRun ?? state.pinned);
+  highlightHull(highlightedObject);
 });
 
 // Drawn whatever livre made of the page: it is the reference livre is judged against.
@@ -70,13 +91,17 @@ overlays.push(async (svg, { pdf, pageNumber, viewport }) => {
   try {
     const page = await pdf.getPage(pageNumber);
     if (stale()) return;
-    await drawGroundTruthLayer(svg, page, viewport, () => !stale());
+    const layer = await drawGroundTruthLayer(svg, page, viewport, () => !stale());
+    if (layer) ui.countItems.textContent = layer.childElementCount;
   } catch (e) {
     // A load destroys the previous document mid-fetch; only a current failure matters.
     if (!stale()) throw e;
   }
 });
 
+// The run under the pointer and the text object hovered in the inspector's list.
+let hoveredRun = null;
+let highlightedObject = null;
 let loadToken = 0;
 // The pdf.js loading task of the current document: destroying it frees its worker side.
 let loadingTask = null;
@@ -100,7 +125,7 @@ async function load(name, bytes) {
     numPages: 0,
     viewport: null,
   });
-  ui.filename.textContent = name;
+  showSource(name);
 
   let pdfError = null;
   try {
@@ -139,10 +164,26 @@ async function loadFile(file) {
 /** Show page `n`, clamped to the pages pdf.js found. */
 async function show(n, pdfError = null) {
   state.pageNumber = Math.min(Math.max(1, n), Math.max(1, state.numPages));
+  state.pinned = null;
+  hoveredRun = null;
+  highlightedObject = null;
   updatePager();
   showBanners(livrePage(), pdfError && `pdf.js could not open this file: ${pdfError.message}`);
   showJson();
+  showInspector();
   await render();
+}
+
+/** Name the shown document in the sample select, through a stand-in option for a file. */
+function showSource(name) {
+  const fixture = [...ui.fixture.options].find((option) => option !== ui.fileOption && option.value === name);
+  ui.fileOption.hidden = Boolean(fixture);
+  if (fixture) {
+    ui.fixture.value = name;
+  } else {
+    ui.fileOption.textContent = name;
+    ui.fileOption.selected = true;
+  }
 }
 
 /** livre's DTO for the current page, if livre got that far. */
@@ -255,17 +296,9 @@ function stageBanner({ stage, message }, page) {
     "```",
   ].join("\n");
 
-  const banner = document.createElement("div");
-  banner.className = "banner";
-  banner.setAttribute("role", "alert");
-
-  const title = document.createElement("strong");
-  title.textContent = `livre failed at the ${stage} stage${where}`;
-  const pre = document.createElement("pre");
-  pre.textContent = message;
-
   const copy = document.createElement("button");
   copy.type = "button";
+  copy.className = "strip-action";
   copy.textContent = "Copy details";
   copy.addEventListener("click", async () => {
     try {
@@ -281,19 +314,51 @@ function stageBanner({ stage, message }, page) {
   issue.href = `${ISSUES}?title=${encodeURIComponent(issueTitle)}&body=${encodeURIComponent(report)}`;
   issue.target = "_blank";
   issue.rel = "noopener";
-  issue.textContent = "Open an issue";
+  issue.className = "strip-action";
+  issue.textContent = "Open an issue ↗";
 
-  const actions = document.createElement("div");
-  actions.className = "actions";
-  actions.append(copy, issue);
-  banner.append(title, pre, actions);
-  return banner;
+  const title = document.createElement("strong");
+  title.className = "font-medium text-amber-950 dark:text-amber-100";
+  const code = document.createElement("code");
+  code.className = "rounded bg-amber-500/15 px-1 font-mono";
+  code.textContent = stage;
+  title.append("livre failed at the ", code, ` stage${where}.`);
+
+  const pre = document.createElement("pre");
+  pre.className = "mt-1 max-h-24 overflow-auto font-mono text-xs break-all whitespace-pre-wrap text-amber-900/70 dark:text-amber-200/60";
+  pre.textContent = message;
+
+  return strip([title, pre], [copy, issue]);
 }
 
 function plainBanner(text) {
+  const title = document.createElement("strong");
+  title.className = "font-medium text-amber-950 dark:text-amber-100";
+  title.textContent = text;
+  return strip([title], []);
+}
+
+/** An amber strip under the header: a warning sign, `body`, then `actions` on the right. */
+function strip(body, actions) {
   const banner = document.createElement("div");
-  banner.className = "banner";
-  banner.textContent = text;
+  banner.className =
+    "flex items-start gap-3 border-b border-amber-300/60 bg-amber-50 px-4 py-2.5 text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200";
+  banner.setAttribute("role", "alert");
+
+  const sign = document.createElement("span");
+  sign.className = "text-amber-500 dark:text-amber-400";
+  sign.setAttribute("aria-hidden", "true");
+  sign.textContent = "⚠";
+
+  const main = document.createElement("div");
+  main.className = "min-w-0 flex-1";
+  main.append(...body);
+
+  const side = document.createElement("div");
+  side.className = "flex shrink-0 flex-wrap gap-2";
+  side.append(...actions);
+
+  banner.append(sign, main, side);
   return banner;
 }
 
@@ -303,21 +368,128 @@ function showJson() {
   ui.json.textContent = JSON.stringify(shown, null, 2);
 }
 
+/** Refill the inspector for the current page: counts, text object list, run panel. */
+function showInspector() {
+  const page = livrePage();
+  const objects = page?.text_objects ?? [];
+  const runs = objects.reduce((total, object) => total + object.runs.length, 0);
+  // A dash, not 0, when livre never reached the page.
+  ui.countRuns.textContent = page ? runs : "–";
+  ui.countObjects.textContent = page ? objects.length : "–";
+  // Filled in by the pdf.js layer once it has the page's text content.
+  ui.countItems.textContent = "–";
+  ui.objectsCount.textContent = objects.length;
+
+  ui.objects.replaceChildren(
+    ...objects.map((object, index) => {
+      const item = document.createElement("li");
+      item.className =
+        "flex items-baseline gap-3 rounded-lg px-2.5 py-1.5 hover:bg-zinc-100 dark:hover:bg-white/5";
+      item.dataset.object = index;
+
+      const number = document.createElement("span");
+      number.className = "w-8 shrink-0 text-right font-mono text-xs text-zinc-400 tabular-nums dark:text-zinc-600";
+      number.textContent = index + 1;
+
+      const text = document.createElement("span");
+      text.className = "min-w-0 flex-1 truncate font-mono text-xs text-zinc-800 dark:text-zinc-200";
+      text.textContent = object.runs.length ? JSON.stringify(object.runs[0].text) : "(no runs)";
+
+      const count = document.createElement("span");
+      count.className = "shrink-0 text-xs text-zinc-400 dark:text-zinc-500";
+      count.textContent = `${object.runs.length} run${object.runs.length === 1 ? "" : "s"}`;
+
+      item.append(number, text, count);
+      return item;
+    }),
+  );
+
+  showRun(null);
+}
+
+/** Show the run at `indices` (`{ object, run }`) in the Run tab, or the empty state. */
+function showRun(indices) {
+  const run = indices && livrePage()?.text_objects[indices.object]?.runs[indices.run];
+  ui.runEmpty.hidden = Boolean(run);
+  ui.runDetails.hidden = !run;
+  markActiveRun(run ? indices : null);
+  if (!run) return;
+
+  // JSON quoting shows control characters such as the NULs of 2-byte composite strings.
+  ui.runText.textContent = JSON.stringify(run.text);
+  ui.runPinned.hidden = !samePlace(indices, state.pinned);
+  ui.runFont.textContent = `${run.font || "(none)"} · ${round(run.size)}`;
+  ui.runOrigin.textContent = `(${round(run.x)}, ${round(run.y)})`;
+  ui.runBytes.textContent = run.bytes.match(/../g)?.join(" ") ?? "";
+}
+
+function markActiveRun(indices) {
+  for (const marker of ui.overlay.querySelectorAll("g.livre .run.active")) marker.classList.remove("active");
+  if (!indices) return;
+  ui.overlay
+    .querySelector(`g.livre .run[data-object="${indices.object}"][data-run="${indices.run}"]`)
+    ?.classList.add("active");
+}
+
+function highlightHull(object) {
+  highlightedObject = object;
+  for (const hull of ui.overlay.querySelectorAll("g.livre .hull.highlight")) hull.classList.remove("highlight");
+  if (object === null) return;
+  ui.overlay.querySelector(`g.livre .hull[data-object="${object}"]`)?.classList.add("highlight");
+}
+
+/** The `{ object, run }` indices of the marker `target` belongs to, if any. */
+function runIndices(target) {
+  const marker = target.closest?.("g.livre .run");
+  if (!marker) return null;
+  return { object: Number(marker.dataset.object), run: Number(marker.dataset.run) };
+}
+
+function samePlace(a, b) {
+  return Boolean(a && b && a.object === b.object && a.run === b.run);
+}
+
+function round(value) {
+  return Math.round(value * 100) / 100;
+}
+
+function selectTab(selected) {
+  for (const tab of ui.tabs) {
+    const active = tab === selected;
+    tab.setAttribute("aria-selected", active);
+    tab.tabIndex = active ? 0 : -1;
+    $(tab.getAttribute("aria-controls")).hidden = !active;
+  }
+}
+
 async function showVersion() {
   try {
     const response = await fetch("./version.json");
     if (!response.ok) return;
     const { version, commit } = await response.json();
-    ui.version.textContent = `livre ${version} · ${commit}`;
+    // A dirty tree is built from the commit it started at: link to that one.
+    const [hash, dirty] = commit.split("-");
+    if (!/^[0-9a-f]{40}$/.test(hash)) {
+      ui.version.textContent = `livre ${version} · ${commit}`;
+      return;
+    }
+    const link = document.createElement("a");
+    link.href = `${REPOSITORY}/commit/${hash}`;
+    link.className = "hover:text-zinc-700 dark:hover:text-zinc-300";
+    link.textContent = `${hash.slice(0, 7)}${dirty ? `-${dirty}` : ""}`;
+    ui.version.replaceChildren(`livre ${version} · `, link);
   } catch {
     // No version.json in local development: leave the footer bare.
   }
 }
 
 ui.fixture.addEventListener("change", () => loadFixture(ui.fixture.value));
+ui.open.addEventListener("click", () => ui.file.click());
 ui.file.addEventListener("change", () => {
   const [file] = ui.file.files;
   if (file) loadFile(file);
+  // Opening the same file again must fire `change` again.
+  ui.file.value = "";
 });
 // A class on the <svg>, not on the group, so the choice survives the redraw of each render.
 const syncLayers = () => {
@@ -331,14 +503,55 @@ ui.prev.addEventListener("click", () => show(state.pageNumber - 1));
 ui.next.addEventListener("click", () => show(state.pageNumber + 1));
 ui.page.addEventListener("change", () => show(Number(ui.page.value) || 1));
 
+// The markers live in the <svg>, rebuilt on each render: listen on the <svg> itself.
+ui.overlay.addEventListener("pointerover", (event) => {
+  const indices = runIndices(event.target);
+  if (!indices) return;
+  hoveredRun = indices;
+  showRun(indices);
+});
+ui.overlay.addEventListener("pointerout", (event) => {
+  // Moving between the parts of one marker is not leaving it.
+  if (!runIndices(event.target) || runIndices(event.relatedTarget ?? document.body)) return;
+  hoveredRun = null;
+  showRun(state.pinned);
+});
+ui.overlay.addEventListener("click", (event) => {
+  const indices = runIndices(event.target);
+  if (!indices) return;
+  state.pinned = samePlace(indices, state.pinned) ? null : indices;
+  showRun(indices);
+  selectTab($("tab-run"));
+});
+
+ui.objects.addEventListener("pointerover", (event) => {
+  const item = event.target.closest("li[data-object]");
+  if (item) highlightHull(Number(item.dataset.object));
+});
+ui.objects.addEventListener("pointerleave", () => highlightHull(null));
+
+for (const tab of ui.tabs) tab.addEventListener("click", () => selectTab(tab));
+// Arrow keys move between tabs, as the WAI-ARIA tabs pattern expects.
+ui.tabs[0].parentElement.addEventListener("keydown", (event) => {
+  const step = { ArrowRight: 1, ArrowLeft: -1 }[event.key];
+  if (!step) return;
+  const current = ui.tabs.indexOf(document.activeElement);
+  const next = ui.tabs[(current + step + ui.tabs.length) % ui.tabs.length];
+  selectTab(next);
+  next.focus();
+});
+
 ui.dropzone.addEventListener("dragover", (event) => {
   event.preventDefault();
-  ui.dropzone.classList.add("dragging");
+  ui.dropzone.dataset.dragging = "";
 });
-ui.dropzone.addEventListener("dragleave", () => ui.dropzone.classList.remove("dragging"));
+ui.dropzone.addEventListener("dragleave", (event) => {
+  // `dragleave` also fires when entering a child: only leaving the zone counts.
+  if (!ui.dropzone.contains(event.relatedTarget)) delete ui.dropzone.dataset.dragging;
+});
 ui.dropzone.addEventListener("drop", (event) => {
   event.preventDefault();
-  ui.dropzone.classList.remove("dragging");
+  delete ui.dropzone.dataset.dragging;
   const [file] = event.dataTransfer.files;
   if (file) loadFile(file);
 });

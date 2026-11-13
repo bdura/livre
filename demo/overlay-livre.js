@@ -15,26 +15,30 @@ const SVG = "http://www.w3.org/2000/svg";
  * page was rendered with; points go through `convertToViewportPoint`, so rotation,
  * crop box and scale apply to both overlays alike. A page with no text objects
  * yields an empty group.
+ *
+ * Each run's group carries `data-object` and `data-run`, its indices in
+ * `page.text_objects` and in that object's `runs`; each hull carries `data-object`.
+ * The page reads them to show a run in its inspector and to highlight a hull.
  */
 export function drawLivreLayer(svg, page, viewport) {
   svg.querySelector(":scope > g.livre")?.remove();
   const layer = element("g", { class: "livre" });
 
-  for (const object of page.text_objects) {
-    if (object.runs.length === 0) continue;
+  page.text_objects.forEach((object, objectIndex) => {
+    if (object.runs.length === 0) return;
     const box = new Bounds();
     let maxSize = 0;
-    for (const run of object.runs) {
+    object.runs.forEach((run, runIndex) => {
       const [bx, by] = viewport.convertToViewportPoint(run.x, run.y);
       // The tick goes up in text space, so it follows the page's rotation.
       const [tx, ty] = viewport.convertToViewportPoint(run.x, run.y + run.size);
       box.add(bx, by);
       box.add(tx, ty);
       maxSize = Math.max(maxSize, run.size);
-      layer.append(runMarker(run, [bx, by], [tx, ty]));
-    }
+      layer.append(runMarker([bx, by], [tx, ty], objectIndex, runIndex));
+    });
     const pad = maxSize * viewport.scale;
-    // Behind the markers, so it never steals their tooltips.
+    // Behind the markers, so it never takes their pointer events.
     layer.prepend(
       element("rect", {
         class: "hull",
@@ -42,27 +46,19 @@ export function drawLivreLayer(svg, page, viewport) {
         y: box.ymin - pad,
         width: box.xmax - box.xmin + 2 * pad,
         height: box.ymax - box.ymin + 2 * pad,
+        "data-object": objectIndex,
       }),
     );
-  }
+  });
 
   svg.append(layer);
   return layer;
 }
 
-function runMarker(run, [bx, by], [tx, ty]) {
-  const group = element("g", { class: "run" });
-  const title = element("title");
-  title.textContent = [
-    // JSON quoting shows control characters such as the NULs of 2-byte composite strings.
-    `text: ${JSON.stringify(run.text)}`,
-    `font: ${run.font} ${run.size}`,
-    `(x, y): (${round(run.x)}, ${round(run.y)})`,
-    `bytes: ${run.bytes.match(/../g)?.join(" ") ?? ""}`,
-  ].join("\n");
+function runMarker([bx, by], [tx, ty], objectIndex, runIndex) {
+  const group = element("g", { class: "run", "data-object": objectIndex, "data-run": runIndex });
   group.append(
-    title,
-    // An invisible, wider stroke so the tooltip does not need pixel-perfect hovering.
+    // An invisible, wider stroke so hovering does not need to be pixel-perfect.
     element("line", { class: "hit", x1: bx, y1: by, x2: tx, y2: ty }),
     element("line", { x1: bx, y1: by, x2: tx, y2: ty }),
     element("circle", { cx: bx, cy: by, r: 2 }),
@@ -88,8 +84,4 @@ function element(name, attributes = {}) {
   const node = document.createElementNS(SVG, name);
   for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, value);
   return node;
-}
-
-function round(value) {
-  return Math.round(value * 100) / 100;
 }

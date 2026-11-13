@@ -102,7 +102,7 @@ and the root manifest only lists the members and their shared package metadata.
 └── nix/                       # Flake checks (crane), toolchains, generated fixtures, demo site
     ├── source.nix             # The cargo source fileset shared by checks and the demo
     ├── checks.nix             # Crane checks, including `livre-wasm32` (the crates on wasm32)
-    ├── demo.nix               # `packages.demo`: wasm build, wasm-bindgen, page, fixtures
+    ├── demo.nix               # `packages.demo`: wasm build, wasm-bindgen, page, Tailwind CSS, fixtures
     │                          # (`nix run .#demo`, defined in flake.nix, serves it locally)
     ├── fixtures.nix           # Generated test fixtures and their drift check
     └── toolchain.nix          # rust-overlay toolchains, with the wasm32 target
@@ -217,15 +217,16 @@ fails when the committed files drift from what it produces.
 ### `demo/`
 
 ```text
-├── index.html            # The page: inputs, navigation, canvas, overlay svg, panels
-├── app.js                # Loads the wasm and pdf.js, renders, navigates, reports errors
+├── index.html            # The page: header controls, error strips, canvas and overlay svg, inspector
+├── app.js                # Loads the wasm and pdf.js, renders, navigates, reports errors, drives the inspector
 ├── overlay-livre.js      # livre's layer: run markers and text object hulls
 ├── overlay-pdfjs.js      # Ground truth: pdf.js text items as boxes
-├── style.css
+├── tailwind.css          # Stylesheet source, compiled to `style.css` by the Tailwind CLI
 └── README.md             # Local development and deployment
 ```
 
-`demo/pkg/`, `demo/fixtures/` and `demo/version.json` are generated and git-ignored.
+`demo/pkg/`, `demo/fixtures/`, `demo/style.css` and `demo/version.json` are generated
+and git-ignored.
 
 ### Key Components
 
@@ -308,8 +309,9 @@ tested natively; only the wasm-bindgen wrapper needs wasm32. The crate is a
 workspace member (so the crane checks build it) but unpublished, excluded in
 `release-plz.toml`, and pins `wasm-bindgen` to the version of nixpkgs'
 `wasm-bindgen-cli`. `nix/demo.nix` builds it for wasm32, runs
-`wasm-bindgen --target web`, and adds the `demo/` page, the three fixtures and
-`version.json`; it is both `packages.demo` and a flake check, and
+`wasm-bindgen --target web`, compiles the page's stylesheet with the Tailwind
+CLI, and adds the `demo/` page, the three fixtures and `version.json`; it is
+both `packages.demo` and a flake check, and
 `.github/workflows/pages.yml` deploys it to GitHub Pages on pushes to `main`.
 `apps.demo` in `flake.nix` serves the same build locally: `nix run .#demo`
 runs `static-web-server` on port 8000 (`PORT` overrides it).

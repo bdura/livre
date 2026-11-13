@@ -13,7 +13,7 @@ const SVG = "http://www.w3.org/2000/svg";
  * page was rendered with.
  *
  * The group goes first in `svg`, under livre's layer, so livre's markers keep their
- * tooltips where the two overlap. The text content is fetched first; if `isCurrent()`
+ * pointer events where the two overlap. The text content is fetched first; if `isCurrent()`
  * is then false, a later render owns `svg`: it is left untouched and null is returned.
  */
 export async function drawGroundTruthLayer(svg, pdfPage, viewport, isCurrent = () => true) {

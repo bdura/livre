@@ -1,0 +1,117 @@
+/*
+ * Source of the page's stylesheet: the Tailwind CLI compiles it into `style.css`
+ * (generated, git-ignored), scanning only the page's own files.
+ */
+@import "tailwindcss" source(none);
+@source "./*.html";
+@source "./*.js";
+
+@theme {
+  /* System fonts only: the page loads nothing but pdf.js from a third party. */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* livre's overlay layer. */
+  --color-livre: #ec4899;
+  /* pdf.js's ground truth layer. */
+  --color-pdfjs: #3b82f6;
+}
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+  }
+}
+
+@utility chip {
+  @apply rounded-lg bg-zinc-100 ring-1 ring-zinc-200 dark:bg-white/5 dark:ring-white/10;
+}
+
+@utility card {
+  @apply rounded-xl bg-zinc-50 ring-1 ring-zinc-200 dark:bg-white/[.03] dark:ring-white/10;
+}
+
+@utility layer-chip {
+  @apply flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1 text-zinc-500 ring-1 ring-transparent select-none has-focus-visible:outline-2 has-focus-visible:outline-zinc-400 dark:text-zinc-400;
+}
+
+@utility pager-button {
+  @apply px-2.5 py-1.5 text-zinc-500 hover:text-zinc-950 disabled:text-zinc-300 disabled:hover:text-zinc-300 dark:hover:text-white dark:disabled:text-zinc-700 dark:disabled:hover:text-zinc-700;
+}
+
+@utility strip-action {
+  @apply rounded-md px-2 py-0.5 whitespace-nowrap ring-1 ring-amber-400/60 hover:bg-amber-500/10 dark:ring-amber-500/30;
+}
+
+@utility tab {
+  @apply -mb-px border-b-2 border-transparent py-3 text-zinc-500 hover:text-zinc-800 aria-selected:border-zinc-900 aria-selected:text-zinc-950 dark:hover:text-zinc-200 dark:aria-selected:border-white dark:aria-selected:text-white;
+}
+
+/* The overlays: plain CSS, since their SVG is built by script, not written in markup. */
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* A class on the <svg>, toggled by the layer chips, survives the redraw of each render. */
+.overlay.hide-livre g.livre,
+.overlay.hide-pdfjs g.pdfjs {
+  display: none;
+}
+
+.overlay g.livre {
+  color: var(--color-livre);
+  stroke: currentColor;
+  fill: none;
+}
+
+.overlay g.livre .run {
+  /* The <svg> ignores the pointer so the page stays usable; the markers opt back in. */
+  pointer-events: visibleStroke;
+  cursor: pointer;
+}
+
+.overlay g.livre .run line {
+  stroke-width: 1.5;
+}
+
+.overlay g.livre .run line.hit {
+  stroke: transparent;
+  stroke-width: 8;
+}
+
+.overlay g.livre .run circle {
+  fill: currentColor;
+  stroke: none;
+  pointer-events: visibleFill;
+}
+
+/* The run shown in the inspector. */
+.overlay g.livre .run.active circle {
+  r: 4;
+  fill: white;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+.overlay g.livre .hull {
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  opacity: 0.8;
+}
+
+/* The text object hovered in the inspector's list. */
+.overlay g.livre .hull.highlight {
+  fill: color-mix(in srgb, var(--color-livre) 12%, transparent);
+  stroke-dasharray: none;
+  stroke-width: 2;
+  opacity: 1;
+}
+
+.overlay g.pdfjs .item {
+  stroke: var(--color-pdfjs);
+  stroke-width: 1;
+  fill: none;
+  /* Tooltips on the outline only, so the page under the box stays reachable. */
+  pointer-events: visibleStroke;
+}

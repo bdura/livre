@@ -4,3 +4,5 @@
 demo/pkg/
 demo/fixtures/
 demo/version.json
+# Compiled from `demo/tailwind.css` by the Tailwind CLI.
+demo/style.css
