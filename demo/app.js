@@ -3,6 +3,7 @@
 
 import init, { analyze_pdf } from "./pkg/livre_wasm.js";
 import { drawLivreLayer } from "./overlay-livre.js";
+import { drawGroundTruthLayer } from "./overlay-pdfjs.js";
 
 // Pinned: pdf.js changes its API across majors. The worker must be the same version.
 const PDFJS = "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.5.438/build";
@@ -28,6 +29,7 @@ const ui = {
   json: $("json"),
   version: $("version"),
   layerLivre: $("layer-livre"),
+  layerPdfjs: $("layer-pdfjs"),
 };
 
 /**
@@ -59,6 +61,20 @@ export const overlays = [];
 overlays.push((svg, { viewport }) => {
   const page = livrePage();
   if (page) drawLivreLayer(svg, page, viewport);
+});
+
+// Drawn whatever livre made of the page: it is the reference livre is judged against.
+overlays.push(async (svg, { pdf, pageNumber, viewport }) => {
+  // Each render makes a new viewport: a stale one means a later render owns the <svg>.
+  const stale = () => viewport !== state.viewport;
+  try {
+    const page = await pdf.getPage(pageNumber);
+    if (stale()) return;
+    await drawGroundTruthLayer(svg, page, viewport, () => !stale());
+  } catch (e) {
+    // A load destroys the previous document mid-fetch; only a current failure matters.
+    if (!stale()) throw e;
+  }
 });
 
 let loadToken = 0;
@@ -304,8 +320,12 @@ ui.file.addEventListener("change", () => {
   if (file) loadFile(file);
 });
 // A class on the <svg>, not on the group, so the choice survives the redraw of each render.
-const syncLayers = () => ui.overlay.classList.toggle("hide-livre", !ui.layerLivre.checked);
+const syncLayers = () => {
+  ui.overlay.classList.toggle("hide-livre", !ui.layerLivre.checked);
+  ui.overlay.classList.toggle("hide-pdfjs", !ui.layerPdfjs.checked);
+};
 ui.layerLivre.addEventListener("change", syncLayers);
+ui.layerPdfjs.addEventListener("change", syncLayers);
 syncLayers();
 ui.prev.addEventListener("click", () => show(state.pageNumber - 1));
 ui.next.addEventListener("click", () => show(state.pageNumber + 1));

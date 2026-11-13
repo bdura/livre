@@ -5,6 +5,8 @@
   --error: #c62828;
   /* livre's overlay layer. */
   --livre: #d6336c;
+  /* pdf.js's ground truth layer. */
+  --pdfjs: #1c7ed6;
 }
 
 body {
@@ -163,4 +165,24 @@ footer {
   padding-top: 0.5rem;
   border-top: 1px solid var(--border);
   font-size: 0.9em;
+}
+
+.layer-pdfjs {
+  color: var(--pdfjs);
+}
+
+.legend {
+  opacity: 0.8;
+}
+
+.overlay.hide-pdfjs g.pdfjs {
+  display: none;
+}
+
+.overlay g.pdfjs .item {
+  stroke: var(--pdfjs);
+  stroke-width: 1;
+  fill: none;
+  /* Tooltips on the outline only, so the page under the box stays reachable. */
+  pointer-events: visibleStroke;
 }
