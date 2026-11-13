@@ -183,6 +183,8 @@ and the root manifest only lists the members and their shared package metadata.
 
 ### Key Components
 
+Paths are relative to `crates/livre/src/`.
+
 **`InMemoryDocument`** (document.rs): The main document type. Holds the catalog
 and a builder that can resolve references. Provides the `pages()` method to access
 the page tree.
@@ -230,7 +232,7 @@ is used for custom error types like `ContentError`.
 strongly typed via the `Reference<T>` type, ensuring type safety when following
 object graphs.
 
-**Derive macros**: The `livre-derive` crate (`crates/livre-derive`) provides derive macros for `Extract`
+**Derive macros**: The `livre-derive` crate provides derive macros for `Extract`
 (tuple structs, unit structs, enums of single-field variants), `FromRawDict` and
 `BuildFromRawDict` (structs with named fields). Each dictionary field reads the
 `PascalCase` form of its name as key, tunable with `#[livre(...)]` attributes:
@@ -238,7 +240,7 @@ object graphs.
 closure or expression; applied after `from`) and `flatten`. Generated code uses
 absolute `::livre::` and `::winnow::` paths; `livre` itself declares
 `extern crate self as livre` so those paths resolve inside the crate too. Misuse
-is a spanned compile error, checked by the trybuild cases in `crates/livre/tests/ui`.
+is a spanned compile error, checked by the trybuild cases in `tests/ui`.
 
 **Memory model**: `InMemoryDocument` loads the entire PDF into memory.
 The `InMemoryBuilder` holds the raw bytes and cross-reference table, allowing
