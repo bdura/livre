@@ -8,11 +8,12 @@
 //! bloc is the [`Operator`](operators::Operator) type, which represents a single operator
 //! in the content stream.
 //!
-//! Since our primary goal is to be a text extraction library, we focus on text operators,
-//! although we plan to expand this to other types of content in the future.
-//! With that in mind, the main entry point for content parsing is the [`parse_text_object`],
-//! which simplifies the process of extracting text from a content stream - and just skips
-//! any other type of operator.
+//! Since our primary goal is to be a text extraction library, we focus on text operators and
+//! on the graphics state operators that place them (`q`, `Q`, `cm`), although we plan to
+//! expand this to other types of content in the future. With that in mind, the main entry
+//! point for content parsing is [`parse_text_object`], which tracks a [`GraphicsState`]
+//! between text objects, simplifies the process of extracting text from a content stream, and
+//! skips any other type of operator.
 
 mod error;
 pub mod operators;
@@ -20,6 +21,6 @@ mod state;
 
 pub use error::ContentError;
 pub use state::{
-    parse_text_object, Font, RenderingMode, TextMatrix, TextObject, TextObjectStream,
+    parse_text_object, Font, GraphicsState, Matrix, RenderingMode, TextObject, TextObjectStream,
     TextStateParameters,
 };
