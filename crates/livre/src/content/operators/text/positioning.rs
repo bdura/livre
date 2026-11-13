@@ -1,7 +1,7 @@
 use enum_dispatch::enum_dispatch;
 
 use crate::{
-    content::state::{TextMatrix, TextObject},
+    content::state::{Matrix, TextObject},
     extraction::Extract,
 };
 
@@ -68,7 +68,7 @@ impl TextOperation for MoveByOffsetAndSetLeading {
 /// 1 0 0 -1 370.70721 .47981739 Tm
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Extract)]
-pub struct SetTextMatrix(TextMatrix);
+pub struct SetTextMatrix(Matrix);
 
 impl TextOperation for SetTextMatrix {
     fn apply(self, text_object: &mut TextObject) {

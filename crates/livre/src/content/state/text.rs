@@ -13,20 +13,21 @@
 use std::collections::VecDeque;
 
 use winnow::{
-    combinator::trace,
     error::{ContextError, ErrMode},
-    BStr, ModalResult, Parser,
+    BStr, ModalResult,
 };
 
 use crate::{
     content::{
         error::{ContentError, Result},
         operators::{
+            graphics::GraphicsStateOperation,
             text::{TextArrayElement, TextOperation, TextOperator},
             Operator,
         },
+        state::{GraphicsState, Matrix},
     },
-    extraction::{extract, Extract, Name, PDFString},
+    extraction::{Extract, Name, PDFString},
 };
 
 /// The font selected by the `Tf` operator: a resource name and a size.
@@ -92,54 +93,6 @@ impl Default for TextStateParameters {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct TextMatrix {
-    a: f32,
-    b: f32,
-    c: f32,
-    d: f32,
-    e: f32,
-    f: f32,
-}
-
-impl Extract<'_> for TextMatrix {
-    fn extract(input: &mut &BStr) -> ModalResult<Self> {
-        trace(
-            "livre-text-matrix",
-            extract.map(|(a, b, c, d, e, f)| Self { a, b, c, d, e, f }),
-        )
-        .parse_next(input)
-    }
-}
-
-impl Default for TextMatrix {
-    fn default() -> Self {
-        Self {
-            a: 1.0,
-            b: 0.0,
-            c: 0.0,
-            d: 1.0,
-            e: 0.0,
-            f: 0.0,
-        }
-    }
-}
-
-impl TextMatrix {
-    pub fn position(&self) -> (f32, f32) {
-        (self.e, self.f)
-    }
-
-    pub fn move_to(&mut self, x: f32, y: f32) {
-        let Self { a, b, c, d, e, f } = *self;
-
-        let e = a * x + c * y + e;
-        let f = b * x + d * y + f;
-
-        *self = Self { a, b, c, d, e, f };
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RenderingMode {
     /// Fill text.
     Fill,
@@ -160,7 +113,7 @@ pub enum RenderingMode {
 }
 
 impl Extract<'_> for RenderingMode {
-    fn extract(input: &mut &'_ winnow::BStr) -> winnow::ModalResult<Self> {
+    fn extract(input: &mut &'_ BStr) -> ModalResult<Self> {
         match u8::extract(input)? {
             0 => Ok(Self::Fill),
             1 => Ok(Self::Stroke),
@@ -181,12 +134,16 @@ impl Extract<'_> for RenderingMode {
 /// from raw [`PDFString`] bytes using best-effort heuristics
 /// (UTF-16BE if a BOM is present, Latin-1 otherwise).
 ///
-/// The default text object is the state at `BT`: identity matrix, default parameters and
-/// no font.
+/// The default text object is the state at `BT` on a page without `cm`: identity text
+/// matrix and CTM, default parameters and no font.
 #[derive(Default)]
 pub struct TextObject {
     /// Text matrix. Governs the transformation of text space to user space.
-    pub matrix: TextMatrix,
+    pub matrix: Matrix,
+    /// The current transformation matrix in force at `BT`. Governs the transformation of
+    /// user space to default user space. Constant for the whole text object, since `cm`,
+    /// `q` and `Q` are not allowed inside one.
+    pub ctm: Matrix,
     /// All text state parameters: font, leading, character spacing, word spacing, etc.
     pub parameters: TextStateParameters,
     // FIXME: this indirection will be needed down the line. For now it seems a bit dumb.
@@ -197,14 +154,21 @@ pub struct TextObject {
 }
 
 impl TextObject {
+    /// The matrix mapping text space to default user space: `Tm × CTM`. Its translation is
+    /// the position the iterator yields; its other components carry the orientation and
+    /// scale of the text, before the font size and rise are applied.
+    pub fn transformation(&self) -> Matrix {
+        self.matrix.then(self.ctm)
+    }
+
     pub fn set_font(&mut self, font: Font) {
         self.parameters.font = Some(font);
     }
     pub fn move_to(&mut self, x: f32, y: f32) {
-        self.matrix.move_to(x, y);
+        self.matrix.translate(x, y);
     }
     pub fn move_to_next_line(&mut self) {
-        self.matrix.move_to(0.0, -self.parameters.leading);
+        self.matrix.translate(0.0, -self.parameters.leading);
     }
     pub fn add_text(&mut self, text: PDFString) {
         self.text_buffer = Some(text);
@@ -245,11 +209,14 @@ impl TextObject {
     ///
     /// Returns `None` if the text object is closed by `ET` before any text could be shown:
     /// it is empty, and there is nothing to iterate over.
-    fn build<Ops>(ops: &mut Ops) -> Result<Option<Self>>
+    fn build<Ops>(ops: &mut Ops, ctm: Matrix) -> Result<Option<Self>>
     where
         Ops: Iterator<Item = Operator>,
     {
-        let mut text_object = TextObject::default();
+        let mut text_object = TextObject {
+            ctm,
+            ..TextObject::default()
+        };
 
         for operator in ops {
             match operator {
@@ -279,18 +246,28 @@ impl TextObject {
 /// Skips over any operators until it finds the `BT` operator, which marks the beginning of a text,
 /// and returns an object that can be used to iterate over the text elements. Empty text objects
 /// (closed before any font is selected) are skipped.
-pub fn parse_text_object<Ops>(mut ops: Ops) -> Result<Option<TextObjectStream<Ops>>>
+///
+/// Graphics state operators met on the way (`q`, `Q`, `cm`) update `graphics_state`, and the
+/// text object captures the CTM in force at `BT`. The same `graphics_state` must be passed to
+/// every call on one content stream, since a `cm` at the top of the page applies to every
+/// text object below it.
+pub fn parse_text_object<Ops>(
+    mut ops: Ops,
+    graphics_state: &mut GraphicsState,
+) -> Result<Option<TextObjectStream<Ops>>>
 where
     Ops: Iterator<Item = Operator>,
 {
     loop {
-        // NOTE: just skip any other operators until we find the text object
-        if !ops.by_ref().any(|op| matches!(op, Operator::BeginText(_))) {
-            return Ok(None);
-        }
-
-        if let Some(text_object) = TextObject::build(&mut ops)? {
-            return Ok(Some(TextObjectStream { text_object, ops }));
+        match ops.next() {
+            None => return Ok(None),
+            Some(Operator::BeginText(_)) => {
+                if let Some(text_object) = TextObject::build(&mut ops, graphics_state.ctm())? {
+                    return Ok(Some(TextObjectStream { text_object, ops }));
+                }
+            }
+            Some(Operator::GraphicsState(op)) => op.apply(graphics_state),
+            Some(_) => {}
         }
     }
 }
@@ -313,7 +290,7 @@ impl Iterator for TextObject {
                     }
                     TextArrayElement::Offset(offset) => {
                         // NOTE: offset is given in thousandths of a unit of text space
-                        self.matrix.move_to(-offset / 1_000.0, 0.0);
+                        self.matrix.translate(-offset / 1_000.0, 0.0);
                     }
                 }
             }
@@ -322,7 +299,7 @@ impl Iterator for TextObject {
         // NOTE: decoding is best-effort; see `PDFString::decode` for the heuristic.
         let text = self.text_buffer.take()?.decode();
 
-        Some((self.matrix.position(), text))
+        Some((self.ctm.apply(self.matrix.translation()), text))
     }
 }
 
@@ -352,7 +329,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use winnow::{ascii::multispace0, combinator::preceded};
+    use winnow::{ascii::multispace0, combinator::preceded, BStr};
 
     use super::*;
 
@@ -376,7 +353,9 @@ mod tests {
     #[test]
     fn second_tf_updates_the_font() {
         let ops = operators(b"BT /F1 12 Tf (a) Tj /F2 10 Tf (b) Tj ET");
-        let mut stream = parse_text_object(ops.into_iter()).unwrap().unwrap();
+        let mut stream = parse_text_object(ops.into_iter(), &mut GraphicsState::default())
+            .unwrap()
+            .unwrap();
 
         assert_eq!(stream.text_object.parameters.font, Some(font("F1", 12.0)));
 
@@ -395,7 +374,9 @@ mod tests {
     fn empty_text_object_is_skipped() {
         // Without the skip, the `Td` of the empty object would leak into the next one.
         let ops = operators(b"BT 0 10 Td ET BT /F1 12 Tf (a) Tj ET");
-        let mut stream = parse_text_object(ops.into_iter()).unwrap().unwrap();
+        let mut stream = parse_text_object(ops.into_iter(), &mut GraphicsState::default())
+            .unwrap()
+            .unwrap();
 
         assert_eq!(stream.next(), Some(((0.0, 0.0), "a".to_string())));
         assert!(stream.next().is_none());
@@ -404,15 +385,114 @@ mod tests {
     #[test]
     fn trailing_empty_text_object_ends_the_content() {
         let ops = operators(b"BT ET");
-        assert!(parse_text_object(ops.into_iter()).unwrap().is_none());
+        assert!(
+            parse_text_object(ops.into_iter(), &mut GraphicsState::default())
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[test]
     fn showing_text_before_a_font_is_an_error() {
         let ops = operators(b"BT (a) Tj ET");
         assert!(matches!(
-            parse_text_object(ops.into_iter()),
+            parse_text_object(ops.into_iter(), &mut GraphicsState::default()),
             Err(ContentError::UnexpectedTextShowingOperator(_))
         ));
+    }
+}
+
+#[cfg(test)]
+mod graphics_state_tests {
+    use winnow::{ascii::multispace0, combinator::preceded, BStr};
+
+    use super::*;
+
+    fn operators(input: &[u8]) -> Vec<Operator> {
+        let mut stream = BStr::new(input);
+        let mut it =
+            winnow::combinator::iterator(&mut stream, preceded(multispace0, Operator::extract));
+        let ops: Vec<Operator> = (&mut it).collect();
+        it.finish().unwrap();
+        ops
+    }
+
+    /// Every run position of a content stream, with the graphics state carried across text
+    /// objects as a caller would.
+    fn positions(input: &[u8]) -> Vec<(f32, f32)> {
+        let mut ops = operators(input).into_iter();
+        let mut graphics_state = GraphicsState::default();
+        let mut positions = Vec::new();
+
+        while let Some(stream) = parse_text_object(&mut ops, &mut graphics_state).unwrap() {
+            positions.extend(stream.map(|(position, _)| position));
+        }
+
+        positions
+    }
+
+    fn assert_close((x, y): (f32, f32), (ex, ey): (f32, f32)) {
+        assert!(
+            (x - ex).abs() < 1e-3 && (y - ey).abs() < 1e-3,
+            "expected ({ex}, {ey}), got ({x}, {y})"
+        );
+    }
+
+    #[test]
+    fn cm_before_bt_transforms_the_run_position() {
+        // (5, 7) in text space, scaled by 2 and moved by (10, 20).
+        let positions = positions(b"2 0 0 2 10 20 cm BT /F1 12 Tf 5 7 Td (a) Tj ET");
+        assert_eq!(positions, vec![(20.0, 34.0)]);
+    }
+
+    #[test]
+    fn q_and_big_q_restore_the_ctm_between_text_objects() {
+        let positions =
+            positions(b"q 1 0 0 1 100 0 cm BT /F1 12 Tf (a) Tj ET Q BT /F1 12 Tf (b) Tj ET");
+        assert_eq!(positions, vec![(100.0, 0.0), (0.0, 0.0)]);
+    }
+
+    #[test]
+    fn unbalanced_big_q_is_ignored() {
+        let positions = positions(b"Q 1 0 0 1 3 4 cm BT /F1 12 Tf (a) Tj ET");
+        assert_eq!(positions, vec![(3.0, 4.0)]);
+    }
+
+    /// The first line of `tests/resources/text.pdf` (Skia output): the page is flipped once,
+    /// then each line is wrapped in `q … Q` and positioned by its own `cm`. The expected
+    /// value is `(0.75·x + 72, 792 − (0.75·(0.4798 + 13.2773) + 86.546))`.
+    const SKIA_LINE: &[u8] = b"1 0 0 -1 0 792 cm
+q
+.75 0 0 .75 72 86.546265 cm
+BT
+/F4 14.666667 Tf
+1 0 0 -1 80.65947 .47981739 Tm
+0 -13.2773438 Td
+<004D> Tj
+ET
+Q";
+
+    #[test]
+    fn skia_line_lands_in_the_text_column() {
+        let positions = positions(SKIA_LINE);
+        assert_eq!(positions.len(), 1);
+        assert_close(positions[0], (132.4946, 695.1359));
+    }
+
+    #[test]
+    fn transformation_is_the_text_matrix_times_the_ctm() {
+        let mut ops = operators(SKIA_LINE).into_iter();
+        let mut graphics_state = GraphicsState::default();
+        let mut stream = parse_text_object(&mut ops, &mut graphics_state)
+            .unwrap()
+            .unwrap();
+        stream.next().unwrap();
+
+        let transformation = stream.text_object().transformation();
+
+        // The `Tm` flip and the page flip cancel: text-space "up" is page "up", scaled by 0.75.
+        assert_close((transformation.a, transformation.d), (0.75, 0.75));
+        assert_close((transformation.b, transformation.c), (0.0, 0.0));
+        assert_close(transformation.translation(), (132.4946, 695.1359));
     }
 }

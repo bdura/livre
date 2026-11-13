@@ -53,8 +53,9 @@ The system is designed as a layered architecture:
    traits live, enabling lazy resolution of object graphs.
 
 4. **Content layer** (`content/`): Parsing of page content streams, including text
-   operators and state management. This is the highest-level layer for extracting
-   human-readable content.
+   operators, the graphics state (`q`, `Q`, `cm`) that positions them, and text object
+   state management. This is the highest-level layer for extracting human-readable
+   content.
 
 The library deliberately does **not** render PDFs, edit PDFs, or handle encryption.
 It focuses solely on reading and extracting data from existing PDF files in a
@@ -144,6 +145,7 @@ and the root manifest only lists the members and their shared package metadata.
 │       ├── error.rs           # Content parsing errors
 │       ├── operators/         # Content stream operators
 │       │   ├── mod.rs         # Operator enum and parsing
+│       │   ├── graphics.rs    # Special graphics state operators (q, Q, cm)
 │       │   └── text/          # Text-specific operators
 │       │       ├── mod.rs     # Text operator categories
 │       │       ├── delimiters.rs
@@ -152,7 +154,9 @@ and the root manifest only lists the members and their shared package metadata.
 │       │       └── state.rs   # Text state operators
 │       └── state/             # Content stream state management
 │           ├── mod.rs
-│           └── text.rs
+│           ├── matrix.rs      # Transformation matrices
+│           ├── graphics.rs    # GraphicsState: CTM and its q/Q stack
+│           └── text.rs        # TextObject and parse_text_object
 │
 ├── examples/                  # Runnable examples
 │   ├── content.rs            # Extract raw content streams

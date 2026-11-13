@@ -16,7 +16,10 @@
 //! requires going through every alternative until one matches, while skipping over the operands
 //! allows us to use the right parser directly, which is possible once we know the operator.
 
+pub mod graphics;
 pub mod text;
+
+use graphics::{ConcatenateMatrix, GraphicsStateOperator, RestoreGraphicsState, SaveGraphicsState};
 
 use text::{
     BeginText, EndText, MoveByOffset, MoveByOffsetAndSetLeading, MoveToNextLine,
@@ -52,7 +55,8 @@ use crate::extraction::{take_till_delimiter, Angles, Brackets, Extract, Name, Pa
 ///   their operands.
 ///
 /// Finally, the `Operator` enum is not exhaustive, since it does not (yet!) cover all operators
-/// defined by the PDF specification.
+/// defined by the PDF specification: text operators and the special graphics state operators
+/// (`q`, `Q`, `cm`) are modelled, everything else is [`NotImplemented`](Operator::NotImplemented).
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub enum Operator {
@@ -60,6 +64,7 @@ pub enum Operator {
     BeginText(BeginText),
     EndText(EndText),
     Text(TextOperator),
+    GraphicsState(GraphicsStateOperator),
     NotImplemented(String),
 }
 
@@ -144,6 +149,10 @@ fn parse_operator(input: &mut &BStr) -> ModalResult<Operator> {
         b"'" => extract_operator::<MoveToNextLineAndShowText>(&mut cursor)?,
         b"\"" => extract_operator::<MoveToNextLineAndShowTextWithSpacing>(&mut cursor)?,
         b"TJ" => extract_operator::<ShowTextArray>(&mut cursor)?,
+        // Special graphics state operators
+        b"q" => SaveGraphicsState.into(),
+        b"Q" => RestoreGraphicsState.into(),
+        b"cm" => extract_operator::<ConcatenateMatrix>(&mut cursor)?,
         _ => Operator::NotImplemented(String::from_utf8_lossy(op).to_string()),
     };
 
@@ -156,7 +165,7 @@ mod tests {
 
     use rstest::rstest;
 
-    use crate::extraction::extract;
+    use crate::{content::state::Matrix, extraction::extract};
 
     use super::*;
 
@@ -223,6 +232,20 @@ mod tests {
         O: PartialEq + Debug,
     {
         assert_eq!(input, expected);
+    }
+
+    #[rstest]
+    #[case(b"q", SaveGraphicsState)]
+    #[case(b"Q", RestoreGraphicsState)]
+    #[case(b"1 0 0 -1 0 792 cm", ConcatenateMatrix(Matrix { a: 1.0, b: 0.0, c: 0.0, d: -1.0, e: 0.0, f: 792.0 }))]
+    #[case(b".75 0 0 .75 72 86.546265 cm", ConcatenateMatrix(Matrix { a: 0.75, b: 0.0, c: 0.0, d: 0.75, e: 72.0, f: 86.546265 }))]
+    fn graphics_state_operators<O>(#[case] input: &[u8], #[case] expected: O)
+    where
+        O: Into<Operator>,
+    {
+        let result = extract(&mut input.as_ref()).unwrap();
+        let expected: Operator = expected.into();
+        assert_eq!(expected, result);
     }
 
     #[rstest]
