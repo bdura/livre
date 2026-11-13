@@ -23,6 +23,8 @@ pub struct Locals {
     pub builder: Ident,
     /// The `RawValue` popped from the dictionary.
     pub value: Ident,
+    /// An error being labelled with its key.
+    pub err: Ident,
     /// The input lifetime; only declared when [`DictTraits::needs_de_lifetime`].
     pub de: Lifetime,
 }
@@ -34,6 +36,7 @@ impl Locals {
             dict: format_ident!("dict", span = span),
             builder: format_ident!("builder", span = span),
             value: format_ident!("value", span = span),
+            err: format_ident!("err", span = span),
             de: Lifetime::new("'de", span),
         }
     }
@@ -197,7 +200,9 @@ fn field_statement(
     locals: &Locals,
 ) -> TokenStream {
     let ty = &field.ty;
-    let Locals { dict, value, .. } = locals;
+    let Locals {
+        dict, value, err, ..
+    } = locals;
 
     let key = match (&field.mode, &field.key) {
         (Mode::Flatten, _) | (_, None) => {
@@ -210,21 +215,29 @@ fn field_statement(
         (_, Some(key)) => key,
     };
 
+    // Design §6.3: errors carry the PDF key, slash included, and nothing else.
+    let label = format!("/{key}");
+    let label = quote!(::winnow::error::StrContext::Label(#label));
+
     // The value read when the key is present. An `Option` field reads
     // `Option<F>` so that a `null` value gives `None`.
+    let labelled = |read_ty: TokenStream| {
+        let call = (traits.simple_call)(locals, &read_ty);
+        // `ErrMode::map` keeps `Backtrack` and `Cut` apart.
+        quote! {
+            #call.map_err(|#err| #err.map(|mut #err| {
+                #err.push(#label);
+                #err
+            }))?
+        }
+    };
     let read = match (&field.mode, &field.from) {
-        (Mode::Optional, None) => {
-            let call = (traits.simple_call)(locals, &quote!(#ty));
-            quote!(#call?)
-        }
-        (Mode::Optional, Some(from)) => {
-            let call = (traits.simple_call)(locals, &quote!(::core::option::Option<#from>));
-            quote!(#call?)
-        }
+        (Mode::Optional, None) => labelled(quote!(#ty)),
+        (Mode::Optional, Some(from)) => labelled(quote!(::core::option::Option<#from>)),
         (_, from) => {
             let read_ty: &Type = from.as_ref().unwrap_or(ty);
-            let call = (traits.simple_call)(locals, &quote!(#read_ty));
-            quote!(::core::option::Option::Some(#call?))
+            let read = labelled(quote!(#read_ty));
+            quote!(::core::option::Option::Some(#read))
         }
     };
 
@@ -236,7 +249,9 @@ fn field_statement(
     let resolve = match &field.mode {
         Mode::Required => quote! {
             .ok_or_else(|| {
-                ::winnow::error::ErrMode::Backtrack(::winnow::error::ContextError::new())
+                let mut #err = ::winnow::error::ContextError::new();
+                #err.push(#label);
+                ::winnow::error::ErrMode::Backtrack(#err)
             })?
         },
         Mode::Default(default) => default_call(default),

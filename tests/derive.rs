@@ -6,7 +6,10 @@ use livre::{
     extraction::{extract, Extract, FromRawDict, MaybeArray, Reference, ReferenceId},
     follow_refs::{Build, BuildFromRawDict, Builder},
 };
-use winnow::{BStr, ModalResult};
+use winnow::{
+    error::{ContextError, ErrMode, StrContext},
+    BStr, ModalResult,
+};
 
 #[derive(Debug, PartialEq, Extract)]
 struct Pair(i32, i32);
@@ -121,6 +124,16 @@ impl From<NoDefault> for Vec<i32> {
 
 fn compute() -> f32 {
     3.0
+}
+
+/// The `StrContext::Label`s attached to an error, innermost first.
+fn labels(err: &ContextError) -> Vec<&'static str> {
+    err.context()
+        .filter_map(|c| match c {
+            StrContext::Label(label) => Some(*label),
+            _ => None,
+        })
+        .collect()
 }
 
 /// The behavioural matrix shared by both dictionary derives.
@@ -298,6 +311,34 @@ macro_rules! dict_matrix {
                     parse::<Generic<First>>(b"<</A 1 /C 3>>").unwrap(),
                     Generic { inner: First { a: 1 }, c: 3 }
                 );
+            }
+
+            #[derive(Debug, PartialEq, $derive)]
+            struct Len {
+                length: usize,
+            }
+
+            #[test]
+            fn missing_key_is_labelled_backtrack() {
+                let err = parse::<Len>(b"<</Foo 1>>").unwrap_err();
+                let ErrMode::Backtrack(err) = err else {
+                    panic!("expected a backtrack, got {err:?}");
+                };
+                assert_eq!(labels(&err), ["/Length"]);
+            }
+
+            #[test]
+            fn failing_value_is_labelled() {
+                let err = parse::<Len>(b"<</Length /NotANumber>>").unwrap_err();
+                let err = err.into_inner().expect("a complete error");
+                assert!(labels(&err).contains(&"/Length"));
+            }
+
+            #[test]
+            fn flatten_adds_no_label() {
+                let err = parse::<Concrete>(b"<</C 3>>").unwrap_err();
+                let err = err.into_inner().expect("a complete error");
+                assert_eq!(labels(&err), ["/A"]);
             }
 
             // Compiles only if `Generic<T>` requires no more of `T` than `$bound`.
