@@ -31,3 +31,14 @@ git-ignored. Without `version.json` the footer simply omits the version.
 
 `nix build .#demo` assembles the deployable site (page, wasm bindings,
 fixtures and `version.json`) into `result/`.
+`nix flake check` builds it too, so a broken demo fails CI. Its footer shows
+the livre version and the commit it was built from (suffixed `-dirty` for an
+uncommitted tree).
+
+## Deployment
+
+`.github/workflows/pages.yml` builds `.#demo` on every push to `main` and
+deploys it to <https://bdura.github.io/livre/>. All asset paths in the page are
+relative so that it works under that subpath. The repository's Pages source
+must be set to "GitHub Actions" (Settings, Pages, Build and deployment): this is
+a one-time manual step the workflow cannot do.

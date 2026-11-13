@@ -10,23 +10,10 @@
   fixtures,
   craneLib,
   craneLibMsrv,
+  # The cargo sources, from `source.nix`.
+  src,
 }: let
-  inherit (pkgs) lib;
-  fs = lib.fileset;
-
   root = ../.;
-
-  # The cargo sources, plus the PDFs the tests and examples read and the
-  # trybuild `.stderr` snapshots: an edit to the README or the changelog
-  # rebuilds nothing.
-  src = fs.toSource {
-    inherit root;
-    fileset = fs.unions [
-      (craneLib.fileset.commonCargoSources root)
-      (root + "/crates/livre/tests/resources")
-      (root + "/crates/livre/tests/ui")
-    ];
-  };
 
   # The root manifest is a virtual workspace: the derivations take their name
   # from the main crate.

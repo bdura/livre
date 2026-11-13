@@ -28,12 +28,28 @@
         toolchain = import ./nix/toolchain.nix pkgs;
 
         fixtures = import ./nix/fixtures.nix pkgs;
+
+        craneLib = (crane.mkLib pkgs).overrideToolchain (_: toolchain.stable);
+
+        src = import ./nix/source.nix {
+          inherit (pkgs) lib;
+          inherit craneLib;
+        };
       in {
         # `nix flake check` runs these; so does CI.
-        checks = import ./nix/checks.nix {
-          inherit pkgs fixtures;
-          craneLib = (crane.mkLib pkgs).overrideToolchain (_: toolchain.stable);
-          craneLibMsrv = (crane.mkLib pkgs).overrideToolchain (_: toolchain.msrv);
+        checks =
+          import ./nix/checks.nix {
+            inherit pkgs fixtures craneLib src;
+            craneLibMsrv = (crane.mkLib pkgs).overrideToolchain (_: toolchain.msrv);
+          }
+          // {
+            inherit (self.packages.${system}) demo;
+          };
+
+        # The browser demo, deployed to GitHub Pages.
+        packages.demo = import ./nix/demo.nix {
+          inherit pkgs craneLib src;
+          rev = self.rev or self.dirtyRev or "unknown";
         };
 
         # Writes the generated fixtures into the tree; run from the repository root.
