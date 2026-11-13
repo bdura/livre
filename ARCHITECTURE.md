@@ -62,7 +62,7 @@ type-safe manner.
 
 ## Entry Point
 
-Execution begins in `src/lib.rs` which exports the main `InMemoryDocument` type.
+Execution begins in `crates/livre/src/lib.rs` which exports the main `InMemoryDocument` type.
 The primary entry point for users is:
 
 ```rust
@@ -87,6 +87,19 @@ From there, users can call `doc.pages()` to get the page tree, then iterate over
 pages and extract their content.
 
 ## Code Map
+
+The repository is a virtual Cargo workspace: every crate lives under `crates/`,
+and the root manifest only lists the members and their shared package metadata.
+
+```text
+├── Cargo.toml                 # Virtual workspace: members, shared package metadata
+├── crates/
+│   ├── livre/                 # The library, with its examples, tests and changelog
+│   └── livre-derive/          # Proc-macro crate for the derive macros
+└── nix/                       # Flake checks (crane) and toolchains
+```
+
+### `crates/livre/`
 
 ```text
 ├── src/
@@ -139,17 +152,6 @@ pages and extract their content.
 │           ├── mod.rs
 │           └── text.rs
 │
-├── livre-derive/              # Proc-macro crate for derive macros
-│   ├── src/
-│   │   ├── lib.rs            # Entry points and crate docs (shapes, attributes)
-│   │   ├── attrs.rs          # Syntactic parse of #[livre(...)], duplicates rejected
-│   │   ├── plan.rs           # FieldPlan / ContainerPlan: modes, keys, validation
-│   │   ├── dict.rs           # Generator for FromRawDict and BuildFromRawDict
-│   │   ├── extract.rs        # Generator for Extract
-│   │   └── generics.rs       # Trait bounds on type parameters
-│   ├── README.md
-│   └── Cargo.toml
-│
 ├── examples/                  # Runnable examples
 │   ├── content.rs            # Extract raw content streams
 │   ├── doc.rs               # Parse document and extract page content
@@ -163,6 +165,20 @@ pages and extract their content.
     ├── compile_fail.rs      # trybuild runner for tests/ui
     ├── ui/                  # Compile-fail cases with their expected .stderr
     └── resources/            # Test PDF files
+```
+
+### `crates/livre-derive/`
+
+```text
+├── src/
+│   ├── lib.rs            # Entry points and crate docs (shapes, attributes)
+│   ├── attrs.rs          # Syntactic parse of #[livre(...)], duplicates rejected
+│   ├── plan.rs           # FieldPlan / ContainerPlan: modes, keys, validation
+│   ├── dict.rs           # Generator for FromRawDict and BuildFromRawDict
+│   ├── extract.rs        # Generator for Extract
+│   └── generics.rs       # Trait bounds on type parameters
+├── README.md
+└── Cargo.toml
 ```
 
 ### Key Components
@@ -214,7 +230,7 @@ is used for custom error types like `ContentError`.
 strongly typed via the `Reference<T>` type, ensuring type safety when following
 object graphs.
 
-**Derive macros**: The `livre-derive` crate provides derive macros for `Extract`
+**Derive macros**: The `livre-derive` crate (`crates/livre-derive`) provides derive macros for `Extract`
 (tuple structs, unit structs, enums of single-field variants), `FromRawDict` and
 `BuildFromRawDict` (structs with named fields). Each dictionary field reads the
 `PascalCase` form of its name as key, tunable with `#[livre(...)]` attributes:
@@ -222,7 +238,7 @@ object graphs.
 closure or expression; applied after `from`) and `flatten`. Generated code uses
 absolute `::livre::` and `::winnow::` paths; `livre` itself declares
 `extern crate self as livre` so those paths resolve inside the crate too. Misuse
-is a spanned compile error, checked by the trybuild cases in `tests/ui`.
+is a spanned compile error, checked by the trybuild cases in `crates/livre/tests/ui`.
 
 **Memory model**: `InMemoryDocument` loads the entire PDF into memory.
 The `InMemoryBuilder` holds the raw bytes and cross-reference table, allowing

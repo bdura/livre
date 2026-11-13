@@ -1,5 +1,5 @@
 # PDF fixtures, byte for byte: trailing spaces and line endings are syntax.
-exclude = "^tests/resources/"
+exclude = "^crates/livre/tests/resources/"
 
 [[repos]]
 repo = "builtin"

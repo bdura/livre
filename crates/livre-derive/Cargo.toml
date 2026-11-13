@@ -1,16 +1,16 @@
 [package]
 name = "livre-derive"
 version = "0.3.0"
-edition = "2021"
-authors = ["Basile Dura <basile@bdura.me>"]
-rust-version = "1.85.0"
+edition.workspace = true
+authors.workspace = true
+rust-version.workspace = true
 
 readme = "README.md"
 description = "The derive macro for Livre, a type-safe PDF parser"
-repository = "https://github.com/bdura/livre"
+repository.workspace = true
 
-license = "MIT"
-keywords = ["pdf"]
+license.workspace = true
+keywords.workspace = true
 
 [lib]
 proc-macro = true

@@ -20,13 +20,16 @@
     inherit root;
     fileset = fs.unions [
       (craneLib.fileset.commonCargoSources root)
-      (root + "/tests/resources")
-      (root + "/tests/ui")
+      (root + "/crates/livre/tests/resources")
+      (root + "/crates/livre/tests/ui")
     ];
   };
 
+  # The root manifest is a virtual workspace: the derivations take their name
+  # from the main crate.
   commonArgs = {
     inherit src;
+    inherit (craneLib.crateNameFromCargoToml {cargoToml = root + "/crates/livre/Cargo.toml";}) pname version;
     strictDeps = true;
     cargoExtraArgs = "--locked --workspace --all-features";
   };

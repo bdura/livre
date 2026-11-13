@@ -11,7 +11,7 @@ fn main() {
     //let mut letter: &BStr = include_bytes!("../resource/ISO_32000-2-2020_sponsored.pdf").as_slice().as_ref();
 
     let doc = InMemoryDocument::extract(&mut letter).unwrap();
-    let mut output = File::create("./tests/test.txt").unwrap();
+    let mut output = File::create(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/test.txt")).unwrap();
 
     for page in doc.pages().unwrap().iter() {
         output
