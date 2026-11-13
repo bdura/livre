@@ -2,12 +2,12 @@ use std::collections::HashSet;
 
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{
-    parse_macro_input, parse_quote, parse_quote_spanned, Data, DataStruct, DeriveInput, Fields,
-    GenericParam, Generics,
-};
+use syn::{parse_quote, parse_quote_spanned, DeriveInput, GenericParam, Generics};
 
-use crate::utilities::extraction;
+use crate::{
+    dict::extract_field,
+    plan::{ContainerPlan, FieldPlan},
+};
 
 fn add_extraction_trait_bounds(mut generics: Generics, flattened: HashSet<String>) -> Generics {
     for param in &mut generics.params {
@@ -26,16 +26,24 @@ fn add_extraction_trait_bounds(mut generics: Generics, flattened: HashSet<String
     generics
 }
 
-pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    // Parse the input tokens into a syntax tree.
-    let input = parse_macro_input!(input as DeriveInput);
+pub fn derive(input: DeriveInput) -> syn::Result<TokenStream> {
+    let ContainerPlan::Dict { fields } = ContainerPlan::for_dict(&input, "BuildFromRawDict")?
+    else {
+        return Err(syn::Error::new(
+            Span::call_site(),
+            "internal error: `for_dict` returned a non-dictionary plan",
+        ));
+    };
 
-    // Used in the quasi-quotation below as `#name`.
     let name = input.ident;
 
-    let (extraction, flattened) = generate_extraction(&input.data);
+    let flattened: HashSet<String> = fields
+        .iter()
+        .filter_map(|f| f.flattened_param.as_ref().map(ToString::to_string))
+        .collect();
+    let extraction = generate_extraction(&fields);
 
-    // Add a bound `T: Extract` to every type parameter T.
+    // Add a bound `T: Build` to every type parameter T.
     let generics = add_extraction_trait_bounds(input.generics, flattened);
     let mut gen_lt = generics.clone();
 
@@ -46,7 +54,7 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let (_, ty_generics, where_clause) = generics.split_for_impl();
     let (impl_generics, _, _) = gen_lt.split_for_impl();
 
-    let expanded = quote! {
+    Ok(quote! {
         impl #impl_generics ::livre::follow_refs::BuildFromRawDict for #name #ty_generics #where_clause {
             fn build_from_raw_dict<B>(dict: &mut ::livre::extraction::RawDict<'_>, builder: &B) -> ::winnow::ModalResult<Self>
             where
@@ -56,44 +64,28 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 Ok(res)
             }
         }
-    };
-
-    // Hand the output tokens back to the compiler.
-    proc_macro::TokenStream::from(expanded)
+    })
 }
 
-fn generate_extraction(data: &Data) -> (TokenStream, HashSet<String>) {
-    let mut set = HashSet::new();
-    match data {
-        Data::Struct(DataStruct {
-            fields: Fields::Named(fields),
-            ..
-        }) => {
-            let fieldname = fields.named.iter().map(|f| &f.ident).collect::<Vec<_>>();
+fn generate_extraction(fields: &[FieldPlan]) -> TokenStream {
+    let fieldname = fields.iter().map(|f| &f.ident);
+    let field_by_field = fields.iter().map(|f| {
+        extract_field(
+            f,
+            quote! {build_from_raw_dict(dict, builder)},
+            quote! {build(builder)},
+        )
+    });
 
-            let field_by_field = fields.named.iter().map(|f| {
-                extraction::extract_field(
-                    f,
-                    &mut set,
-                    quote! {build_from_raw_dict(dict, builder)},
-                    quote! {build(builder)},
-                )
-            });
+    quote! {
+        #(
+            #field_by_field
+        )*
 
-            let extraction = quote! {
-                #(
-                    #field_by_field
-                )*
-
-                let res = Self {
-                    #(
-                        #fieldname,
-                    )*
-                };
-            };
-
-            (extraction, set)
-        }
-        _ => unimplemented!(),
+        let res = Self {
+            #(
+                #fieldname,
+            )*
+        };
     }
 }

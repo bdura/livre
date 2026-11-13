@@ -41,3 +41,53 @@ fn build_from_raw_dict_named_struct() {
         BuiltLen { length: 42 }
     );
 }
+
+#[derive(Debug, PartialEq, FromRawDict)]
+struct WithExprDefault {
+    #[livre(default = Vec::new())]
+    values: Vec<i32>,
+}
+
+#[test]
+fn default_accepts_any_expression() {
+    assert_eq!(
+        WithExprDefault::extract(&mut b"<<>>".as_slice().as_ref()).unwrap(),
+        WithExprDefault { values: Vec::new() }
+    );
+}
+
+#[derive(Debug, PartialEq, FromRawDict)]
+struct Weird {
+    __weird: i32,
+}
+
+#[test]
+fn key_skips_empty_segments() {
+    assert_eq!(
+        Weird::extract(&mut b"<</Weird 3>>".as_slice().as_ref()).unwrap(),
+        Weird { __weird: 3 }
+    );
+}
+
+#[derive(Debug, PartialEq, FromRawDict)]
+struct Inner<T> {
+    value: T,
+}
+
+#[derive(Debug, PartialEq, FromRawDict)]
+struct FlattenGeneric {
+    #[livre(flatten)]
+    inner: Inner<i32>,
+    other: i32,
+}
+
+#[test]
+fn flatten_on_generic_type() {
+    assert_eq!(
+        FlattenGeneric::extract(&mut b"<</Value 1 /Other 2>>".as_slice().as_ref()).unwrap(),
+        FlattenGeneric {
+            inner: Inner { value: 1 },
+            other: 2
+        }
+    );
+}

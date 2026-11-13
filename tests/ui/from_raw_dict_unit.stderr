@@ -1,0 +1,5 @@
+error: `FromRawDict` can only be derived on a struct with named fields
+ --> tests/ui/from_raw_dict_unit.rs:4:8
+  |
+4 | struct Unit;
+  |        ^^^^

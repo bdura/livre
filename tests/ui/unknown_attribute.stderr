@@ -1,7 +1,5 @@
-error: proc-macro derive panicked
- --> tests/ui/unknown_attribute.rs:3:10
+error: unsupported attribute
+ --> tests/ui/unknown_attribute.rs:5:13
   |
-3 | #[derive(FromRawDict)]
-  |          ^^^^^^^^^^^
-  |
-  = help: message: called `Result::unwrap()` on an `Err` value: Error("unsupported attribute")
+5 |     #[livre(bogus)]
+  |             ^^^^^

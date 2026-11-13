@@ -1,0 +1,5 @@
+error: duplicate `default` attribute
+ --> tests/ui/duplicate_default.rs:5:22
+  |
+5 |     #[livre(default, default = 1)]
+  |                      ^^^^^^^
