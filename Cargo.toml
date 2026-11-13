@@ -31,3 +31,4 @@ tracing = "0.1.44"
 [dev-dependencies]
 rstest = "0.26"
 indoc = "2"
+trybuild = "1"
