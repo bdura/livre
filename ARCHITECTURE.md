@@ -302,30 +302,14 @@ unsupported errors. `StreamConfig` reads `/DecodeParms` alongside `/Filter` (a
 single dictionary or an array parallel to it, `null` for no parameters), and
 FlateDecode undoes PNG (10 to 15) and TIFF (2) predictors after inflating.
 
-**Browser demo**: `crates/livre-wasm` exposes one function, `analyze_pdf`, that
-runs livre on a PDF's bytes and returns plain data transfer objects (`dto.rs`):
-the document, its pages with their media box, text objects and runs (start
-position, font resource name and size, decoded text and raw bytes), and the
-stage that failed, if any. serde lives only in the glue crate, so livre's own
-types never commit to a serialisation shape. The DTOs derive `tsify::Tsify`, so
-the wasm-bindgen declarations type `analyze_pdf` as returning `Analysis`, with
-an interface per DTO; the page's TypeScript is checked against them, so a DTO
-change that breaks the page fails the build. `analyze` is ordinary Rust and is
-tested natively; only the wasm-bindgen wrapper needs wasm32. The crate is a
-workspace member (so the crane checks build it) but unpublished, excluded in
-`release-plz.toml`, and pins `wasm-bindgen` to the version of nixpkgs'
-`wasm-bindgen-cli`. `nix/demo.nix` builds it for wasm32, runs
-`wasm-bindgen --target web` into a copy of `demo/`, type-checks and compiles
-the page's `.ts` files with `tsc` (one `.js` per file, no bundler; pdf.js still
-comes from jsdelivr, typed by the hand-written `pdfjs.d.ts`), compiles its
-stylesheet with the Tailwind CLI, and adds the fixtures and `version.json`; it is
-both `packages.demo` and a flake check, and
-`.github/workflows/pages.yml` deploys it to GitHub Pages on pushes to `main`.
-`apps.demo` in `flake.nix` serves the same build locally: `nix run .#demo`
-runs `static-web-server` on port 8000 (`PORT` overrides it).
-The page draws livre's run markers over a pdf.js render, next to pdf.js's own
-text layer, which makes it the visual harness for the v0.6.0 font work: once
-livre knows glyph widths and the graphics state, the two layers should agree.
+**Browser demo**: `crates/livre-wasm` (unpublished) exposes `analyze_pdf`,
+which runs livre on a PDF's bytes and returns plain DTOs (`dto.rs`), so serde
+stays out of livre. The DTOs derive `tsify::Tsify`: the page's TypeScript is
+type-checked against the generated declarations, so a DTO change that breaks
+it fails the build. `nix/demo.nix` assembles the site (wasm, `tsc`, Tailwind,
+fixtures), which is a flake check, deployed to GitHub Pages and served locally
+by `nix run .#demo`. The page overlays livre's runs on pdf.js's text layer, the
+visual harness for the font work.
 
 **Invariants**:
 
