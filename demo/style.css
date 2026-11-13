@@ -3,6 +3,8 @@
   font-family: system-ui, sans-serif;
   --border: #8884;
   --error: #c62828;
+  /* livre's overlay layer. */
+  --livre: #d6336c;
 }
 
 body {
@@ -100,6 +102,52 @@ h1 {
   position: absolute;
   inset: 0;
   pointer-events: none;
+}
+
+.layers {
+  display: inline-flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.layer-livre {
+  color: var(--livre);
+}
+
+.overlay.hide-livre g.livre {
+  display: none;
+}
+
+.overlay g.livre {
+  color: var(--livre);
+  stroke: currentColor;
+  fill: none;
+}
+
+.overlay g.livre .run {
+  /* The <svg> ignores the pointer so the page stays usable; the markers opt back in for their tooltips. */
+  pointer-events: visibleStroke;
+}
+
+.overlay g.livre .run line {
+  stroke-width: 1.5;
+}
+
+.overlay g.livre .run line.hit {
+  stroke: transparent;
+  stroke-width: 8;
+}
+
+.overlay g.livre .run circle {
+  fill: currentColor;
+  stroke: none;
+  pointer-events: visibleFill;
+}
+
+.overlay g.livre .hull {
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  opacity: 0.8;
 }
 
 .json-panel pre {

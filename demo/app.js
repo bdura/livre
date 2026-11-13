@@ -2,6 +2,7 @@
 // the current page underneath, and the overlay <svg> sits on top of the canvas.
 
 import init, { analyze_pdf } from "./pkg/livre_wasm.js";
+import { drawLivreLayer } from "./overlay-livre.js";
 
 // Pinned: pdf.js changes its API across majors. The worker must be the same version.
 const PDFJS = "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.5.438/build";
@@ -26,6 +27,7 @@ const ui = {
   overlay: $("overlay"),
   json: $("json"),
   version: $("version"),
+  layerLivre: $("layer-livre"),
 };
 
 /**
@@ -52,6 +54,12 @@ export const state = {
  * on an emptied <svg> whose `viewBox` matches `state.viewport`.
  */
 export const overlays = [];
+
+// With no DTO for the page (livre failed earlier), draw nothing: the banner explains why.
+overlays.push((svg, { viewport }) => {
+  const page = livrePage();
+  if (page) drawLivreLayer(svg, page, viewport);
+});
 
 let loadToken = 0;
 // The pdf.js loading task of the current document: destroying it frees its worker side.
@@ -295,6 +303,10 @@ ui.file.addEventListener("change", () => {
   const [file] = ui.file.files;
   if (file) loadFile(file);
 });
+// A class on the <svg>, not on the group, so the choice survives the redraw of each render.
+const syncLayers = () => ui.overlay.classList.toggle("hide-livre", !ui.layerLivre.checked);
+ui.layerLivre.addEventListener("change", syncLayers);
+syncLayers();
 ui.prev.addEventListener("click", () => show(state.pageNumber - 1));
 ui.next.addEventListener("click", () => show(state.pageNumber + 1));
 ui.page.addEventListener("change", () => show(Number(ui.page.value) || 1));
