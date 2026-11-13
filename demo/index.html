@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>livre: PDF text extraction in the browser</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="style.css" />
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <header>
+      <h1>livre</h1>
+      <p>
+        A PDF parser written in Rust, running here as WebAssembly. Pick a
+        sample or open your own PDF: pdf.js draws the page, livre reports what
+        it extracted.
+      </p>
+      <p class="privacy">Your files never leave the browser.</p>
+    </header>
+
+    <nav class="toolbar" aria-label="Document controls">
+      <label>
+        Sample
+        <select id="fixture">
+          <option value="text.pdf">text.pdf</option>
+          <option value="letter.pdf">letter.pdf</option>
+          <option value="text-xref-stream.pdf">text-xref-stream.pdf</option>
+        </select>
+      </label>
+      <label>
+        Open a PDF
+        <input id="file" type="file" accept="application/pdf,.pdf" />
+      </label>
+      <span class="pager">
+        <button id="prev" type="button" aria-label="Previous page" disabled>&larr;</button>
+        <label>
+          Page
+          <input id="page" type="number" min="1" value="1" inputmode="numeric" disabled />
+        </label>
+        <span>of <output id="total">0</output></span>
+        <button id="next" type="button" aria-label="Next page" disabled>&rarr;</button>
+      </span>
+      <span id="filename" class="filename"></span>
+    </nav>
+
+    <section id="banners" aria-live="polite"></section>
+
+    <main id="dropzone" class="dropzone">
+      <div id="viewer" class="viewer">
+        <div class="sheet">
+          <canvas id="canvas"></canvas>
+          <svg id="overlay" class="overlay" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+      </div>
+      <p class="drophint">Or drop a PDF here.</p>
+    </main>
+
+    <details id="json-panel" class="json-panel">
+      <summary>livre's output for this page (JSON)</summary>
+      <pre id="json"></pre>
+    </details>
+
+    <footer>
+      <a href="https://github.com/bdura/livre">github.com/bdura/livre</a>
+      <span id="version"></span>
+    </footer>
+  </body>
+</html>

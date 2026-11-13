@@ -1,1 +1,6 @@
 /target
+
+# Demo artefacts, assembled by `nix build .#demo`.
+demo/pkg/
+demo/fixtures/
+demo/version.json

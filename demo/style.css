@@ -1,0 +1,118 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+  --border: #8884;
+  --error: #c62828;
+}
+
+body {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+h1 {
+  margin: 0;
+}
+
+.privacy {
+  font-size: 0.9em;
+  opacity: 0.8;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.pager {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.pager input {
+  width: 4em;
+}
+
+.filename {
+  font-family: ui-monospace, monospace;
+  opacity: 0.8;
+}
+
+.banner {
+  margin: 0.5rem 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 4px solid var(--error);
+  background: #c628281a;
+}
+
+.banner pre {
+  max-height: 10rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.banner .actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.dropzone {
+  margin: 0.5rem 0;
+  padding: 0.5rem;
+  border: 2px dashed transparent;
+  border-radius: 0.5rem;
+}
+
+.dropzone.dragging {
+  border-color: currentColor;
+}
+
+.drophint {
+  text-align: center;
+  font-size: 0.9em;
+  opacity: 0.6;
+}
+
+.viewer {
+  display: flex;
+  justify-content: center;
+}
+
+.sheet {
+  position: relative;
+  box-shadow: 0 0 0.5rem #0004;
+  background: white;
+}
+
+.sheet canvas {
+  display: block;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.json-panel pre {
+  max-height: 30rem;
+  overflow: auto;
+  font-size: 0.85em;
+}
+
+footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.9em;
+}
