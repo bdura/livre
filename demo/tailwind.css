@@ -4,7 +4,7 @@
  */
 @import "tailwindcss" source(none);
 @source "./*.html";
-@source "./*.js";
+@source "./*.ts";
 
 @theme {
   /* System fonts only: the page loads nothing but pdf.js from a third party. */

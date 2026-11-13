@@ -3,11 +3,17 @@
 //!
 //! Field names serialise as written (snake_case). Coordinates are in default user space
 //! units, with the origin at the bottom left of the page.
+//!
+//! Each type derives [`Tsify`], so wasm-bindgen declares a TypeScript interface of the
+//! same name for the page to type-check against. An absent `Option` is `null` on both
+//! sides.
 
 use serde::Serialize;
+use tsify::Tsify;
 
 /// Everything livre extracted from one PDF.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Tsify)]
+#[tsify(missing_as_null)]
 pub struct Analysis {
     /// Version of the livre crate that ran the analysis.
     pub version: String,
@@ -19,7 +25,8 @@ pub struct Analysis {
 }
 
 /// One page of the document, with what livre extracted from its content.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Tsify)]
+#[tsify(missing_as_null)]
 pub struct Page {
     /// Zero-based position in the flattened page tree.
     pub index: usize,
@@ -36,7 +43,7 @@ pub struct Page {
 }
 
 /// A rectangle by its corners, in default user space units.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Tsify)]
 pub struct Rect {
     pub xmin: f32,
     pub ymin: f32,
@@ -45,14 +52,14 @@ pub struct Rect {
 }
 
 /// One `BT` ... `ET` block.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Tsify)]
 pub struct TextObject {
     /// The strings it shows, in content stream order.
     pub runs: Vec<Run>,
 }
 
 /// One shown string.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Tsify)]
 pub struct Run {
     /// Start position, in user space: the translation of the text matrix times the CTM in
     /// force at `BT`. livre knows no glyph widths, so there is no extent.
@@ -70,7 +77,7 @@ pub struct Run {
 }
 
 /// Where and why extraction stopped.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Tsify)]
 pub struct StageError {
     /// The step that failed.
     pub stage: Stage,
@@ -79,7 +86,7 @@ pub struct StageError {
 }
 
 /// The step of the extraction that failed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Tsify)]
 #[serde(rename_all = "kebab-case")]
 pub enum Stage {
     /// Reading the cross-reference chain and the catalog.

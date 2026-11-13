@@ -1,78 +1,109 @@
 // livre's demo page: livre (as wasm) analyses the whole document once, pdf.js renders
 // the current page underneath, and the overlay <svg> sits on top of the canvas.
 
-import init, { analyze_pdf } from "./pkg/livre_wasm.js";
+import init, { analyze_pdf, type Analysis, type Page, type StageError } from "./pkg/livre_wasm.js";
+import type { PageViewport, PDFDocumentLoadingTask, PDFDocumentProxy, PdfJs, RenderTask } from "./pdfjs.js";
 import { drawLivreLayer } from "./overlay-livre.js";
 import { drawGroundTruthLayer } from "./overlay-pdfjs.js";
 
-// Pinned: pdf.js changes its API across majors. The worker must be the same version.
+// Pinned: pdf.js changes its API across majors. The worker must be the same version, and
+// `pdfjs.d.ts` describes this one.
 const PDFJS = "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.5.438/build";
-const pdfjs = await import(`${PDFJS}/pdf.min.mjs`);
+const pdfjs: PdfJs = await import(`${PDFJS}/pdf.min.mjs`);
 pdfjs.GlobalWorkerOptions.workerSrc = `${PDFJS}/pdf.worker.min.mjs`;
 
 const REPOSITORY = "https://github.com/bdura/livre";
 const ISSUES = `${REPOSITORY}/issues/new`;
 
-const $ = (id) => document.getElementById(id);
+/** The element `id`, which the page must hold as a `kind`. */
+function $<T extends Element>(id: string, kind: abstract new () => T): T {
+  const node = document.getElementById(id);
+  if (!(node instanceof kind)) throw new Error(`#${id} is missing or not a ${kind.name}`);
+  return node;
+}
+
 const ui = {
-  fixture: $("fixture"),
-  fileOption: $("file-option"),
-  open: $("open"),
-  file: $("file"),
-  prev: $("prev"),
-  next: $("next"),
-  page: $("page"),
-  total: $("total"),
-  banners: $("banners"),
-  dropzone: $("dropzone"),
-  viewer: $("viewer"),
-  canvas: $("canvas"),
-  overlay: $("overlay"),
-  json: $("json"),
-  version: $("version"),
-  layerLivre: $("layer-livre"),
-  layerPdfjs: $("layer-pdfjs"),
-  tabs: [...document.querySelectorAll('[role="tab"]')],
-  objects: $("objects"),
-  objectsCount: $("objects-count"),
-  runEmpty: $("run-empty"),
-  runDetails: $("run-details"),
-  runText: $("run-text"),
-  runPinned: $("run-pinned"),
-  runFont: $("run-font"),
-  runOrigin: $("run-origin"),
-  runBytes: $("run-bytes"),
-  countRuns: $("count-runs"),
-  countObjects: $("count-objects"),
-  countItems: $("count-items"),
+  fixture: $("fixture", HTMLSelectElement),
+  fileOption: $("file-option", HTMLOptionElement),
+  open: $("open", HTMLButtonElement),
+  file: $("file", HTMLInputElement),
+  prev: $("prev", HTMLButtonElement),
+  next: $("next", HTMLButtonElement),
+  page: $("page", HTMLInputElement),
+  total: $("total", HTMLOutputElement),
+  banners: $("banners", HTMLElement),
+  dropzone: $("dropzone", HTMLElement),
+  viewer: $("viewer", HTMLDivElement),
+  canvas: $("canvas", HTMLCanvasElement),
+  overlay: $("overlay", SVGSVGElement),
+  json: $("json", HTMLPreElement),
+  version: $("version", HTMLSpanElement),
+  layerLivre: $("layer-livre", HTMLInputElement),
+  layerPdfjs: $("layer-pdfjs", HTMLInputElement),
+  tabs: [...document.querySelectorAll<HTMLButtonElement>('[role="tab"]')],
+  objects: $("objects", HTMLOListElement),
+  objectsCount: $("objects-count", HTMLSpanElement),
+  runEmpty: $("run-empty", HTMLParagraphElement),
+  runDetails: $("run-details", HTMLDivElement),
+  runText: $("run-text", HTMLDivElement),
+  runPinned: $("run-pinned", HTMLSpanElement),
+  runFont: $("run-font", HTMLElement),
+  runOrigin: $("run-origin", HTMLElement),
+  runBytes: $("run-bytes", HTMLElement),
+  countRuns: $("count-runs", HTMLDivElement),
+  countObjects: $("count-objects", HTMLDivElement),
+  countItems: $("count-items", HTMLDivElement),
 };
 
-/**
- * Everything the page knows about the loaded document.
- *
- * `viewport` is the pdf.js `PageViewport` of the page on screen: overlays map PDF user
- * space to the <svg> with `viewport.convertToViewportPoint(x, y)`.
- */
-export const state = {
+/** A run by its indices in `page.text_objects` and in that object's `runs`. */
+interface RunIndices {
+  object: number;
+  run: number;
+}
+
+/** Everything the page knows about the loaded document. */
+interface State {
+  name: string | null;
+  bytes: Uint8Array | null;
+  /** livre's analysis; its `pages` may be shorter than the document on failure. */
+  analysis: Analysis | null;
+  /** Null if pdf.js could not open the file. */
+  pdf: PDFDocumentProxy | null;
+  /** One-based. */
+  pageNumber: number;
+  numPages: number;
+  /**
+   * The viewport of the page on screen: overlays map PDF user space to the <svg> with
+   * `viewport.convertToViewportPoint(x, y)`.
+   */
+  viewport: PageViewport | null;
+  /** The run the inspector keeps showing. */
+  pinned: RunIndices | null;
+}
+
+export const state: State = {
   name: null,
   bytes: null,
-  /** livre's `Analysis`; its `pages` may be shorter than the document on failure. */
   analysis: null,
-  /** The pdf.js `PDFDocumentProxy`, or null if pdf.js could not open the file. */
   pdf: null,
-  /** One-based. */
   pageNumber: 1,
   numPages: 0,
   viewport: null,
-  /** The run the inspector keeps showing, as `{ object, run }` indices, or null. */
   pinned: null,
 };
 
+/** The rendered page an overlay draws over. */
+export interface Sheet {
+  pdf: PDFDocumentProxy;
+  pageNumber: number;
+  viewport: PageViewport;
+}
+
 /**
- * Functions drawing into the overlay after each render, called as `draw(svg, state)`
- * on an emptied <svg> whose `viewBox` matches `state.viewport`.
+ * Functions drawing into the overlay after each render, on an emptied <svg> whose
+ * `viewBox` matches `sheet.viewport`.
  */
-export const overlays = [];
+export const overlays: ((svg: SVGSVGElement, sheet: Sheet) => void | Promise<void>)[] = [];
 
 // With no DTO for the page (livre failed earlier), draw nothing: the banner explains why.
 overlays.push((svg, { viewport }) => {
@@ -92,7 +123,7 @@ overlays.push(async (svg, { pdf, pageNumber, viewport }) => {
     const page = await pdf.getPage(pageNumber);
     if (stale()) return;
     const layer = await drawGroundTruthLayer(svg, page, viewport, () => !stale());
-    if (layer) ui.countItems.textContent = layer.childElementCount;
+    if (layer) ui.countItems.textContent = String(layer.childElementCount);
   } catch (e) {
     // A load destroys the previous document mid-fetch; only a current failure matters.
     if (!stale()) throw e;
@@ -100,22 +131,22 @@ overlays.push(async (svg, { pdf, pageNumber, viewport }) => {
 });
 
 // The run under the pointer and the text object hovered in the inspector's list.
-let hoveredRun = null;
-let highlightedObject = null;
+let hoveredRun: RunIndices | null = null;
+let highlightedObject: number | null = null;
 let loadToken = 0;
 // The pdf.js loading task of the current document: destroying it frees its worker side.
-let loadingTask = null;
-let renderTask = null;
+let loadingTask: PDFDocumentLoadingTask | null = null;
+let renderTask: RenderTask | null = null;
 // Bumped by every render call, so that only the latest one draws.
 let renderGeneration = 0;
 
 await init();
 
 /** Analyse and open `bytes`, then show page 1. Later loads supersede earlier ones. */
-async function load(name, bytes) {
+async function load(name: string, bytes: Uint8Array): Promise<void> {
   const token = ++loadToken;
 
-  loadingTask?.destroy();
+  void loadingTask?.destroy();
   Object.assign(state, {
     name,
     bytes,
@@ -124,10 +155,10 @@ async function load(name, bytes) {
     pageNumber: 1,
     numPages: 0,
     viewport: null,
-  });
+  } satisfies Partial<State>);
   showSource(name);
 
-  let pdfError = null;
+  let pdfError: unknown = null;
   try {
     // pdf.js transfers the buffer it is given to its worker: hand it a copy.
     const task = pdfjs.getDocument({
@@ -148,7 +179,7 @@ async function load(name, bytes) {
   await show(1, pdfError);
 }
 
-async function loadFixture(name) {
+async function loadFixture(name: string): Promise<void> {
   const response = await fetch(`./fixtures/${encodeURIComponent(name)}`);
   if (!response.ok) {
     showBanners(null, `could not fetch fixtures/${name}: HTTP ${response.status}`);
@@ -157,25 +188,25 @@ async function loadFixture(name) {
   await load(name, new Uint8Array(await response.arrayBuffer()));
 }
 
-async function loadFile(file) {
+async function loadFile(file: File): Promise<void> {
   await load(file.name, new Uint8Array(await file.arrayBuffer()));
 }
 
 /** Show page `n`, clamped to the pages pdf.js found. */
-async function show(n, pdfError = null) {
+async function show(n: number, pdfError: unknown = null): Promise<void> {
   state.pageNumber = Math.min(Math.max(1, n), Math.max(1, state.numPages));
   state.pinned = null;
   hoveredRun = null;
   highlightedObject = null;
   updatePager();
-  showBanners(livrePage(), pdfError && `pdf.js could not open this file: ${pdfError.message}`);
+  showBanners(livrePage(), pdfError === null ? null : `pdf.js could not open this file: ${message(pdfError)}`);
   showJson();
   showInspector();
   await render();
 }
 
 /** Name the shown document in the sample select, through a stand-in option for a file. */
-function showSource(name) {
+function showSource(name: string): void {
   const fixture = [...ui.fixture.options].find((option) => option !== ui.fileOption && option.value === name);
   ui.fileOption.hidden = Boolean(fixture);
   if (fixture) {
@@ -187,21 +218,21 @@ function showSource(name) {
 }
 
 /** livre's DTO for the current page, if livre got that far. */
-function livrePage() {
+function livrePage(): Page | null {
   return state.analysis?.pages[state.pageNumber - 1] ?? null;
 }
 
-function updatePager() {
+function updatePager(): void {
   const { pageNumber, numPages } = state;
-  ui.total.value = numPages;
-  ui.page.max = numPages;
-  ui.page.value = pageNumber;
+  ui.total.value = String(numPages);
+  ui.page.max = String(numPages);
+  ui.page.value = String(pageNumber);
   ui.page.disabled = numPages === 0;
   ui.prev.disabled = pageNumber <= 1;
   ui.next.disabled = pageNumber >= numPages;
 }
 
-async function render() {
+async function render(): Promise<void> {
   const generation = ++renderGeneration;
   renderTask?.cancel();
   renderTask = null;
@@ -234,8 +265,8 @@ async function render() {
   canvas.height = Math.floor(viewport.height * dpr);
   canvas.style.width = `${viewport.width}px`;
   canvas.style.height = `${viewport.height}px`;
-  overlay.setAttribute("width", viewport.width);
-  overlay.setAttribute("height", viewport.height);
+  overlay.setAttribute("width", String(viewport.width));
+  overlay.setAttribute("height", String(viewport.height));
   overlay.setAttribute("viewBox", `0 0 ${viewport.width} ${viewport.height}`);
   state.viewport = viewport;
 
@@ -248,15 +279,15 @@ async function render() {
   try {
     await task.promise;
   } catch (e) {
-    if (e?.name === "RenderingCancelledException" || superseded()) return;
+    if ((e instanceof Error && e.name === "RenderingCancelledException") || superseded()) return;
     throw e;
   }
   if (renderTask === task) renderTask = null;
 
-  drawOverlays();
+  drawOverlays({ pdf, pageNumber, viewport });
 }
 
-function clearSheet() {
+function clearSheet(): void {
   state.viewport = null;
   const { canvas, overlay } = ui;
   canvas.width = canvas.height = 0;
@@ -265,26 +296,23 @@ function clearSheet() {
   overlay.replaceChildren();
 }
 
-function drawOverlays() {
+function drawOverlays(sheet: Sheet): void {
   ui.overlay.replaceChildren();
-  for (const draw of overlays) draw(ui.overlay, state);
+  for (const draw of overlays) void draw(ui.overlay, sheet);
 }
 
 /**
  * Rebuild the banner area: livre's document-level failure, the current page's
  * failure, and `other`, a message about a failure outside livre.
  */
-function showBanners(page, other) {
-  const banners = [];
+function showBanners(page: Page | null, other: string | null): void {
+  const banners: HTMLElement[] = [];
   if (state.analysis?.document) banners.push(stageBanner(state.analysis.document, null));
   if (page?.error) banners.push(stageBanner(page.error, page));
-  ui.banners.replaceChildren(
-    ...banners,
-    ...(other ? [plainBanner(other)] : []),
-  );
+  ui.banners.replaceChildren(...banners, ...(other ? [plainBanner(other)] : []));
 }
 
-function stageBanner({ stage, message }, page) {
+function stageBanner({ stage, message }: StageError, page: Page | null): HTMLElement {
   const where = page ? ` on page ${page.index + 1}` : "";
   const report = [
     `Stage: ${stage}${where}`,
@@ -331,7 +359,7 @@ function stageBanner({ stage, message }, page) {
   return strip([title, pre], [copy, issue]);
 }
 
-function plainBanner(text) {
+function plainBanner(text: string): HTMLElement {
   const title = document.createElement("strong");
   title.className = "font-medium text-amber-950 dark:text-amber-100";
   title.textContent = text;
@@ -339,7 +367,7 @@ function plainBanner(text) {
 }
 
 /** An amber strip under the header: a warning sign, `body`, then `actions` on the right. */
-function strip(body, actions) {
+function strip(body: HTMLElement[], actions: HTMLElement[]): HTMLElement {
   const banner = document.createElement("div");
   banner.className =
     "flex items-start gap-3 border-b border-amber-300/60 bg-amber-50 px-4 py-2.5 text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200";
@@ -362,38 +390,39 @@ function strip(body, actions) {
   return banner;
 }
 
-function showJson() {
+function showJson(): void {
   const page = livrePage();
   const shown = page ?? state.analysis?.document ?? { error: "livre found no such page" };
   ui.json.textContent = JSON.stringify(shown, null, 2);
 }
 
 /** Refill the inspector for the current page: counts, text object list, run panel. */
-function showInspector() {
+function showInspector(): void {
   const page = livrePage();
   const objects = page?.text_objects ?? [];
   const runs = objects.reduce((total, object) => total + object.runs.length, 0);
   // A dash, not 0, when livre never reached the page.
-  ui.countRuns.textContent = page ? runs : "–";
-  ui.countObjects.textContent = page ? objects.length : "–";
+  ui.countRuns.textContent = page ? String(runs) : "–";
+  ui.countObjects.textContent = page ? String(objects.length) : "–";
   // Filled in by the pdf.js layer once it has the page's text content.
   ui.countItems.textContent = "–";
-  ui.objectsCount.textContent = objects.length;
+  ui.objectsCount.textContent = String(objects.length);
 
   ui.objects.replaceChildren(
     ...objects.map((object, index) => {
       const item = document.createElement("li");
       item.className =
         "flex items-baseline gap-3 rounded-lg px-2.5 py-1.5 hover:bg-zinc-100 dark:hover:bg-white/5";
-      item.dataset.object = index;
+      item.dataset.object = String(index);
 
       const number = document.createElement("span");
       number.className = "w-8 shrink-0 text-right font-mono text-xs text-zinc-400 tabular-nums dark:text-zinc-600";
-      number.textContent = index + 1;
+      number.textContent = String(index + 1);
 
       const text = document.createElement("span");
       text.className = "min-w-0 flex-1 truncate font-mono text-xs text-zinc-800 dark:text-zinc-200";
-      text.textContent = object.runs.length ? JSON.stringify(object.runs[0].text) : "(no runs)";
+      const [first] = object.runs;
+      text.textContent = first ? JSON.stringify(first.text) : "(no runs)";
 
       const count = document.createElement("span");
       count.className = "shrink-0 text-xs text-zinc-400 dark:text-zinc-500";
@@ -407,8 +436,8 @@ function showInspector() {
   showRun(null);
 }
 
-/** Show the run at `indices` (`{ object, run }`) in the Run tab, or the empty state. */
-function showRun(indices) {
+/** Show the run at `indices` in the Run tab, or the empty state. */
+function showRun(indices: RunIndices | null): void {
   const run = indices && livrePage()?.text_objects[indices.object]?.runs[indices.run];
   ui.runEmpty.hidden = Boolean(run);
   ui.runDetails.hidden = !run;
@@ -423,7 +452,7 @@ function showRun(indices) {
   ui.runBytes.textContent = run.bytes.match(/../g)?.join(" ") ?? "";
 }
 
-function markActiveRun(indices) {
+function markActiveRun(indices: RunIndices | null): void {
   for (const marker of ui.overlay.querySelectorAll("g.livre .run.active")) marker.classList.remove("active");
   if (!indices) return;
   ui.overlay
@@ -431,44 +460,55 @@ function markActiveRun(indices) {
     ?.classList.add("active");
 }
 
-function highlightHull(object) {
+function highlightHull(object: number | null): void {
   highlightedObject = object;
   for (const hull of ui.overlay.querySelectorAll("g.livre .hull.highlight")) hull.classList.remove("highlight");
   if (object === null) return;
   ui.overlay.querySelector(`g.livre .hull[data-object="${object}"]`)?.classList.add("highlight");
 }
 
-/** The `{ object, run }` indices of the marker `target` belongs to, if any. */
-function runIndices(target) {
-  const marker = target.closest?.("g.livre .run");
+/** The indices of the marker `target` belongs to, if any. */
+function runIndices(target: EventTarget | null): RunIndices | null {
+  if (!(target instanceof Element)) return null;
+  const marker = target.closest<SVGGElement>("g.livre .run");
   if (!marker) return null;
   return { object: Number(marker.dataset.object), run: Number(marker.dataset.run) };
 }
 
-function samePlace(a, b) {
+function samePlace(a: RunIndices | null, b: RunIndices | null): boolean {
   return Boolean(a && b && a.object === b.object && a.run === b.run);
 }
 
-function round(value) {
+function round(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-function selectTab(selected) {
+function message(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function selectTab(selected: HTMLButtonElement): void {
   for (const tab of ui.tabs) {
     const active = tab === selected;
-    tab.setAttribute("aria-selected", active);
+    tab.setAttribute("aria-selected", String(active));
     tab.tabIndex = active ? 0 : -1;
-    $(tab.getAttribute("aria-controls")).hidden = !active;
+    $(tab.getAttribute("aria-controls") ?? "", HTMLElement).hidden = !active;
   }
 }
 
-async function showVersion() {
+/** The `version.json` the site is built with. */
+interface Version {
+  version: string;
+  commit: string;
+}
+
+async function showVersion(): Promise<void> {
   try {
     const response = await fetch("./version.json");
     if (!response.ok) return;
-    const { version, commit } = await response.json();
+    const { version, commit }: Version = await response.json();
     // A dirty tree is built from the commit it started at: link to that one.
-    const [hash, dirty] = commit.split("-");
+    const [hash = "", dirty] = commit.split("-");
     if (!/^[0-9a-f]{40}$/.test(hash)) {
       ui.version.textContent = `livre ${version} · ${commit}`;
       return;
@@ -486,8 +526,8 @@ async function showVersion() {
 ui.fixture.addEventListener("change", () => loadFixture(ui.fixture.value));
 ui.open.addEventListener("click", () => ui.file.click());
 ui.file.addEventListener("change", () => {
-  const [file] = ui.file.files;
-  if (file) loadFile(file);
+  const file = ui.file.files?.[0];
+  if (file) void loadFile(file);
   // Opening the same file again must fire `change` again.
   ui.file.value = "";
 });
@@ -521,22 +561,24 @@ ui.overlay.addEventListener("click", (event) => {
   if (!indices) return;
   state.pinned = samePlace(indices, state.pinned) ? null : indices;
   showRun(indices);
-  selectTab($("tab-run"));
+  selectTab($("tab-run", HTMLButtonElement));
 });
 
 ui.objects.addEventListener("pointerover", (event) => {
-  const item = event.target.closest("li[data-object]");
+  if (!(event.target instanceof Element)) return;
+  const item = event.target.closest<HTMLLIElement>("li[data-object]");
   if (item) highlightHull(Number(item.dataset.object));
 });
 ui.objects.addEventListener("pointerleave", () => highlightHull(null));
 
 for (const tab of ui.tabs) tab.addEventListener("click", () => selectTab(tab));
 // Arrow keys move between tabs, as the WAI-ARIA tabs pattern expects.
-ui.tabs[0].parentElement.addEventListener("keydown", (event) => {
-  const step = { ArrowRight: 1, ArrowLeft: -1 }[event.key];
+ui.tabs[0]?.parentElement?.addEventListener("keydown", (event) => {
+  const step = ({ ArrowRight: 1, ArrowLeft: -1 } as Record<string, number>)[event.key];
   if (!step) return;
-  const current = ui.tabs.indexOf(document.activeElement);
+  const current = ui.tabs.findIndex((tab) => tab === document.activeElement);
   const next = ui.tabs[(current + step + ui.tabs.length) % ui.tabs.length];
+  if (!next) return;
   selectTab(next);
   next.focus();
 });
@@ -547,20 +589,22 @@ ui.dropzone.addEventListener("dragover", (event) => {
 });
 ui.dropzone.addEventListener("dragleave", (event) => {
   // `dragleave` also fires when entering a child: only leaving the zone counts.
-  if (!ui.dropzone.contains(event.relatedTarget)) delete ui.dropzone.dataset.dragging;
+  if (!(event.relatedTarget instanceof Node && ui.dropzone.contains(event.relatedTarget))) {
+    delete ui.dropzone.dataset.dragging;
+  }
 });
 ui.dropzone.addEventListener("drop", (event) => {
   event.preventDefault();
   delete ui.dropzone.dataset.dragging;
-  const [file] = event.dataTransfer.files;
-  if (file) loadFile(file);
+  const file = event.dataTransfer?.files[0];
+  if (file) void loadFile(file);
 });
 
-let resizeTimer;
+let resizeTimer: ReturnType<typeof setTimeout> | undefined;
 window.addEventListener("resize", () => {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(render, 150);
 });
 
-showVersion();
+void showVersion();
 await loadFixture(ui.fixture.value);

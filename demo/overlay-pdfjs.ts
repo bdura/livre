@@ -5,25 +5,30 @@
 // baseline. Where a livre marker is not at the left edge of a box on the same baseline,
 // livre is wrong or does not support what the page does.
 
-const SVG = "http://www.w3.org/2000/svg";
+import type { Matrix, PageViewport, PDFPageProxy, TextItem } from "./pdfjs.js";
+import { element } from "./svg.js";
 
 /**
  * Replace the `<g class="pdfjs">` in `svg` with a box per non-empty text item of
- * `pdfPage` (a pdf.js `PDFPageProxy`), placed with `viewport`, the `PageViewport` the
- * page was rendered with.
+ * `pdfPage`, placed with `viewport`, the `PageViewport` the page was rendered with.
  *
  * The group goes first in `svg`, under livre's layer, so livre's markers keep their
  * pointer events where the two overlap. The text content is fetched first; if `isCurrent()`
  * is then false, a later render owns `svg`: it is left untouched and null is returned.
  */
-export async function drawGroundTruthLayer(svg, pdfPage, viewport, isCurrent = () => true) {
+export async function drawGroundTruthLayer(
+  svg: SVGSVGElement,
+  pdfPage: PDFPageProxy,
+  viewport: PageViewport,
+  isCurrent: () => boolean = () => true,
+): Promise<SVGGElement | null> {
   const { items } = await pdfPage.getTextContent();
   if (!isCurrent()) return null;
   const layer = element("g", { class: "pdfjs" });
 
   for (const item of items) {
     // Marked-content markers carry no `str`; whitespace-only items are kept, they are text.
-    if (!item.str) continue;
+    if (!("str" in item) || !item.str) continue;
     layer.append(itemBox(item, viewport));
   }
 
@@ -32,7 +37,7 @@ export async function drawGroundTruthLayer(svg, pdfPage, viewport, isCurrent = (
   return layer;
 }
 
-function itemBox(item, viewport) {
+function itemBox(item: TextItem, viewport: PageViewport): SVGRectElement {
   // Text space to viewport space: rotation, crop box, y flip and scale in one matrix.
   const [a, b, , , e, f] = multiply(viewport.transform, item.transform);
   // `width` and `height` are in user space, so only the viewport's scale applies.
@@ -49,7 +54,7 @@ function itemBox(item, viewport) {
     height,
     transform: `translate(${e} ${f})${angle ? ` rotate(${angle})` : ""}`,
   });
-  const [x, y] = item.transform.slice(4);
+  const [, , , , x, y] = item.transform;
   const title = element("title");
   title.textContent = [
     `text: ${JSON.stringify(item.str)}`,
@@ -60,8 +65,8 @@ function itemBox(item, viewport) {
   return box;
 }
 
-/** The affine product `m1 × m2` of two `[a, b, c, d, e, f]` matrices, as pdf.js's `Util.transform`. */
-function multiply(m1, m2) {
+/** The affine product `m1 × m2`, as pdf.js's `Util.transform`. */
+function multiply(m1: Matrix, m2: Matrix): Matrix {
   return [
     m1[0] * m2[0] + m1[2] * m2[1],
     m1[1] * m2[0] + m1[3] * m2[1],
@@ -72,12 +77,6 @@ function multiply(m1, m2) {
   ];
 }
 
-function element(name, attributes = {}) {
-  const node = document.createElementNS(SVG, name);
-  for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, value);
-  return node;
-}
-
-function round(value) {
+function round(value: number): number {
   return Math.round(value * 100) / 100;
 }

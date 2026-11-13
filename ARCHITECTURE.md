@@ -98,7 +98,7 @@ and the root manifest only lists the members and their shared package metadata.
 │   ├── livre/                 # The library, with its examples, tests and changelog
 │   ├── livre-derive/          # Proc-macro crate for the derive macros
 │   └── livre-wasm/            # Unpublished wasm glue behind the browser demo
-├── demo/                      # Static page of the browser demo (no build step)
+├── demo/                      # Static page of the browser demo (TypeScript, no bundler)
 └── nix/                       # Flake checks (crane), toolchains, generated fixtures, demo site
     ├── source.nix             # The cargo source fileset shared by checks and the demo
     ├── checks.nix             # Crane checks, including `livre-wasm32` (the crates on wasm32)
@@ -209,7 +209,7 @@ fails when the committed files drift from what it produces.
 ├── src/
 │   ├── lib.rs            # `analyze_pdf`, the wasm-bindgen export (wasm32 only)
 │   ├── analyze.rs        # `analyze(&[u8]) -> Analysis`: runs livre stage by stage
-│   └── dto.rs            # Serialisable mirror of what livre extracted
+│   └── dto.rs            # Serialisable mirror of what livre extracted, with TS interfaces (tsify)
 └── tests/
     └── fixtures.rs       # Native tests of `analyze` on the livre fixtures
 ```
@@ -218,14 +218,17 @@ fails when the committed files drift from what it produces.
 
 ```text
 ├── index.html            # The page: header controls, error strips, canvas and overlay svg, inspector
-├── app.js                # Loads the wasm and pdf.js, renders, navigates, reports errors, drives the inspector
-├── overlay-livre.js      # livre's layer: run markers and text object hulls
-├── overlay-pdfjs.js      # Ground truth: pdf.js text items as boxes
+├── app.ts                # Loads the wasm and pdf.js, renders, navigates, reports errors, drives the inspector
+├── overlay-livre.ts      # livre's layer: run markers and text object hulls
+├── overlay-pdfjs.ts      # Ground truth: pdf.js text items as boxes
+├── svg.ts                # The overlays' SVG element helper
+├── pdfjs.d.ts            # Hand-written types for the slice of pdf.js the page uses
+├── tsconfig.json         # Strict, emits each `.ts` as the `.js` beside it
 ├── tailwind.css          # Stylesheet source, compiled to `style.css` by the Tailwind CLI
 └── README.md             # Local development and deployment
 ```
 
-`demo/pkg/`, `demo/fixtures/`, `demo/style.css` and `demo/version.json` are generated
+`demo/pkg/`, `demo/fixtures/`, `demo/style.css`, `demo/version.json` and `demo/*.js` are generated
 and git-ignored.
 
 ### Key Components
@@ -304,13 +307,18 @@ runs livre on a PDF's bytes and returns plain data transfer objects (`dto.rs`):
 the document, its pages with their media box, text objects and runs (start
 position, font resource name and size, decoded text and raw bytes), and the
 stage that failed, if any. serde lives only in the glue crate, so livre's own
-types never commit to a serialisation shape. `analyze` is ordinary Rust and is
+types never commit to a serialisation shape. The DTOs derive `tsify::Tsify`, so
+the wasm-bindgen declarations type `analyze_pdf` as returning `Analysis`, with
+an interface per DTO; the page's TypeScript is checked against them, so a DTO
+change that breaks the page fails the build. `analyze` is ordinary Rust and is
 tested natively; only the wasm-bindgen wrapper needs wasm32. The crate is a
 workspace member (so the crane checks build it) but unpublished, excluded in
 `release-plz.toml`, and pins `wasm-bindgen` to the version of nixpkgs'
 `wasm-bindgen-cli`. `nix/demo.nix` builds it for wasm32, runs
-`wasm-bindgen --target web`, compiles the page's stylesheet with the Tailwind
-CLI, and adds the `demo/` page, the three fixtures and `version.json`; it is
+`wasm-bindgen --target web` into a copy of `demo/`, type-checks and compiles
+the page's `.ts` files with `tsc` (one `.js` per file, no bundler; pdf.js still
+comes from jsdelivr, typed by the hand-written `pdfjs.d.ts`), compiles its
+stylesheet with the Tailwind CLI, and adds the fixtures and `version.json`; it is
 both `packages.demo` and a flake check, and
 `.github/workflows/pages.yml` deploys it to GitHub Pages on pushes to `main`.
 `apps.demo` in `flake.nix` serves the same build locally: `nix run .#demo`

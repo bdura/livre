@@ -98,6 +98,8 @@
             pkgs.wasm-bindgen-cli
             # Compiles the demo page's `tailwind.css` into `style.css`.
             pkgs.tailwindcss_4
+            # Compiles the demo page's `.ts` files, run as `tsc -p demo`.
+            pkgs.typescript
           ];
 
           RUST_BACKTRACE = "1";

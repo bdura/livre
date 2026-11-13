@@ -10,12 +10,12 @@ pub use analyze::analyze;
 pub use dto::{Analysis, Page, Rect, Run, Stage, StageError, TextObject};
 
 #[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
+use {tsify::Ts, wasm_bindgen::prelude::*};
 
-/// [`analyze`], serialised to a plain JS object.
+/// [`analyze`], serialised to a plain JS object declared as the `Analysis` interface.
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
-pub fn analyze_pdf(bytes: &[u8]) -> JsValue {
+pub fn analyze_pdf(bytes: &[u8]) -> Ts<Analysis> {
     // `Analysis` holds only strings, numbers, options and vectors: serialisation cannot fail.
-    serde_wasm_bindgen::to_value(&analyze(bytes)).unwrap()
+    Ts::from_rust(&analyze(bytes)).unwrap()
 }
