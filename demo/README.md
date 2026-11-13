@@ -29,7 +29,10 @@ wasm bindings, fixtures and `version.json`) into `result/`.
 `nix run .#demo` builds it and serves it with `static-web-server` on
 <http://localhost:8000>; set `PORT` to use another port, and any extra arguments
 are passed to `static-web-server`.
-`nix flake check` builds it too, so a broken demo fails CI. The inspector's
+`nix flake check` builds it too, so a broken demo fails CI, and its
+`demo-test` check runs `test/site.test.mjs` under Node against the built site:
+the shipped wasm must analyse every sample the page offers without a stage
+error, and every asset the page loads must be there. The inspector's
 footer shows the livre version and the commit it was built from, linked on
 GitHub (suffixed `-dirty` for an uncommitted tree).
 

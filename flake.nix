@@ -44,6 +44,10 @@
           }
           // {
             inherit (self.packages.${system}) demo;
+            demo-test = import ./nix/demo-test.nix {
+              inherit pkgs;
+              inherit (self.packages.${system}) demo;
+            };
           };
 
         # The browser demo, deployed to GitHub Pages.
