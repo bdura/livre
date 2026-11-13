@@ -3,7 +3,7 @@ name = "livre-derive"
 version = "0.2.0"
 edition = "2021"
 authors = ["Basile Dura <basile@bdura.me>"]
-rust-version = "1.82.0"
+rust-version = "1.85.0"
 
 readme = "README.md"
 description = "The derive macro for Livre, a type-safe PDF parser"
