@@ -9,7 +9,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      # Checkout & Nix setup
+      - uses: actions/checkout@v7
       - uses: DeterminateSystems/nix-installer-action@main
       # The Nix store cache, in the repository's Actions cache: without it
       # every run rebuilds the dependencies.
