@@ -51,11 +51,13 @@ pub trait Filtering {
 /// stream whose predictor is 1 decodes whatever the other entries say.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromRawDict, BuildFromRawDict)]
 pub struct FlateParams {
+    /// `1` for none, `2` for TIFF Predictor 2, `10..=15` for PNG predictors.
     #[livre(default = 1)]
     pub predictor: u8,
     /// Interleaved colour components per sample.
     #[livre(default = 1)]
     pub colors: usize,
+    /// Bits per colour component: `1`, `2`, `4`, `8` or `16`.
     #[livre(default = 8)]
     pub bits_per_component: usize,
     /// Samples per row.
