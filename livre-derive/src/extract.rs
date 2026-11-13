@@ -2,9 +2,9 @@ use std::collections::HashSet;
 
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
-use syn::{parse_quote_spanned, DeriveInput, Ident};
+use syn::{parse_quote, parse_quote_spanned, DeriveInput, Ident};
 
-use crate::{add_extraction_trait_bounds, plan::ContainerPlan};
+use crate::{generics::add_bounds, plan::ContainerPlan};
 
 pub fn derive(input: DeriveInput) -> syn::Result<TokenStream> {
     let plan = ContainerPlan::for_extract(&input)?;
@@ -14,7 +14,12 @@ pub fn derive(input: DeriveInput) -> syn::Result<TokenStream> {
     let extraction = generate_extraction(name, &plan);
 
     // Add a bound `T: Extract` to every type parameter T.
-    let generics = add_extraction_trait_bounds(input.generics.clone(), HashSet::new());
+    let generics = add_bounds(
+        input.generics.clone(),
+        &HashSet::new(),
+        parse_quote!(::livre::extraction::Extract<'de>),
+        parse_quote!(::livre::extraction::Extract<'de>),
+    );
     let mut gen_lt = generics.clone();
 
     gen_lt
