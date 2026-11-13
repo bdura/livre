@@ -1,3 +1,8 @@
+//! Generator for the `Extract` derive: tuple structs, unit structs and enums.
+//!
+//! Every winnow call is fully qualified, so the expansion compiles whatever
+//! the caller has imported.
+
 use std::collections::HashSet;
 
 use proc_macro2::{Span, TokenStream};
@@ -6,12 +11,16 @@ use syn::{parse_quote, parse_quote_spanned, DeriveInput, Ident};
 
 use crate::{generics::add_bounds, plan::ContainerPlan};
 
+/// Expands `#[derive(Extract)]`, or returns the plan's spanned error for named
+/// structs, unions and `#[livre]` field attributes.
 pub fn derive(input: DeriveInput) -> syn::Result<TokenStream> {
     let plan = ContainerPlan::for_extract(&input)?;
 
     let name = &input.ident;
+    // Mixed-site, so it neither captures nor is captured by user identifiers.
+    let input_ident = Ident::new("input", Span::mixed_site());
 
-    let extraction = generate_extraction(name, &plan);
+    let extraction = generate_extraction(&input_ident, &plan);
 
     // Add a bound `T: Extract` to every type parameter T.
     let generics = add_bounds(
@@ -31,20 +40,23 @@ pub fn derive(input: DeriveInput) -> syn::Result<TokenStream> {
 
     Ok(quote! {
         impl #impl_generics ::livre::extraction::Extract<'de> for #name #ty_generics #where_clause {
-            fn extract(input: &mut &'de ::winnow::stream::BStr) -> ::winnow::ModalResult<Self> {
+            fn extract(#input_ident: &mut &'de ::winnow::stream::BStr) -> ::winnow::ModalResult<Self> {
                 #extraction
             }
         }
     })
 }
 
-fn generate_extraction(name: &Ident, plan: &ContainerPlan) -> TokenStream {
+/// Body of `extract`, reading from the `&mut &BStr` binding `input`.
+fn generate_extraction(input: &Ident, plan: &ContainerPlan) -> TokenStream {
     match plan {
         ContainerPlan::Tuple { arity } => {
-            let field_by_field: Vec<Ident> = (0..*arity).map(|i| format_ident!("t{}", i)).collect();
+            let field_by_field: Vec<Ident> = (0..*arity)
+                .map(|i| format_ident!("t{}", i, span = Span::mixed_site()))
+                .collect();
 
             quote! {
-                let (#(#field_by_field,)*) = ::livre::extraction::extract(input)?;
+                let (#(#field_by_field,)*) = ::livre::extraction::extract(#input)?;
                 Ok(Self(#(#field_by_field,)*))
             }
         }
@@ -55,15 +67,16 @@ fn generate_extraction(name: &Ident, plan: &ContainerPlan) -> TokenStream {
         }
         ContainerPlan::Enum { variants } => {
             let alternatives = variants.iter().map(|ident| {
-                quote! {::livre::extraction::extract.map(#name::#ident),}
+                quote! {
+                    ::winnow::Parser::map(::livre::extraction::extract, Self::#ident),
+                }
             });
 
             quote! {
-                ::winnow::combinator::alt((
-                    #(
-                        #alternatives
-                    )*
-                )).parse_next(input)
+                ::winnow::Parser::parse_next(
+                    &mut ::winnow::combinator::alt((#(#alternatives)*)),
+                    #input,
+                )
             }
         }
         // `for_extract` never builds a dictionary plan.

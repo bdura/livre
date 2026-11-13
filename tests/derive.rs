@@ -352,3 +352,74 @@ fn build_resolves_reference_through_builder() {
 
     assert_eq!(target, Target { value: 42 });
 }
+
+/// The `Extract` expansion must not rely on the caller importing `winnow::Parser`.
+mod extract_without_parser_import {
+    use livre::extraction::Extract;
+    use winnow::BStr;
+
+    fn parse<'de, T: Extract<'de>>(bytes: &'de [u8]) -> winnow::ModalResult<T> {
+        let mut input: &'de BStr = bytes.as_ref();
+        T::extract(&mut input)
+    }
+
+    #[derive(Debug, PartialEq, Extract)]
+    struct Unit;
+
+    #[derive(Debug, PartialEq, Extract)]
+    struct IntBool(i32, bool);
+
+    #[derive(Debug, PartialEq, Extract)]
+    struct Wrap<T>(T);
+
+    #[derive(Debug, PartialEq, Extract)]
+    enum Either {
+        Int(i32),
+        Flag(bool),
+    }
+
+    #[derive(Debug, PartialEq, Extract)]
+    enum IntOrNothing {
+        Int(i32),
+        Nothing(Unit),
+    }
+
+    #[test]
+    fn unit_struct() {
+        assert_eq!(parse::<Unit>(b"").unwrap(), Unit);
+    }
+
+    #[test]
+    fn tuple_struct() {
+        assert_eq!(parse::<IntBool>(b"1 true").unwrap(), IntBool(1, true));
+    }
+
+    #[test]
+    fn generic_tuple_struct() {
+        assert_eq!(parse::<Wrap<i32>>(b"3").unwrap(), Wrap(3));
+    }
+
+    #[test]
+    fn enum_first_variant() {
+        assert_eq!(parse::<Either>(b"7").unwrap(), Either::Int(7));
+    }
+
+    #[test]
+    fn enum_second_variant() {
+        assert_eq!(parse::<Either>(b"false").unwrap(), Either::Flag(false));
+    }
+
+    #[test]
+    fn enum_no_variant_matches() {
+        assert!(parse::<Either>(b"/Name").is_err());
+    }
+
+    #[test]
+    fn enum_alt_over_unit_extractor() {
+        assert_eq!(parse::<IntOrNothing>(b"5").unwrap(), IntOrNothing::Int(5));
+        assert_eq!(
+            parse::<IntOrNothing>(b"/Name").unwrap(),
+            IntOrNothing::Nothing(Unit)
+        );
+    }
+}
