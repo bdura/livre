@@ -141,15 +141,13 @@ pages and extract their content.
 │
 ├── livre-derive/              # Proc-macro crate for derive macros
 │   ├── src/
-│   │   ├── lib.rs            # Macro exports
-│   │   ├── extract.rs        # Extract derive macro
-│   │   ├── from_raw_dict.rs  # FromRawDict derive macro
-│   │   ├── build_from_raw_dict.rs
-│   │   └── utilities/        # Helper modules for macros
-│   │       ├── mod.rs
-│   │       ├── attr.rs
-│   │       ├── extraction.rs
-│   │       └── option.rs
+│   │   ├── lib.rs            # Entry points and crate docs (shapes, attributes)
+│   │   ├── attrs.rs          # Syntactic parse of #[livre(...)], duplicates rejected
+│   │   ├── plan.rs           # FieldPlan / ContainerPlan: modes, keys, validation
+│   │   ├── dict.rs           # Generator for FromRawDict and BuildFromRawDict
+│   │   ├── extract.rs        # Generator for Extract
+│   │   └── generics.rs       # Trait bounds on type parameters
+│   ├── README.md
 │   └── Cargo.toml
 │
 ├── examples/                  # Runnable examples
@@ -161,6 +159,9 @@ pages and extract their content.
 └── tests/                    # Integration tests
     ├── content.rs           # Content parsing tests
     ├── text_objects.rs       # Text object tests
+    ├── derive.rs            # Behavioural tests for the derives, as a downstream crate
+    ├── compile_fail.rs      # trybuild runner for tests/ui
+    ├── ui/                  # Compile-fail cases with their expected .stderr
     └── resources/            # Test PDF files
 ```
 
@@ -213,8 +214,15 @@ is used for custom error types like `ContentError`.
 strongly typed via the `Reference<T>` type, ensuring type safety when following
 object graphs.
 
-**Derive macros**: The `livre-derive` crate provides derive macros for `Extract`,
-`FromRawDict`, and `BuildFromRawDict` to reduce boilerplate for custom types.
+**Derive macros**: The `livre-derive` crate provides derive macros for `Extract`
+(tuple structs, unit structs, enums of single-field variants), `FromRawDict` and
+`BuildFromRawDict` (structs with named fields). Each dictionary field reads the
+`PascalCase` form of its name as key, tunable with `#[livre(...)]` attributes:
+`rename = "Key"`, `from = Type` (extract, then `Into`), `default` (bare, literal,
+closure or expression; applied after `from`) and `flatten`. Generated code uses
+absolute `::livre::` and `::winnow::` paths; `livre` itself declares
+`extern crate self as livre` so those paths resolve inside the crate too. Misuse
+is a spanned compile error, checked by the trybuild cases in `tests/ui`.
 
 **Memory model**: `InMemoryDocument` loads the entire PDF into memory.
 The `InMemoryBuilder` holds the raw bytes and cross-reference table, allowing

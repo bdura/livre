@@ -1,0 +1,5 @@
+error: derive `FromRawDict` instead; it provides `Extract` through a blanket impl
+ --> tests/ui/extract_named_struct.rs:4:8
+  |
+4 | struct Named {
+  |        ^^^^^

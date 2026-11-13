@@ -7,6 +7,7 @@ use super::{Extract, RawDict};
 /// dictionary.
 ///
 /// This type can be derived using the [`livre_derive`] helper crate.
+/// See [`livre_derive`] for the supported shapes and the `#[livre(...)]` field attributes.
 pub trait FromRawDict<'de>: Sized {
     /// Build a type from a raw dictionary. Note that the supplied dict is not consumed.
     /// Rather, the method takes hold of a mutable reference to extract only the fields

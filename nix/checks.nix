@@ -13,13 +13,15 @@
 
   root = ../.;
 
-  # The cargo sources, plus the PDFs the tests and examples read: an edit to
-  # the README or the changelog rebuilds nothing.
+  # The cargo sources, plus the PDFs the tests and examples read and the
+  # trybuild `.stderr` snapshots: an edit to the README or the changelog
+  # rebuilds nothing.
   src = fs.toSource {
     inherit root;
     fileset = fs.unions [
       (craneLib.fileset.commonCargoSources root)
       (root + "/tests/resources")
+      (root + "/tests/ui")
     ];
   };
 

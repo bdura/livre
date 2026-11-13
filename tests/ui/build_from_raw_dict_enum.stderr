@@ -1,0 +1,5 @@
+error: `BuildFromRawDict` can only be derived on a struct with named fields
+ --> tests/ui/build_from_raw_dict_enum.rs:4:6
+  |
+4 | enum Choice {
+  |      ^^^^^^

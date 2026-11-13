@@ -49,7 +49,7 @@
 //! from a reference to the relevant data - be that the raw byte stream or some pre-parsed object.
 //!
 //! Beside [`Build`] and [`Builder`], Livre provides the [`BuildFromRawDict`] trait, which helps
-//! define a derivable way of building composite objects (derive macro pending).
+//! define a derivable way of building composite objects.
 
 mod build;
 mod builder;
