@@ -2,7 +2,9 @@
 #
 # Every check that inherits `cargoArtifacts` passes the same `cargoExtraArgs`:
 # a check selecting other packages or features would recompile, inside itself,
-# every dependency whose features change.
+# every dependency whose features change. `livre-wasm32` builds its own
+# `cargoArtifacts`: dependencies compiled for the host are useless to another
+# target.
 {
   pkgs,
   fixtures,
@@ -42,6 +44,16 @@
   msrvArgs =
     commonArgs
     // {
+      doCheck = false;
+    };
+
+  # Only the library: the dev-dependencies need not compile for the browser.
+  wasm32Args =
+    commonArgs
+    // {
+      pname = "${commonArgs.pname}-wasm32";
+      CARGO_BUILD_TARGET = "wasm32-unknown-unknown";
+      cargoExtraArgs = "--locked -p livre";
       doCheck = false;
     };
 in {
@@ -84,6 +96,17 @@ in {
     msrvArgs
     // {
       cargoArtifacts = craneLibMsrv.buildDepsOnly msrvArgs;
+    }
+  );
+
+  # livre compiles for the browser.
+  livre-wasm32 = craneLib.mkCargoDerivation (
+    wasm32Args
+    // {
+      cargoArtifacts = craneLib.buildDepsOnly (
+        wasm32Args // {cargoCheckCommand = "cargo check --release";}
+      );
+      buildPhaseCargoCommand = "cargo check --release $cargoExtraArgs";
     }
   );
 }

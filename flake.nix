@@ -61,6 +61,8 @@
           packages = [
             toolchain.stable
             pkgs.prek
+            # The browser demo's crate pins `wasm-bindgen` to this version.
+            pkgs.wasm-bindgen-cli
           ];
 
           RUST_BACKTRACE = "1";

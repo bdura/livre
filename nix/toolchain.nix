@@ -14,6 +14,8 @@ in {
       "clippy"
       "rustfmt"
     ];
+    # The browser demo, and the `livre-wasm32` check that guards it.
+    targets = ["wasm32-unknown-unknown"];
   };
 
   msrv = pkgs.rust-bin.stable.${msrv}.minimal;
