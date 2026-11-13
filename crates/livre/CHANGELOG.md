@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Apply `/DecodeParms` predictors after `FlateDecode`: PNG (10 to 15) and TIFF (2, 8 bits per component), so cross-reference streams written with `/Predictor 12` decode correctly
+- Read every field of a cross-reference stream row: free and uncompressed entries now consume their whole `/W` row, and a zero-width type field defaults to type 1
+
 ### Changed
 
 - Raise the minimum supported Rust version to 1.85 (required by trybuild's dependencies)

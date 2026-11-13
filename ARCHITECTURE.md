@@ -96,7 +96,7 @@ and the root manifest only lists the members and their shared package metadata.
 ├── crates/
 │   ├── livre/                 # The library, with its examples, tests and changelog
 │   └── livre-derive/          # Proc-macro crate for the derive macros
-└── nix/                       # Flake checks (crane) and toolchains
+└── nix/                       # Flake checks (crane), toolchains and generated test fixtures
 ```
 
 ### `crates/livre/`
@@ -105,7 +105,9 @@ and the root manifest only lists the members and their shared package metadata.
 ├── src/
 │   ├── lib.rs                 # Main exports: InMemoryDocument, module re-exports
 │   ├── document.rs            # InMemoryDocument, InMemoryBuilder - the main document types
-│   ├── filtering.rs           # Stream filter implementations (FlateDecode, etc.)
+│   ├── filtering.rs           # Stream filters (FlateDecode) and their /DecodeParms
+│   ├── filtering/
+│   │   └── predictor.rs       # Undoes PNG and TIFF predictors after inflation
 │   │
 │   ├── extraction/            # Low-level primitive type extraction
 │   │   ├── mod.rs             # Extract trait, FromRawDict trait, core types
@@ -161,11 +163,19 @@ and the root manifest only lists the members and their shared package metadata.
 └── tests/                    # Integration tests
     ├── content.rs           # Content parsing tests
     ├── text_objects.rs       # Text object tests
+    ├── xref_stream.rs       # Golden test: a predicted xref stream reads like the original
+    ├── incremental_update.rs # Cross-reference sections chained through /Prev
     ├── derive.rs            # Behavioural tests for the derives, as a downstream crate
     ├── compile_fail.rs      # trybuild runner for tests/ui
     ├── ui/                  # Compile-fail cases with their expected .stderr
     └── resources/            # Test PDF files
 ```
+
+Most fixtures in `tests/resources/` are hand-picked PDFs. Generated ones (today
+`text-xref-stream.pdf`, `text.pdf` rewritten by qpdf with object streams and a
+cross-reference stream using `/Predictor 12`) come from `nix/fixtures.nix`:
+`nix run .#fixtures` regenerates them in place, and the `fixtures` flake check
+fails when the committed files drift from what it produces.
 
 ### `crates/livre-derive/`
 
@@ -248,7 +258,9 @@ lazy resolution of objects without reparsing.
 
 **Stream decoding**: The `Filtering` trait abstracts over different compression
 algorithms. Currently only `FlateDecode` (zlib) is implemented; others return
-unsupported errors.
+unsupported errors. `StreamConfig` reads `/DecodeParms` alongside `/Filter` (a
+single dictionary or an array parallel to it, `null` for no parameters), and
+FlateDecode undoes PNG (10 to 15) and TIFF (2) predictors after inflating.
 
 **Invariants**:
 
