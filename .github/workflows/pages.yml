@@ -2,7 +2,10 @@
 # repository's Pages source must be set to "GitHub Actions".
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      # FIXME: remove before mergine
+      - feat/wasm-demo
   workflow_dispatch:
 
 permissions:
