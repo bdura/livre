@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use winnow::{
     error::{ContextError, ErrMode},
@@ -92,7 +92,9 @@ impl Extract<'_> for InMemoryDocument {
         let StartXRef(start) = StartXRef::find(i)?;
         let i = &mut &input[start..];
 
-        let mut cross_references = Vec::new();
+        // Sections are visited newest-first, so the first entry seen for an object wins.
+        let mut cross_references = HashMap::new();
+        let mut visited = HashSet::from([start]);
 
         let XRefTrailerBlock {
             trailer:
@@ -104,9 +106,12 @@ impl Extract<'_> for InMemoryDocument {
                 },
             xrefs,
         } = extract(i)?;
-        cross_references.extend(xrefs);
+        for (id, location) in xrefs {
+            cross_references.entry(id).or_insert(location);
+        }
 
-        while let Some(p) = prev {
+        // A `/Prev` pointing at an already visited section would loop forever.
+        while let Some(p) = prev.filter(|&p| visited.insert(p)) {
             let i = &mut &input[p..];
 
             let XRefTrailerBlock {
@@ -119,14 +124,16 @@ impl Extract<'_> for InMemoryDocument {
                         id: _,
                     },
             } = extract(i)?;
-            cross_references.extend(xrefs);
+            for (id, location) in xrefs {
+                cross_references.entry(id).or_insert(location);
+            }
 
             prev = previous;
         }
 
         let builder = InMemoryBuilder {
             input: input.to_vec(),
-            xrefs: cross_references.into_iter().collect(),
+            xrefs: cross_references,
         };
 
         let catalog = builder.build_reference(root)?;
