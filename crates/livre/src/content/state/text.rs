@@ -286,8 +286,12 @@ impl TextObject {
                         break;
                     }
                     TextArrayElement::Offset(offset) => {
-                        // NOTE: offset is given in thousandths of a unit of text space
-                        self.matrix.translate(-offset / 1_000.0, 0.0);
+                        // ISO 32000-2, 9.4.4: tx = -n/1000 · Tfs · Th, the offset being
+                        // in thousandths of a unit of glyph space.
+                        let size = self.parameters.font.as_ref().map_or(0.0, |f| f.size);
+                        let scaling = self.parameters.horizontal_scaling / 100.0;
+                        self.matrix
+                            .translate(-offset / 1_000.0 * size * scaling, 0.0);
                     }
                 }
             }
@@ -299,11 +303,12 @@ impl TextObject {
 }
 
 impl Iterator for TextObject {
-    // NOTE: text is decoded from raw PDF string bytes using best-effort heuristics
-    // (UTF-16BE if a BOM is present, Latin-1 otherwise). Actual decoding requires
-    // the font's encoding map.
     type Item = ((f32, f32), String);
 
+    /// The start position of the next shown string and its text, decoded by
+    /// [`PDFString::decode`]'s best-effort heuristics (UTF-16BE behind a BOM, Latin-1
+    /// otherwise): actual decoding requires the font's encoding. Use
+    /// [`next_raw`](Self::next_raw) for the bytes.
     fn next(&mut self) -> Option<Self::Item> {
         self.next_raw().map(|(pos, s)| (pos, s.decode()))
     }
@@ -339,6 +344,10 @@ where
 {
     type Item = ((f32, f32), String);
 
+    /// The start position of the next shown string and its text, decoded by
+    /// [`PDFString::decode`]'s best-effort heuristics (UTF-16BE behind a BOM, Latin-1
+    /// otherwise): actual decoding requires the font's encoding. Use
+    /// [`next_raw`](Self::next_raw) for the bytes.
     fn next(&mut self) -> Option<Self::Item> {
         self.next_raw().map(|(pos, s)| (pos, s.decode()))
     }
@@ -442,6 +451,18 @@ mod tests {
             .unwrap();
         let texts: Vec<String> = stream.map(|(_, text)| text).collect();
         assert_eq!(texts, ["A", "A"]);
+    }
+
+    #[test]
+    fn tj_offset_scales_with_font_size_and_horizontal_scaling() {
+        // tx = -n/1000 · Tfs · Th: 500/1000 · 10 · 2. Glyph widths are unknown, so the
+        // advance of `(A)` is not counted.
+        let ops = operators(b"BT /F1 10 Tf 200 Tz [(A) -500 (B)] TJ ET");
+        let stream = parse_text_object(ops.into_iter(), &mut GraphicsState::default())
+            .unwrap()
+            .unwrap();
+        let positions: Vec<(f32, f32)> = stream.map(|(pos, _)| pos).collect();
+        assert_eq!(positions, [(0.0, 0.0), (10.0, 0.0)]);
     }
 }
 
