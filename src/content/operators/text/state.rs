@@ -1,14 +1,14 @@
 use enum_dispatch::enum_dispatch;
 
 use crate::{
-    content::state::{RenderingMode, TextMatrix, TextStateParameters},
+    content::state::{Font, RenderingMode, TextObject},
     extraction::{Extract, Name},
 };
 
-use super::PreTextOperation;
+use super::TextOperation;
 
 #[derive(Debug, Clone, PartialEq)]
-#[enum_dispatch(PreTextOperation)]
+#[enum_dispatch(TextOperation)]
 pub enum TextStateOperator {
     SetCharacterSpacing(SetCharacterSpacing),
     SetWordSpacing(SetWordSpacing),
@@ -29,9 +29,9 @@ pub enum TextStateOperator {
 #[derive(Debug, Clone, Copy, PartialEq, Extract)]
 pub struct SetCharacterSpacing(pub(crate) f32);
 
-impl PreTextOperation for SetCharacterSpacing {
-    fn preapply(self, _: &mut TextMatrix, parameters: &mut TextStateParameters) {
-        parameters.character_spacing = self.0;
+impl TextOperation for SetCharacterSpacing {
+    fn apply(self, text_object: &mut TextObject) {
+        text_object.set_character_spacing(self.0);
     }
 }
 
@@ -40,9 +40,9 @@ impl PreTextOperation for SetCharacterSpacing {
 #[derive(Debug, Clone, Copy, PartialEq, Extract)]
 pub struct SetWordSpacing(pub(crate) f32);
 
-impl PreTextOperation for SetWordSpacing {
-    fn preapply(self, _: &mut TextMatrix, parameters: &mut TextStateParameters) {
-        parameters.word_spacing = self.0;
+impl TextOperation for SetWordSpacing {
+    fn apply(self, text_object: &mut TextObject) {
+        text_object.set_word_spacing(self.0);
     }
 }
 
@@ -50,9 +50,9 @@ impl PreTextOperation for SetWordSpacing {
 #[derive(Debug, Clone, Copy, PartialEq, Extract)]
 pub struct SetHorizontalScaling(f32);
 
-impl PreTextOperation for SetHorizontalScaling {
-    fn preapply(self, _: &mut TextMatrix, parameters: &mut TextStateParameters) {
-        parameters.horizontal_scaling = self.0;
+impl TextOperation for SetHorizontalScaling {
+    fn apply(self, text_object: &mut TextObject) {
+        text_object.set_horizontal_scaling(self.0);
     }
 }
 
@@ -60,13 +60,16 @@ impl PreTextOperation for SetHorizontalScaling {
 #[derive(Debug, Clone, Copy, PartialEq, Extract)]
 pub struct SetTextLeading(f32);
 
-impl PreTextOperation for SetTextLeading {
-    fn preapply(self, _: &mut TextMatrix, parameters: &mut TextStateParameters) {
-        parameters.leading = self.0;
+impl TextOperation for SetTextLeading {
+    fn apply(self, text_object: &mut TextObject) {
+        text_object.set_leading(self.0);
     }
 }
 
 /// `Tf` operator.
+///
+/// Selects the font and font size. May appear any number of times within a text object;
+/// each occurrence replaces the previous selection.
 ///
 /// ```raw
 /// /F6 9 Tf
@@ -75,9 +78,10 @@ impl PreTextOperation for SetTextLeading {
 #[derive(Debug, Clone, PartialEq, Extract)]
 pub struct SetFontAndFontSize(pub(crate) Name, pub(crate) f32);
 
-impl PreTextOperation for SetFontAndFontSize {
-    fn preapply(self, _matrix: &mut TextMatrix, _parameters: &mut TextStateParameters) {
-        unreachable!("This operator is special-cased during initialisation of the TextObject, and cannot be applied twice.")
+impl TextOperation for SetFontAndFontSize {
+    fn apply(self, text_object: &mut TextObject) {
+        let SetFontAndFontSize(name, size) = self;
+        text_object.set_font(Font { name, size });
     }
 }
 
@@ -89,9 +93,9 @@ impl PreTextOperation for SetFontAndFontSize {
 #[derive(Debug, Clone, Copy, PartialEq, Extract)]
 pub struct SetTextRenderingMode(RenderingMode);
 
-impl PreTextOperation for SetTextRenderingMode {
-    fn preapply(self, _: &mut TextMatrix, parameters: &mut TextStateParameters) {
-        parameters.rendering_mode = self.0;
+impl TextOperation for SetTextRenderingMode {
+    fn apply(self, text_object: &mut TextObject) {
+        text_object.parameters.rendering_mode = self.0;
     }
 }
 
@@ -99,8 +103,8 @@ impl PreTextOperation for SetTextRenderingMode {
 #[derive(Debug, Clone, Copy, PartialEq, Extract)]
 pub struct SetTextRise(f32);
 
-impl PreTextOperation for SetTextRise {
-    fn preapply(self, _: &mut TextMatrix, parameters: &mut TextStateParameters) {
-        parameters.rise = self.0;
+impl TextOperation for SetTextRise {
+    fn apply(self, text_object: &mut TextObject) {
+        text_object.parameters.rise = self.0;
     }
 }

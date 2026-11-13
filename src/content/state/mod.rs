@@ -4,4 +4,7 @@
 
 mod text;
 
-pub use text::{parse_text_object, RenderingMode, TextMatrix, TextObject, TextStateParameters};
+pub use text::{
+    parse_text_object, Font, RenderingMode, TextMatrix, TextObject, TextObjectStream,
+    TextStateParameters,
+};

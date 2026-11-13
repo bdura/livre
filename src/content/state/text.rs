@@ -22,17 +22,28 @@ use crate::{
     content::{
         error::{ContentError, Result},
         operators::{
-            text::{
-                PreTextOperation, SetFontAndFontSize, TextArrayElement, TextOperation,
-                TextOperator, TextStateOperator,
-            },
+            text::{TextArrayElement, TextOperation, TextOperator},
             Operator,
         },
     },
     extraction::{extract, Extract, Name, PDFString},
 };
 
+/// The font selected by the `Tf` operator: a resource name and a size.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Font {
+    /// Font resource name.
+    /// NOTE: this is set to become an actual object in the future.
+    pub name: Name,
+    /// Font size, a scaling factor applied to every glyph's size parameters.
+    pub size: f32,
+}
+
+/// Text state parameters, as defined in section 9.3 of the PDF specification.
+#[derive(Debug, Clone, PartialEq)]
 pub struct TextStateParameters {
+    /// Font and font size. `None` until a `Tf` operator selects one.
+    pub font: Option<Font>,
     /// Spacing between characters, in unscaled text space units. Added to the horizontal or
     /// vertical component of the glyph's displacement, depending on the writing mode.
     ///
@@ -69,6 +80,7 @@ pub struct TextStateParameters {
 impl Default for TextStateParameters {
     fn default() -> Self {
         Self {
+            font: None,
             character_spacing: 0.0,
             word_spacing: 0.0,
             horizontal_scaling: 100.0,
@@ -168,15 +180,14 @@ impl Extract<'_> for RenderingMode {
 /// Can be iterated over to extract text elements. Text is decoded
 /// from raw [`PDFString`] bytes using best-effort heuristics
 /// (UTF-16BE if a BOM is present, Latin-1 otherwise).
+///
+/// The default text object is the state at `BT`: identity matrix, default parameters and
+/// no font.
+#[derive(Default)]
 pub struct TextObject {
-    /// Font name.
-    /// NOTE: this is set to become an actual object in the future.
-    pub font: Name,
-    /// Font size, a scaling factor applied to every glyph's size parameters.
-    pub font_size: f32,
     /// Text matrix. Governs the transformation of text space to user space.
     pub matrix: TextMatrix,
-    /// All text state parameters: leading, character spacing, word spacing, etc.
+    /// All text state parameters: font, leading, character spacing, word spacing, etc.
     pub parameters: TextStateParameters,
     // FIXME: this indirection will be needed down the line. For now it seems a bit dumb.
     // It should be replaced with a `VecDeque<u8>` to allow the *font* to iterate over the text
@@ -186,6 +197,9 @@ pub struct TextObject {
 }
 
 impl TextObject {
+    pub fn set_font(&mut self, font: Font) {
+        self.parameters.font = Some(font);
+    }
     pub fn move_to(&mut self, x: f32, y: f32) {
         self.matrix.move_to(x, y);
     }
@@ -218,38 +232,37 @@ pub struct TextObjectStream<Ops> {
     ops: Ops,
 }
 
-impl<Ops> TextObjectStream<Ops>
-where
-    Ops: Iterator<Item = Operator>,
-{
-    fn build(mut ops: Ops) -> Result<Self> {
-        let mut matrix = Default::default();
-        let mut parameters = Default::default();
+impl<Ops> TextObjectStream<Ops> {
+    /// The text object in its current state: the font, matrix and parameters that applied
+    /// to the last element yielded by the stream.
+    pub fn text_object(&self) -> &TextObject {
+        &self.text_object
+    }
+}
 
-        for operator in &mut ops {
+impl TextObject {
+    /// Apply the operators following a `BT` to a fresh text object until a font is selected.
+    ///
+    /// Returns `None` if the text object is closed by `ET` before any text could be shown:
+    /// it is empty, and there is nothing to iterate over.
+    fn build<Ops>(ops: &mut Ops) -> Result<Option<Self>>
+    where
+        Ops: Iterator<Item = Operator>,
+    {
+        let mut text_object = TextObject::default();
+
+        for operator in ops {
             match operator {
-                Operator::Text(TextOperator::TextStateOperator(
-                    TextStateOperator::SetFontAndFontSize(SetFontAndFontSize(font, font_size)),
-                )) => {
-                    let text_object = TextObject {
-                        font,
-                        font_size,
-                        matrix,
-                        parameters,
-                        text_buffer: None,
-                        buffer: None,
-                    };
-
-                    return Ok(TextObjectStream { text_object, ops });
-                }
-                Operator::Text(TextOperator::TextStateOperator(op)) => {
-                    op.preapply(&mut matrix, &mut parameters);
-                }
-                Operator::Text(TextOperator::TextPositioningOperator(op)) => {
-                    op.preapply(&mut matrix, &mut parameters);
-                }
+                Operator::EndText(_) => return Ok(None),
                 Operator::Text(TextOperator::TextShowingOperator(op)) => {
                     return Err(ContentError::UnexpectedTextShowingOperator(op));
+                }
+                Operator::Text(op) => {
+                    op.apply(&mut text_object);
+
+                    if text_object.parameters.font.is_some() {
+                        return Ok(Some(text_object));
+                    }
                 }
                 _ => {
                     tracing::debug!("Skipping operator: {:?}", operator);
@@ -264,20 +277,22 @@ where
 /// Main, if temporary, entry point for parsing text objects.
 ///
 /// Skips over any operators until it finds the `BT` operator, which marks the beginning of a text,
-/// and returns an object that can be used to iterate over the text elements.
+/// and returns an object that can be used to iterate over the text elements. Empty text objects
+/// (closed before any font is selected) are skipped.
 pub fn parse_text_object<Ops>(mut ops: Ops) -> Result<Option<TextObjectStream<Ops>>>
 where
     Ops: Iterator<Item = Operator>,
 {
-    while let Some(op) = ops.next() {
-        match op {
-            Operator::BeginText(_) => return Some(TextObjectStream::build(ops)).transpose(),
-            _ => {
-                // NOTE: just skip any other operators until we find the text object
-            }
+    loop {
+        // NOTE: just skip any other operators until we find the text object
+        if !ops.by_ref().any(|op| matches!(op, Operator::BeginText(_))) {
+            return Ok(None);
+        }
+
+        if let Some(text_object) = TextObject::build(&mut ops)? {
+            return Ok(Some(TextObjectStream { text_object, ops }));
         }
     }
-    Ok(None)
 }
 
 impl Iterator for TextObject {
@@ -332,5 +347,72 @@ where
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use winnow::{ascii::multispace0, combinator::preceded};
+
+    use super::*;
+
+    /// Parse a content stream into its operators.
+    fn operators(input: &[u8]) -> Vec<Operator> {
+        let mut stream = BStr::new(input);
+        let mut it =
+            winnow::combinator::iterator(&mut stream, preceded(multispace0, Operator::extract));
+        let ops: Vec<Operator> = (&mut it).collect();
+        it.finish().unwrap();
+        ops
+    }
+
+    fn font(name: &str, size: f32) -> Font {
+        Font {
+            name: Name(name.as_bytes().to_vec()),
+            size,
+        }
+    }
+
+    #[test]
+    fn second_tf_updates_the_font() {
+        let ops = operators(b"BT /F1 12 Tf (a) Tj /F2 10 Tf (b) Tj ET");
+        let mut stream = parse_text_object(ops.into_iter()).unwrap().unwrap();
+
+        assert_eq!(stream.text_object.parameters.font, Some(font("F1", 12.0)));
+
+        let (_, text) = stream.next().unwrap();
+        assert_eq!(text, "a");
+        assert_eq!(stream.text_object.parameters.font, Some(font("F1", 12.0)));
+
+        let (_, text) = stream.next().unwrap();
+        assert_eq!(text, "b");
+        assert_eq!(stream.text_object.parameters.font, Some(font("F2", 10.0)));
+
+        assert!(stream.next().is_none());
+    }
+
+    #[test]
+    fn empty_text_object_is_skipped() {
+        // Without the skip, the `Td` of the empty object would leak into the next one.
+        let ops = operators(b"BT 0 10 Td ET BT /F1 12 Tf (a) Tj ET");
+        let mut stream = parse_text_object(ops.into_iter()).unwrap().unwrap();
+
+        assert_eq!(stream.next(), Some(((0.0, 0.0), "a".to_string())));
+        assert!(stream.next().is_none());
+    }
+
+    #[test]
+    fn trailing_empty_text_object_ends_the_content() {
+        let ops = operators(b"BT ET");
+        assert!(parse_text_object(ops.into_iter()).unwrap().is_none());
+    }
+
+    #[test]
+    fn showing_text_before_a_font_is_an_error() {
+        let ops = operators(b"BT (a) Tj ET");
+        assert!(matches!(
+            parse_text_object(ops.into_iter()),
+            Err(ContentError::UnexpectedTextShowingOperator(_))
+        ));
     }
 }

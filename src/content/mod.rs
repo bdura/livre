@@ -19,4 +19,7 @@ pub mod operators;
 mod state;
 
 pub use error::ContentError;
-pub use state::parse_text_object;
+pub use state::{
+    parse_text_object, Font, RenderingMode, TextMatrix, TextObject, TextObjectStream,
+    TextStateParameters,
+};
