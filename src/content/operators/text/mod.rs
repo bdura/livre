@@ -19,35 +19,16 @@ pub use state::{
     SetTextRenderingMode, SetTextRise, SetWordSpacing, TextStateOperator,
 };
 
-use crate::content::state::{TextMatrix, TextObject, TextStateParameters};
+use crate::content::state::TextObject;
 
 use super::Operator;
 
-/// Defines operations that act on the text state.
+/// Defines operations that act on a [`TextObject`]: its text matrix, its text state
+/// parameters (including the font, selected by the [`Tf` operator](SetFontAndFontSize))
+/// and the text it shows.
 #[enum_dispatch]
 pub trait TextOperation: Sized {
     fn apply(self, text_object: &mut TextObject);
-}
-
-/// Operators that can be applied before the text object is fully constructed.
-///
-/// By definition, these include the [`Tf` operator](SetFontAndFontSize),
-/// since the text state cannot exist without a font and a font size.
-///
-/// `PreTextOperation` types are automatically [`TextOperation`] thanks to a blanket
-/// implementation.
-#[enum_dispatch]
-pub trait PreTextOperation: Sized {
-    fn preapply(self, matrix: &mut TextMatrix, parameters: &mut TextStateParameters);
-}
-
-impl<T> TextOperation for T
-where
-    T: PreTextOperation,
-{
-    fn apply(self, text_object: &mut TextObject) {
-        self.preapply(&mut text_object.matrix, &mut text_object.parameters);
-    }
 }
 
 /// Abstraction over any text operator. `TextOperator` implements [`TextOperation`],
