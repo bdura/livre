@@ -62,7 +62,7 @@ in
     cp ${page}/*.html ${page}/*.js $out/
     # Scans the page's markup and scripts, per the `@source` lines of `tailwind.css`.
     tailwindcss --minify -i ${page}/tailwind.css -o $out/style.css
-    for pdf in text.pdf letter.pdf text-xref-stream.pdf; do
+    for pdf in text.pdf text-xref-stream.pdf; do
       cp ${src}/crates/livre/tests/resources/$pdf $out/fixtures/
     done
     cp $versionJsonPath $out/version.json
