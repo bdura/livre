@@ -20,6 +20,7 @@ fn read_document(path: &str) -> InMemoryDocument {
 #[rstest]
 #[case("tests/resources/letter.pdf")]
 #[case("tests/resources/text.pdf")]
+#[case("tests/resources/text-xref-stream.pdf")]
 fn test_content(#[case] path: &str) {
     let doc = read_document(path);
 

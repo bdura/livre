@@ -5,6 +5,7 @@
 # every dependency whose features change.
 {
   pkgs,
+  fixtures,
   craneLib,
   craneLibMsrv,
 }: let
@@ -64,6 +65,20 @@ in {
 
   # `--all-targets` leaves doctests out: rust-lang/cargo#6669.
   doctest = craneLib.cargoDocTest (commonArgs // {inherit cargoArtifacts;});
+
+  # The committed generated fixtures are what `nix/fixtures.nix` produces.
+  fixtures = pkgs.runCommand "livre-fixtures-check" {} ''
+    status=0
+    for pdf in ${fixtures}/*.pdf; do
+      name=$(basename "$pdf")
+      if ! cmp "$pdf" "${src}/crates/livre/tests/resources/$name"; then
+        echo "$name is out of date: run \`nix run .#fixtures\`" >&2
+        status=1
+      fi
+    done
+    [ "$status" -eq 0 ]
+    touch $out
+  '';
 
   msrv = craneLibMsrv.cargoBuild (
     msrvArgs

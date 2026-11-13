@@ -63,108 +63,37 @@ fn parse_num(num: &[u8]) -> usize {
     res
 }
 
-/// Different possible types of xref entry.
+/// Reads one cross-reference stream row: three big-endian fields of `f1`, `f2` and `f3` bytes
+/// (ISO 32000-2, §7.5.8.3).
 ///
-/// This is non-exhaustive. From the specification:
+/// The whole row is consumed whatever its type, and its location is returned only for in-use
+/// entries:
 ///
-/// > Any other value shall be interpreted as a reference to the null object, thus permitting
-/// > new entry types to be defined in the future.
-#[non_exhaustive]
-enum EntryType {
-    /// Type `0` entries define the linked list of free (unused) objects.
-    ///
-    /// Livre simply discards those, since browsing a document's history is not one of Livre's
-    /// goal.
-    Type0,
-    /// Type `1` entries define objects that are in use but uncompressed, i.e. stored as
-    /// free-standing indirect objct in the PDF body.
-    Type1 {
-        /// Number of bytes handling the byte offset of the indirect object.
-        byte_offset_len: NonZeroU8,
-        /// Number of bytes occupied by the generation number.
-        ///
-        /// Livre does not keep track of the generation number for the cross-reference table...
-        /// Since Livre is only intrested in the layout of the *current document*, we can safely
-        /// disregard the generation number and focus on the ID.
-        _generation_number_len: u8,
-    },
-    /// Type `2` entries define objects that are in use and compressed, i.e. stored within
-    /// an object stream.
-    Type2 {
-        /// Number of bytes detailing the ID of the cross-reference stream that owns the indirect
-        /// object.
-        ///
-        /// Note that this introduces an additional indirection for indirect object:
-        ///
-        /// 1. Get to the relevant ref location
-        /// 2. Get the ID of the stream
-        /// 3. Get to the relevant ref location
-        /// 4. Parse the stream, extract the relevant part
-        stream_id_len: NonZeroU8,
-        index_len: u8,
-    },
-    /// The `Unknown` variant is used to handle additional types "gracefully".
-    Unknown,
-}
-
-impl Parser<&BStr, Option<RefLocation>, ContextError> for EntryType {
-    fn parse_next(&mut self, input: &mut &BStr) -> Result<Option<RefLocation>, ContextError> {
-        match self {
-            Self::Type0 => Ok(None),
-            Self::Type1 {
-                byte_offset_len,
-                _generation_number_len: _,
-            } => {
-                let byte_offset = take(byte_offset_len.get())
-                    .map(parse_num)
-                    .parse_next(input)?;
-
-                Ok(Some(RefLocation::Plain(byte_offset)))
-            }
-            Self::Type2 {
-                stream_id_len,
-                index_len,
-            } => {
-                let stream_id = take(stream_id_len.get()).map(parse_num).parse_next(input)?;
-                let index = take(*index_len).map(parse_num).parse_next(input)?;
-
-                Ok(Some(RefLocation::Compressed { stream_id, index }))
-            }
-            Self::Unknown => Ok(None),
-        }
-    }
-}
-
-impl FieldSize {
-    /// Extract the reference entry type.
-    fn parse_ref_type(&self, input: &mut &BStr) -> Result<EntryType, ContextError> {
-        if self.f1 == 0 {
-            Ok(EntryType::Type0)
-        } else {
-            let num = take(self.f1).parse_next(input)?;
-            debug_assert_eq!(num.len(), 1, "f1 should only ever span one byte.");
-            let entry_type = match num[0] {
-                0 => EntryType::Type0,
-                1 => EntryType::Type1 {
-                    byte_offset_len: self.f2,
-                    _generation_number_len: self.f3,
-                },
-                2 => EntryType::Type2 {
-                    stream_id_len: self.f2,
-                    index_len: self.f3,
-                },
-                _ => EntryType::Unknown,
-            };
-
-            Ok(entry_type)
-        }
-    }
-}
-
+/// - type `0`, free objects, yields `None`: Livre does not browse a document's history;
+/// - type `1`, uncompressed objects, yields [`RefLocation::Plain`] at the byte offset in field 2.
+///   The generation number in field 3 is ignored, since Livre only follows the current layout;
+/// - type `2`, objects in an object stream, yields [`RefLocation::Compressed`] with the stream's
+///   object number in field 2 and the index within it in field 3;
+/// - any other type is a reference to the null object and yields `None`.
 impl Parser<&BStr, Option<RefLocation>, ContextError> for FieldSize {
     fn parse_next(&mut self, input: &mut &BStr) -> Result<Option<RefLocation>, ContextError> {
-        let mut ref_type = self.parse_ref_type(input)?;
-        ref_type.parse_next(input)
+        // An absent type field means type 1.
+        let entry_type = if self.f1 == 0 {
+            1
+        } else {
+            take(self.f1).map(parse_num).parse_next(input)?
+        };
+        let field2 = take(self.f2.get()).map(parse_num).parse_next(input)?;
+        let field3 = take(self.f3).map(parse_num).parse_next(input)?;
+
+        Ok(match entry_type {
+            1 => Some(RefLocation::Plain(field2)),
+            2 => Some(RefLocation::Compressed {
+                stream_id: field2,
+                index: field3,
+            }),
+            _ => None,
+        })
     }
 }
 
@@ -251,7 +180,72 @@ mod tests {
             f2: NonZeroU8::new(2).unwrap(),
             f3: 1,
         };
-        let result = w.parse_next(&mut input.as_ref()).unwrap();
+        let input = &mut input.as_ref();
+        let result = w.parse_next(input).unwrap();
         assert_eq!(expected, result);
+        assert!(input.is_empty(), "the whole row is consumed");
+    }
+
+    /// The first four rows of `tests/resources/text-xref-stream.pdf`: a free entry, then plain
+    /// and compressed ones.
+    #[test]
+    fn rows_are_read_back_to_back() {
+        let w = FieldSize {
+            f1: 1,
+            f2: NonZeroU8::new(2).unwrap(),
+            f3: 1,
+        };
+        let input = &mut [
+            0x00, 0x00, 0x00, 0x00, //
+            0x01, 0x00, 0x0f, 0x00, //
+            0x02, 0x00, 0x01, 0x00, //
+            0x02, 0x00, 0x01, 0x01,
+        ]
+        .as_slice()
+        .as_ref();
+
+        let rows: Vec<Option<RefLocation>> = repeat(4, w).parse_next(input).unwrap();
+
+        assert_eq!(
+            rows,
+            vec![
+                None,
+                Some(RefLocation::Plain(15)),
+                Some(RefLocation::Compressed {
+                    stream_id: 1,
+                    index: 0
+                }),
+                Some(RefLocation::Compressed {
+                    stream_id: 1,
+                    index: 1
+                }),
+            ]
+        );
+        assert!(input.is_empty());
+    }
+
+    #[rstest]
+    // No third field: rows are three bytes, the index of compressed objects is 0.
+    #[case(1, 0, &[0x01, 0x00, 0x0e, 0x00, 0x00, 0x0f], vec![Some(RefLocation::Plain(14)), None])]
+    #[case(1, 0, &[0x02, 0x00, 0x05, 0x01, 0x00, 0x10], vec![Some(RefLocation::Compressed { stream_id: 5, index: 0 }), Some(RefLocation::Plain(16))])]
+    // No type field: every row is type 1.
+    #[case(0, 1, &[0x0e, 0x8a, 0x00], vec![Some(RefLocation::Plain(3722))])]
+    fn missing_fields(
+        #[case] f1: u8,
+        #[case] f3: u8,
+        #[case] input: &[u8],
+        #[case] expected: Vec<Option<RefLocation>>,
+    ) {
+        let w = FieldSize {
+            f1,
+            f2: NonZeroU8::new(2).unwrap(),
+            f3,
+        };
+        let input = &mut input.as_ref();
+
+        let rows: Vec<Option<RefLocation>> = repeat(expected.len(), w).parse_next(input).unwrap();
+
+        assert_eq!(rows, expected);
+        assert!(input.is_empty());
     }
 }

@@ -26,15 +26,38 @@
         };
 
         toolchain = import ./nix/toolchain.nix pkgs;
+
+        fixtures = import ./nix/fixtures.nix pkgs;
       in {
         # `nix flake check` runs these; so does CI.
         checks = import ./nix/checks.nix {
-          inherit pkgs;
+          inherit pkgs fixtures;
           craneLib = (crane.mkLib pkgs).overrideToolchain (_: toolchain.stable);
           craneLibMsrv = (crane.mkLib pkgs).overrideToolchain (_: toolchain.msrv);
         };
 
-        devShells.default = pkgs.mkShell {
+        # Writes the generated fixtures into the tree; run from the repository root.
+        apps.fixtures = {
+          type = "app";
+          program = pkgs.lib.getExe (pkgs.writeShellApplication {
+            name = "fixtures";
+            text = ''
+              dest=crates/livre/tests/resources
+              if [ ! -d "$dest" ]; then
+                echo "fixtures: $dest not found; run from the repository root" >&2
+                exit 1
+              fi
+              for pdf in ${fixtures}/*.pdf; do
+                name=$(basename "$pdf")
+                cp "$pdf" "$dest/$name"
+                # Copies of store paths are read-only.
+                chmod u+w "$dest/$name"
+              done
+            '';
+          });
+        };
+
+        devShells.default =pkgs.mkShell {
           packages = [
             toolchain.stable
             pkgs.prek
