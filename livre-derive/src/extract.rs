@@ -30,7 +30,7 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let expanded = quote! {
         // The generated impl.
-        impl #impl_generics crate::extraction::Extract<'de> for #name #ty_generics #where_clause {
+        impl #impl_generics ::livre::extraction::Extract<'de> for #name #ty_generics #where_clause {
             fn extract(input: &mut &'de ::winnow::stream::BStr) -> ::winnow::ModalResult<Self> {
                 #extraction
             }
@@ -52,7 +52,7 @@ fn generate_extraction(input: &DeriveInput) -> TokenStream {
             let field_by_field: Vec<Ident> = (0..n).map(|i| format_ident!("t{}", i)).collect();
 
             quote! {
-                let (#(#field_by_field,)*) = crate::extraction::extract(input)?;
+                let (#(#field_by_field,)*) = ::livre::extraction::extract(input)?;
                 Ok(Self(#(#field_by_field,)*))
             }
         }
@@ -69,7 +69,7 @@ fn generate_extraction(input: &DeriveInput) -> TokenStream {
 
             let alternatives = variants.iter().map(|v| {
                 let ident = &v.ident;
-                quote! {crate::extraction::extract.map(#name::#ident),}
+                quote! {::livre::extraction::extract.map(#name::#ident),}
             });
 
             quote! {

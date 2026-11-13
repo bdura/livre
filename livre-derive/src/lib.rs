@@ -33,11 +33,11 @@ fn add_extraction_trait_bounds(mut generics: Generics, flattened: HashSet<String
             if flattened.contains(&type_param.ident.to_string()) {
                 type_param
                     .bounds
-                    .push(parse_quote!(crate::extraction::FromRawDict<'de>));
+                    .push(parse_quote!(::livre::extraction::FromRawDict<'de>));
             } else {
                 type_param
                     .bounds
-                    .push(parse_quote!(crate::extraction::Extract<'de>));
+                    .push(parse_quote!(::livre::extraction::Extract<'de>));
             }
         }
     }

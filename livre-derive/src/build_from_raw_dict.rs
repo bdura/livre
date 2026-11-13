@@ -15,11 +15,11 @@ fn add_extraction_trait_bounds(mut generics: Generics, flattened: HashSet<String
             if flattened.contains(&type_param.ident.to_string()) {
                 type_param
                     .bounds
-                    .push(parse_quote!(crate::follow_refs::BuildFromRawDict));
+                    .push(parse_quote!(::livre::follow_refs::BuildFromRawDict));
             } else {
                 type_param
                     .bounds
-                    .push(parse_quote!(crate::follow_refs::Build));
+                    .push(parse_quote!(::livre::follow_refs::Build));
             }
         }
     }
@@ -47,10 +47,10 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let (impl_generics, _, _) = gen_lt.split_for_impl();
 
     let expanded = quote! {
-        impl #impl_generics crate::follow_refs::BuildFromRawDict for #name #ty_generics #where_clause {
-            fn build_from_raw_dict<B>(dict: &mut crate::extraction::RawDict<'_>, builder: &B) -> ::winnow::ModalResult<Self>
+        impl #impl_generics ::livre::follow_refs::BuildFromRawDict for #name #ty_generics #where_clause {
+            fn build_from_raw_dict<B>(dict: &mut ::livre::extraction::RawDict<'_>, builder: &B) -> ::winnow::ModalResult<Self>
             where
-                B: crate::follow_refs::Builder,
+                B: ::livre::follow_refs::Builder,
             {
                 #extraction
                 Ok(res)
