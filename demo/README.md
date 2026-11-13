@@ -31,6 +31,9 @@ git-ignored. Without `version.json` the footer simply omits the version.
 
 `nix build .#demo` assembles the deployable site (page, wasm bindings,
 fixtures and `version.json`) into `result/`.
+`nix run .#demo` builds it and serves it with `static-web-server` on
+<http://localhost:8000>; set `PORT` to use another port, and any extra arguments
+are passed to `static-web-server`.
 `nix flake check` builds it too, so a broken demo fails CI. Its footer shows
 the livre version and the commit it was built from (suffixed `-dirty` for an
 uncommitted tree).

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `livre::VERSION`: the crate version, as published
 - `next_raw` on `TextObject` and `TextObjectStream`: the iterator item with the shown string's raw `PDFString` bytes instead of its decoded text
 
 ### Fixed

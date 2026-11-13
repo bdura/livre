@@ -96,8 +96,16 @@ and the root manifest only lists the members and their shared package metadata.
 ├── Cargo.toml                 # Virtual workspace: members, shared package metadata
 ├── crates/
 │   ├── livre/                 # The library, with its examples, tests and changelog
-│   └── livre-derive/          # Proc-macro crate for the derive macros
-└── nix/                       # Flake checks (crane), toolchains and generated test fixtures
+│   ├── livre-derive/          # Proc-macro crate for the derive macros
+│   └── livre-wasm/            # Unpublished wasm glue behind the browser demo
+├── demo/                      # Static page of the browser demo (no build step)
+└── nix/                       # Flake checks (crane), toolchains, generated fixtures, demo site
+    ├── source.nix             # The cargo source fileset shared by checks and the demo
+    ├── checks.nix             # Crane checks, including `livre-wasm32` (the crates on wasm32)
+    ├── demo.nix               # `packages.demo`: wasm build, wasm-bindgen, page, fixtures
+    │                          # (`nix run .#demo`, defined in flake.nix, serves it locally)
+    ├── fixtures.nix           # Generated test fixtures and their drift check
+    └── toolchain.nix          # rust-overlay toolchains, with the wasm32 target
 ```
 
 ### `crates/livre/`
@@ -195,6 +203,30 @@ fails when the committed files drift from what it produces.
 └── Cargo.toml
 ```
 
+### `crates/livre-wasm/`
+
+```text
+├── src/
+│   ├── lib.rs            # `analyze_pdf`, the wasm-bindgen export (wasm32 only)
+│   ├── analyze.rs        # `analyze(&[u8]) -> Analysis`: runs livre stage by stage
+│   └── dto.rs            # Serialisable mirror of what livre extracted
+└── tests/
+    └── fixtures.rs       # Native tests of `analyze` on the livre fixtures
+```
+
+### `demo/`
+
+```text
+├── index.html            # The page: inputs, navigation, canvas, overlay svg, panels
+├── app.js                # Loads the wasm and pdf.js, renders, navigates, reports errors
+├── overlay-livre.js      # livre's layer: run markers and text object hulls
+├── overlay-pdfjs.js      # Ground truth: pdf.js text items as boxes
+├── style.css
+└── README.md             # Local development and deployment
+```
+
+`demo/pkg/`, `demo/fixtures/` and `demo/version.json` are generated and git-ignored.
+
 ### Key Components
 
 Paths are relative to `crates/livre/src/`.
@@ -265,6 +297,25 @@ algorithms. Currently only `FlateDecode` (zlib) is implemented; others return
 unsupported errors. `StreamConfig` reads `/DecodeParms` alongside `/Filter` (a
 single dictionary or an array parallel to it, `null` for no parameters), and
 FlateDecode undoes PNG (10 to 15) and TIFF (2) predictors after inflating.
+
+**Browser demo**: `crates/livre-wasm` exposes one function, `analyze_pdf`, that
+runs livre on a PDF's bytes and returns plain data transfer objects (`dto.rs`):
+the document, its pages with their media box, text objects and runs (start
+position, font resource name and size, decoded text and raw bytes), and the
+stage that failed, if any. serde lives only in the glue crate, so livre's own
+types never commit to a serialisation shape. `analyze` is ordinary Rust and is
+tested natively; only the wasm-bindgen wrapper needs wasm32. The crate is a
+workspace member (so the crane checks build it) but unpublished, excluded in
+`release-plz.toml`, and pins `wasm-bindgen` to the version of nixpkgs'
+`wasm-bindgen-cli`. `nix/demo.nix` builds it for wasm32, runs
+`wasm-bindgen --target web`, and adds the `demo/` page, the three fixtures and
+`version.json`; it is both `packages.demo` and a flake check, and
+`.github/workflows/pages.yml` deploys it to GitHub Pages on pushes to `main`.
+`apps.demo` in `flake.nix` serves the same build locally: `nix run .#demo`
+runs `static-web-server` on port 8000 (`PORT` overrides it).
+The page draws livre's run markers over a pdf.js render, next to pdf.js's own
+text layer, which makes it the visual harness for the v0.6.0 font work: once
+livre knows glyph widths and the graphics state, the two layers should agree.
 
 **Invariants**:
 

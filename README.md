@@ -9,6 +9,14 @@ for me to work towards an actually working release in the near future.
 This first version already provides a sufficient set of low-level utilities to extract
 all PDF primitive types in a type-safe manner.
 
+## Demo
+
+The [browser demo](https://bdura.github.io/livre/) runs livre, compiled to WebAssembly,
+on a PDF of your choosing and draws what it extracted over a pdf.js render of the page,
+next to pdf.js's own text layer. Files stay in your browser: nothing is uploaded.
+Until font parsing lands, the overlay shows where each string starts, not its extent.
+See [`demo/README.md`](demo/README.md) to run it locally.
+
 ## Obtaining the PDF specification
 
 Thankfully, the ISO standards defining the PDF specification can be downloaded free of charge.
