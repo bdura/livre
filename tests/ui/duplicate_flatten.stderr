@@ -1,0 +1,5 @@
+error: duplicate `flatten` attribute
+ --> tests/ui/duplicate_flatten.rs:6:13
+  |
+6 |     #[livre(flatten)]
+  |             ^^^^^^^

@@ -1,0 +1,5 @@
+error: `flatten` cannot be combined with other attributes
+ --> tests/ui/flatten_with_rename.rs:5:22
+  |
+5 |     #[livre(flatten, rename = "Inner")]
+  |                      ^^^^^^

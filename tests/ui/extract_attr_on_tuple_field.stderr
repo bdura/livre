@@ -1,0 +1,5 @@
+error: attributes are not supported on `Extract` fields
+ --> tests/ui/extract_attr_on_tuple_field.rs:4:13
+  |
+4 | struct Pair(#[livre(rename = "A")] i32, i32);
+  |             ^^^^^^^^^^^^^^^^^^^^^^

@@ -6,7 +6,7 @@ name = "livre"
 version = "0.5.0"
 edition = "2021"
 authors = ["Basile Dura <basile@bdura.me>"]
-rust-version = "1.82.0"
+rust-version = "1.85.0"
 
 readme = "README.md"
 description = "Livre: a type-safe PDF parser"
@@ -24,10 +24,11 @@ enum_dispatch = "0.3"
 flate2 = "1"
 
 paste = "1"
-livre-derive = { path = "./livre-derive", version = "0.2.0" }
+livre-derive = { path = "./livre-derive", version = "0.3.0" }
 thiserror = "2.0.11"
 tracing = "0.1.44"
 
 [dev-dependencies]
 rstest = "0.26"
 indoc = "2"
+trybuild = "1"

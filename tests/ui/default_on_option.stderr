@@ -1,0 +1,5 @@
+error: `default` is redundant on an `Option` field
+ --> tests/ui/default_on_option.rs:5:13
+  |
+5 |     #[livre(default)]
+  |             ^^^^^^^

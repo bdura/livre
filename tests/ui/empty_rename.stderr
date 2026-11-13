@@ -1,0 +1,5 @@
+error: renamed key must not be empty
+ --> tests/ui/empty_rename.rs:5:22
+  |
+5 |     #[livre(rename = "")]
+  |                      ^^

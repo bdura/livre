@@ -1,0 +1,5 @@
+error: unsupported attribute
+ --> tests/ui/unknown_attribute.rs:5:13
+  |
+5 |     #[livre(bogus)]
+  |             ^^^^^

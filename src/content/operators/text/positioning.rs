@@ -1,16 +1,16 @@
 use enum_dispatch::enum_dispatch;
 
 use crate::{
-    content::state::{TextMatrix, TextStateParameters},
+    content::state::{TextMatrix, TextObject},
     extraction::Extract,
 };
 
-use super::PreTextOperation;
+use super::TextOperation;
 
 /// Abstraction over text positioning operators, as defined in section 9.4.2 of the PDF
 /// specification.
 #[derive(Debug, Clone, PartialEq)]
-#[enum_dispatch(PreTextOperation)]
+#[enum_dispatch(TextOperation)]
 pub enum TextPositioningOperator {
     /// The `Td` operator. Move to the start of the next line, offset from the start of the current
     /// line by `(tx, ty)`.
@@ -36,9 +36,9 @@ pub enum TextPositioningOperator {
 #[derive(Debug, Clone, Copy, PartialEq, Extract)]
 pub struct MoveByOffset(f32, f32);
 
-impl PreTextOperation for MoveByOffset {
-    fn preapply(self, matrix: &mut TextMatrix, _parameters: &mut TextStateParameters) {
-        matrix.move_to(self.0, self.1);
+impl TextOperation for MoveByOffset {
+    fn apply(self, text_object: &mut TextObject) {
+        text_object.move_to(self.0, self.1);
     }
 }
 
@@ -55,10 +55,10 @@ impl PreTextOperation for MoveByOffset {
 #[derive(Debug, Clone, Copy, PartialEq, Extract)]
 pub struct MoveByOffsetAndSetLeading(pub(crate) f32, pub(crate) f32);
 
-impl PreTextOperation for MoveByOffsetAndSetLeading {
-    fn preapply(self, matrix: &mut TextMatrix, parameters: &mut TextStateParameters) {
-        parameters.leading = -self.1;
-        matrix.move_to(self.0, self.1);
+impl TextOperation for MoveByOffsetAndSetLeading {
+    fn apply(self, text_object: &mut TextObject) {
+        text_object.set_leading(-self.1);
+        text_object.move_to(self.0, self.1);
     }
 }
 
@@ -70,9 +70,9 @@ impl PreTextOperation for MoveByOffsetAndSetLeading {
 #[derive(Debug, Clone, Copy, PartialEq, Extract)]
 pub struct SetTextMatrix(TextMatrix);
 
-impl PreTextOperation for SetTextMatrix {
-    fn preapply(self, matrix: &mut TextMatrix, _: &mut TextStateParameters) {
-        *matrix = self.0;
+impl TextOperation for SetTextMatrix {
+    fn apply(self, text_object: &mut TextObject) {
+        text_object.matrix = self.0;
     }
 }
 
@@ -90,8 +90,8 @@ impl PreTextOperation for SetTextMatrix {
 #[derive(Debug, Clone, Copy, PartialEq, Extract)]
 pub struct MoveToNextLine;
 
-impl PreTextOperation for MoveToNextLine {
-    fn preapply(self, matrix: &mut TextMatrix, parameters: &mut TextStateParameters) {
-        matrix.move_to(0.0, -parameters.leading);
+impl TextOperation for MoveToNextLine {
+    fn apply(self, text_object: &mut TextObject) {
+        text_object.move_to_next_line();
     }
 }

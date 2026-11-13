@@ -13,6 +13,9 @@ use super::{Build, Builder};
 /// strategies, in particular derivable ones. Since a `BuildFromRawDict` type merely pops relevant
 /// keys from a mutable reference to a [`RawDict`], we can give more structure to otherwise flat
 /// dictionary structures.
+///
+/// This type can be derived using the [`livre_derive`] helper crate.
+/// See [`livre_derive`] for the supported shapes and the `#[livre(...)]` field attributes.
 pub trait BuildFromRawDict: Sized {
     fn build_from_raw_dict<B>(dict: &mut RawDict<'_>, builder: &B) -> ModalResult<Self>
     where
