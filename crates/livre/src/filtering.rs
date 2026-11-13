@@ -10,6 +10,10 @@ use winnow::{
 
 use flate2::read::ZlibDecoder;
 
+// Not called outside tests until `FlateDecode` reads `/DecodeParms`.
+#[cfg_attr(not(test), expect(dead_code))]
+mod predictor;
+
 use crate::{
     extraction::{extract, Extract, Name},
     follow_refs::{Build, Builder},
