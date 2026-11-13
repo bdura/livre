@@ -14,13 +14,16 @@ pub struct Analysis {
     /// Set when the document or its page tree could not be read, in which case `pages`
     /// is empty.
     pub document: Option<StageError>,
+    /// The pages in page tree order.
     pub pages: Vec<Page>,
 }
 
+/// One page of the document, with what livre extracted from its content.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Page {
     /// Zero-based position in the flattened page tree.
     pub index: usize,
+    /// The `MediaBox`, inherited from the page tree if the page has none.
     pub media_box: Rect,
     /// `true` when the page tree carries no `MediaBox` and `media_box` is US Letter.
     pub media_box_defaulted: bool,
@@ -32,6 +35,7 @@ pub struct Page {
     pub error: Option<StageError>,
 }
 
+/// A rectangle by its corners, in default user space units.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Rect {
     pub xmin: f32,
@@ -43,17 +47,21 @@ pub struct Rect {
 /// One `BT` ... `ET` block.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct TextObject {
+    /// The strings it shows, in content stream order.
     pub runs: Vec<Run>,
 }
 
 /// One shown string.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Run {
-    /// Start position from the text matrix; livre knows no glyph widths, so no extent.
+    /// Start position, in user space: the translation of the text matrix times the CTM in
+    /// force at `BT`. livre knows no glyph widths, so there is no extent.
     pub x: f32,
+    /// Baseline of the start position.
     pub y: f32,
     /// Font resource name, lossily decoded as UTF-8.
     pub font: String,
+    /// Font size from `Tf`, in text space units: the scale of the text matrix is not applied.
     pub size: f32,
     /// Best-effort decoding of `bytes`: UTF-16BE behind a BOM, Latin-1 otherwise.
     pub text: String,
@@ -61,8 +69,10 @@ pub struct Run {
     pub bytes: String,
 }
 
+/// Where and why extraction stopped.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct StageError {
+    /// The step that failed.
     pub stage: Stage,
     /// The underlying error, `Debug`-formatted.
     pub message: String,
