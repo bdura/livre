@@ -10,13 +10,11 @@ use winnow::{
 
 use flate2::read::ZlibDecoder;
 
-// Not called outside tests until `FlateDecode` reads `/DecodeParms`.
-#[cfg_attr(not(test), expect(dead_code))]
 mod predictor;
 
 use crate::{
-    extraction::{extract, Extract, Name},
-    follow_refs::{Build, Builder},
+    extraction::{extract, Extract, FromRawDict, Name},
+    follow_refs::{Build, BuildFromRawDict, Builder},
 };
 
 /// Main filter objects, that represents any kind of PDF filter.
@@ -42,7 +40,27 @@ pub enum Filter {
 /// (if any), the encryption scheme, etc.
 #[enum_dispatch]
 pub trait Filtering {
-    fn decode(&self, bytes: &[u8]) -> Result<Vec<u8>, ()>;
+    /// Decode `bytes`, using this filter's entry in the stream's `/DecodeParms`
+    /// if there is one.
+    fn decode(&self, bytes: &[u8], params: Option<&FlateParams>) -> Result<Vec<u8>, ()>;
+}
+
+/// One `/DecodeParms` dictionary, as read by `FlateDecode` (ISO 32000-2, Table 8).
+///
+/// Absent keys take the spec defaults. Values are not validated here: a
+/// stream whose predictor is 1 decodes whatever the other entries say.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, FromRawDict, BuildFromRawDict)]
+pub struct FlateParams {
+    #[livre(default = 1)]
+    pub predictor: u8,
+    /// Interleaved colour components per sample.
+    #[livre(default = 1)]
+    pub colors: usize,
+    #[livre(default = 8)]
+    pub bits_per_component: usize,
+    /// Samples per row.
+    #[livre(default = 1)]
+    pub columns: usize,
 }
 
 impl Extract<'_> for Filter {
@@ -73,23 +91,16 @@ impl Build for Filter {
 pub struct FlateDecode;
 
 impl Filtering for FlateDecode {
-    fn decode(&self, bytes: &[u8]) -> Result<Vec<u8>, ()> {
+    fn decode(&self, bytes: &[u8], params: Option<&FlateParams>) -> Result<Vec<u8>, ()> {
         let mut d = ZlibDecoder::new(bytes);
         let mut buf = Vec::new();
         d.read_to_end(&mut buf).map_err(|_| ())?;
-        Ok(buf)
-    }
-}
 
-impl<T> Filtering for Vec<T>
-where
-    T: Filtering,
-{
-    fn decode(&self, bytes: &[u8]) -> Result<Vec<u8>, ()> {
-        let mut result = bytes.to_vec();
-        for decoder in self {
-            result = decoder.decode(&result)?;
+        match params {
+            Some(p) if p.predictor > 1 => {
+                predictor::undo(buf, p.predictor, p.colors, p.bits_per_component, p.columns)
+            }
+            _ => Ok(buf),
         }
-        Ok(result)
     }
 }

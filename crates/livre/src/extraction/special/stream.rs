@@ -10,7 +10,7 @@ use winnow::{
 
 use crate::{
     extraction::{extract, Extract, FromRawDict},
-    filtering::{Filter, Filtering},
+    filtering::{Filter, Filtering, FlateParams},
     follow_refs::{Build, BuildFromRawDict, Builder, BuilderParser},
 };
 
@@ -28,6 +28,11 @@ pub struct StreamConfig {
     length: usize,
     #[livre(from = MaybeArray<Filter>, default)]
     filter: Vec<Filter>,
+    /// Parallel to `filter`, `None` where an array entry is `null`. Not
+    /// checked against `filter`'s length: a missing entry means no
+    /// parameters, extra entries are ignored.
+    #[livre(from = MaybeArray<Option<FlateParams>>, default)]
+    decode_parms: Vec<Option<FlateParams>>,
 }
 
 impl Parser<&BStr, Vec<u8>, ErrMode<ContextError>> for StreamConfig {
@@ -42,9 +47,14 @@ impl Parser<&BStr, Vec<u8>, ErrMode<ContextError>> for StreamConfig {
         )
         .parse_next(input)?;
 
-        self.filter
-            .decode(content)
-            .map_err(|_| ErrMode::Cut(ContextError::new()))
+        let mut decoded = content.to_vec();
+        for (i, filter) in self.filter.iter().enumerate() {
+            let params = self.decode_parms.get(i).copied().flatten();
+            decoded = filter
+                .decode(&decoded, params.as_ref())
+                .map_err(|_| ErrMode::Cut(ContextError::new()))?;
+        }
+        Ok(decoded)
     }
 }
 
@@ -179,22 +189,112 @@ impl Build for Stream<()> {
 #[cfg(test)]
 mod tests {
 
-    use std::fmt::Debug;
+    use std::{collections::HashMap, fmt::Debug, io::Write};
 
+    use flate2::{write::ZlibEncoder, Compression};
     use indoc::indoc;
     use rstest::rstest;
 
-    use crate::extraction::extract;
+    use crate::{
+        extraction::{extract, ReferenceId},
+        filtering::FlateDecode,
+    };
 
     use super::*;
 
+    fn flate_config(length: usize, decode_parms: Vec<Option<FlateParams>>) -> StreamConfig {
+        StreamConfig {
+            length,
+            filter: vec![Filter::FlateDecode(FlateDecode)],
+            decode_parms,
+        }
+    }
+
+    fn params(predictor: u8, columns: usize) -> FlateParams {
+        FlateParams {
+            predictor,
+            colors: 1,
+            bits_per_component: 8,
+            columns,
+        }
+    }
+
     #[rstest]
-    #[case(b"<</Length 2/SomeOtherKey/Test>>", StreamConfig{length: 2, filter: vec![]})]
-    #[case(b"<</Length 42>>", StreamConfig{length: 42, filter: vec![]})]
-    #[case(b"<<  /SomeRandomKey (some text...)/Length 42>>", StreamConfig{length: 42, filter: vec![]})]
+    #[case(b"<</Length 2/SomeOtherKey/Test>>", StreamConfig{length: 2, filter: vec![], decode_parms: vec![]})]
+    #[case(b"<</Length 42>>", StreamConfig{length: 42, filter: vec![], decode_parms: vec![]})]
+    #[case(b"<<  /SomeRandomKey (some text...)/Length 42>>", StreamConfig{length: 42, filter: vec![], decode_parms: vec![]})]
+    #[case(b"<</Length 3/Filter/FlateDecode>>", flate_config(3, vec![]))]
+    #[case(
+        b"<</Length 3/Filter /FlateDecode /DecodeParms <</Predictor 12/Columns 4>>>>",
+        flate_config(3, vec![Some(params(12, 4))]),
+    )]
+    #[case(
+        b"<</Length 3/Filter [/FlateDecode /FlateDecode] /DecodeParms [null <</Columns 5>>]>>",
+        StreamConfig {
+            length: 3,
+            filter: vec![Filter::FlateDecode(FlateDecode); 2],
+            decode_parms: vec![None, Some(params(1, 5))],
+        },
+    )]
+    #[case(
+        b"<</Length 3/Filter/FlateDecode/DecodeParms<</EarlyChange 0/Predictor 2/Columns 3>>>>",
+        flate_config(3, vec![Some(params(2, 3))]),
+    )]
     fn stream_config(#[case] input: &[u8], #[case] expected: StreamConfig) {
         let result = extract(&mut input.as_ref()).unwrap();
         assert_eq!(expected, result);
+    }
+
+    /// Two 4-byte rows, PNG-Up predicted, then zlib-compressed.
+    fn png_up_rows() -> (Vec<u8>, Vec<u8>) {
+        let raw = vec![1, 2, 3, 4, 2, 3, 4, 5];
+        let predicted = [2, 1, 2, 3, 4, 2, 1, 1, 1, 1];
+
+        let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(&predicted).unwrap();
+
+        (encoder.finish().unwrap(), raw)
+    }
+
+    fn predicted_stream(decode_parms: &str) -> (Vec<u8>, Vec<u8>) {
+        let (compressed, raw) = png_up_rows();
+
+        let mut input = format!(
+            "<</Length {}/Filter/FlateDecode/DecodeParms{decode_parms}>>stream\n",
+            compressed.len()
+        )
+        .into_bytes();
+        input.extend_from_slice(&compressed);
+        input.extend_from_slice(b"\nendstream\n");
+
+        (input, raw)
+    }
+
+    #[test]
+    fn stream_undoes_predictor() {
+        let (input, raw) = predicted_stream("<</Predictor 12/Columns 4>>");
+
+        let Stream { content, .. }: Stream<()> = extract(&mut input.as_slice().as_ref()).unwrap();
+
+        assert_eq!(raw, content);
+    }
+
+    #[test]
+    fn stream_undoes_predictor_behind_reference() {
+        let (input, raw) = predicted_stream(" 5 0 R");
+
+        let mut builder: HashMap<ReferenceId, &BStr> = HashMap::new();
+        builder.insert(
+            ReferenceId::first(5),
+            b"5 0 obj\n<</Predictor 12/Columns 4>>\nendobj"
+                .as_slice()
+                .as_ref(),
+        );
+
+        let Stream { content, .. }: Stream<()> =
+            Stream::build(&mut input.as_slice().as_ref(), &builder).unwrap();
+
+        assert_eq!(raw, content);
     }
 
     //#[rstest]
