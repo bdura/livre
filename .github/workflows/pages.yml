@@ -1,0 +1,47 @@
+# Publishes the browser demo, `nix build .#demo`, to GitHub Pages. The
+# repository's Pages source must be set to "GitHub Actions".
+on:
+  push:
+    branches:
+      - main
+      # FIXME: remove before mergine
+      - feat/wasm-demo
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; a newer push supersedes a queued one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: nix build .#demo
+        run: nix build -L .#demo
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: result
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

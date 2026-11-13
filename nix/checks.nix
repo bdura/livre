@@ -2,29 +2,18 @@
 #
 # Every check that inherits `cargoArtifacts` passes the same `cargoExtraArgs`:
 # a check selecting other packages or features would recompile, inside itself,
-# every dependency whose features change.
+# every dependency whose features change. `livre-wasm32` builds its own
+# `cargoArtifacts`: dependencies compiled for the host are useless to another
+# target.
 {
   pkgs,
   fixtures,
   craneLib,
   craneLibMsrv,
+  # The cargo sources, from `source.nix`.
+  src,
 }: let
-  inherit (pkgs) lib;
-  fs = lib.fileset;
-
   root = ../.;
-
-  # The cargo sources, plus the PDFs the tests and examples read and the
-  # trybuild `.stderr` snapshots: an edit to the README or the changelog
-  # rebuilds nothing.
-  src = fs.toSource {
-    inherit root;
-    fileset = fs.unions [
-      (craneLib.fileset.commonCargoSources root)
-      (root + "/crates/livre/tests/resources")
-      (root + "/crates/livre/tests/ui")
-    ];
-  };
 
   # The root manifest is a virtual workspace: the derivations take their name
   # from the main crate.
@@ -42,6 +31,16 @@
   msrvArgs =
     commonArgs
     // {
+      doCheck = false;
+    };
+
+  # Only the library: the dev-dependencies need not compile for the browser.
+  wasm32Args =
+    commonArgs
+    // {
+      pname = "${commonArgs.pname}-wasm32";
+      CARGO_BUILD_TARGET = "wasm32-unknown-unknown";
+      cargoExtraArgs = "--locked -p livre -p livre-wasm";
       doCheck = false;
     };
 in {
@@ -84,6 +83,17 @@ in {
     msrvArgs
     // {
       cargoArtifacts = craneLibMsrv.buildDepsOnly msrvArgs;
+    }
+  );
+
+  # livre and its wasm glue compile for the browser.
+  livre-wasm32 = craneLib.mkCargoDerivation (
+    wasm32Args
+    // {
+      cargoArtifacts = craneLib.buildDepsOnly (
+        wasm32Args // {cargoCheckCommand = "cargo check --release";}
+      );
+      buildPhaseCargoCommand = "cargo check --release $cargoExtraArgs";
     }
   );
 }

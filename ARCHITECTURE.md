@@ -96,8 +96,16 @@ and the root manifest only lists the members and their shared package metadata.
 ├── Cargo.toml                 # Virtual workspace: members, shared package metadata
 ├── crates/
 │   ├── livre/                 # The library, with its examples, tests and changelog
-│   └── livre-derive/          # Proc-macro crate for the derive macros
-└── nix/                       # Flake checks (crane), toolchains and generated test fixtures
+│   ├── livre-derive/          # Proc-macro crate for the derive macros
+│   └── livre-wasm/            # Unpublished wasm glue behind the browser demo
+├── demo/                      # Static page of the browser demo (TypeScript, no bundler)
+└── nix/                       # Flake checks (crane), toolchains, generated fixtures, demo site
+    ├── source.nix             # The cargo source fileset shared by checks and the demo
+    ├── checks.nix             # Crane checks, including `livre-wasm32` (the crates on wasm32)
+    ├── demo.nix               # `packages.demo`: wasm build, wasm-bindgen, page, Tailwind CSS, fixtures
+    │                          # (`nix run .#demo`, defined in flake.nix, serves it locally)
+    ├── fixtures.nix           # Generated test fixtures and their drift check
+    └── toolchain.nix          # rust-overlay toolchains, with the wasm32 target
 ```
 
 ### `crates/livre/`
@@ -195,6 +203,34 @@ fails when the committed files drift from what it produces.
 └── Cargo.toml
 ```
 
+### `crates/livre-wasm/`
+
+```text
+├── src/
+│   ├── lib.rs            # `analyze_pdf`, the wasm-bindgen export (wasm32 only)
+│   ├── analyze.rs        # `analyze(&[u8]) -> Analysis`: runs livre stage by stage
+│   └── dto.rs            # Serialisable mirror of what livre extracted, with TS interfaces (tsify)
+└── tests/
+    └── fixtures.rs       # Native tests of `analyze` on the livre fixtures
+```
+
+### `demo/`
+
+```text
+├── index.html            # The page: header controls, error strips, canvas and overlay svg, inspector
+├── app.ts                # Loads the wasm and pdf.js, renders, navigates, reports errors, drives the inspector
+├── overlay-livre.ts      # livre's layer: run markers and text object hulls
+├── overlay-pdfjs.ts      # Ground truth: pdf.js text items as boxes
+├── svg.ts                # The overlays' SVG element helper
+├── pdfjs.d.ts            # Hand-written types for the slice of pdf.js the page uses
+├── tsconfig.json         # Strict, emits each `.ts` as the `.js` beside it
+├── tailwind.css          # Stylesheet source, compiled to `style.css` by the Tailwind CLI
+└── README.md             # Local development and deployment
+```
+
+`demo/pkg/`, `demo/fixtures/`, `demo/style.css`, `demo/version.json` and `demo/*.js` are generated
+and git-ignored.
+
 ### Key Components
 
 Paths are relative to `crates/livre/src/`.
@@ -265,6 +301,15 @@ algorithms. Currently only `FlateDecode` (zlib) is implemented; others return
 unsupported errors. `StreamConfig` reads `/DecodeParms` alongside `/Filter` (a
 single dictionary or an array parallel to it, `null` for no parameters), and
 FlateDecode undoes PNG (10 to 15) and TIFF (2) predictors after inflating.
+
+**Browser demo**: `crates/livre-wasm` (unpublished) exposes `analyze_pdf`,
+which runs livre on a PDF's bytes and returns plain DTOs (`dto.rs`), so serde
+stays out of livre. The DTOs derive `tsify::Tsify`: the page's TypeScript is
+type-checked against the generated declarations, so a DTO change that breaks
+it fails the build. `nix/demo.nix` assembles the site (wasm, `tsc`, Tailwind,
+fixtures), which is a flake check, deployed to GitHub Pages and served locally
+by `nix run .#demo`. The page overlays livre's runs on pdf.js's text layer, the
+visual harness for the font work.
 
 **Invariants**:
 

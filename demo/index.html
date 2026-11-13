@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>livre: PDF text extraction in the browser</title>
+    <meta
+      name="description"
+      content="A PDF parser written in Rust, running in your browser as WebAssembly. pdf.js draws the page; livre shows what it extracted."
+    />
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="style.css" />
+    <script type="module" src="app.js"></script>
+  </head>
+  <body
+    class="flex min-h-dvh flex-col bg-zinc-100 font-sans text-sm text-zinc-700 antialiased lg:h-dvh dark:bg-zinc-950 dark:text-zinc-300"
+  >
+    <header
+      class="sticky top-0 z-10 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-zinc-200 bg-white/80 px-4 py-2.5 backdrop-blur lg:h-14 lg:flex-nowrap lg:py-0 dark:border-white/5 dark:bg-zinc-900/80"
+    >
+      <h1 class="text-base font-semibold tracking-tight text-zinc-950 dark:text-white">livre</h1>
+      <span class="h-5 w-px bg-zinc-200 dark:bg-white/10" aria-hidden="true"></span>
+
+      <div class="relative">
+        <label for="fixture" class="sr-only">Sample PDF</label>
+        <select
+          id="fixture"
+          class="chip appearance-none py-1.5 pr-8 pl-3 text-zinc-800 dark:text-zinc-200"
+        >
+          <option value="text.pdf">text.pdf</option>
+          <option value="text-xref-stream.pdf">text-xref-stream.pdf</option>
+          <!-- Stands for a file the visitor opened, so the select names what is shown. -->
+          <option id="file-option" value="" hidden></option>
+        </select>
+        <span
+          class="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs text-zinc-400 dark:text-zinc-500"
+          aria-hidden="true"
+          >▾</span
+        >
+      </div>
+      <button
+        id="open"
+        type="button"
+        class="rounded-lg bg-zinc-900 px-3 py-1.5 font-medium text-white hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200 dark:focus-visible:outline-white"
+      >
+        Open PDF…
+      </button>
+      <input id="file" type="file" accept="application/pdf,.pdf" class="sr-only" tabindex="-1" />
+
+      <nav class="chip flex items-center lg:mx-auto" aria-label="Pages">
+        <button id="prev" type="button" class="pager-button" aria-label="Previous page" disabled>‹</button>
+        <label class="flex items-center gap-1.5 px-1 tabular-nums">
+          Page
+          <input
+            id="page"
+            type="number"
+            min="1"
+            value="1"
+            inputmode="numeric"
+            disabled
+            class="w-10 rounded-md bg-transparent px-1 py-0.5 text-center font-medium text-zinc-950 [appearance:textfield] focus:bg-zinc-100 focus:outline-none disabled:opacity-60 dark:text-white dark:focus:bg-white/10 [&::-webkit-inner-spin-button]:appearance-none"
+          />
+          of <output id="total">0</output>
+        </label>
+        <button id="next" type="button" class="pager-button" aria-label="Next page" disabled>›</button>
+      </nav>
+
+      <fieldset class="chip flex items-center gap-1 p-1">
+        <legend class="sr-only">Layers</legend>
+        <!-- Real checkboxes, styled through their label: the toggle logic reads `checked`. -->
+        <label
+          class="layer-chip has-checked:bg-livre/10 has-checked:text-pink-700 has-checked:ring-livre/40 dark:has-checked:bg-livre/15 dark:has-checked:text-pink-300"
+          title="livre: where each string starts"
+        >
+          <input id="layer-livre" type="checkbox" class="peer sr-only" checked />
+          <span class="size-2 rounded-full ring-1 ring-livre peer-checked:bg-livre" aria-hidden="true"></span>
+          livre
+        </label>
+        <label
+          class="layer-chip has-checked:bg-pdfjs/10 has-checked:text-blue-700 has-checked:ring-pdfjs/40 dark:has-checked:bg-pdfjs/15 dark:has-checked:text-blue-300"
+          title="pdf.js: where the text really is"
+        >
+          <input id="layer-pdfjs" type="checkbox" class="peer sr-only" />
+          <span class="size-2 rounded-full ring-1 ring-pdfjs peer-checked:bg-pdfjs" aria-hidden="true"></span>
+          pdf.js
+        </label>
+      </fieldset>
+
+      <a
+        href="https://github.com/bdura/livre"
+        class="text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+        >GitHub ↗</a
+      >
+    </header>
+
+    <section id="banners" aria-live="polite"></section>
+
+    <div class="flex flex-1 flex-col lg:min-h-0 lg:flex-row">
+      <main
+        id="dropzone"
+        class="relative flex-1 p-4 outline-2 -outline-offset-8 outline-transparent transition-colors data-dragging:bg-livre/5 data-dragging:outline-dashed data-dragging:outline-livre sm:p-8 lg:overflow-auto"
+      >
+        <div id="viewer" class="mx-auto w-full max-w-3xl">
+          <div class="sheet relative mx-auto w-fit bg-white shadow-2xl shadow-black/20 ring-1 ring-black/5 dark:shadow-black/50">
+            <canvas id="canvas" class="block"></canvas>
+            <svg id="overlay" class="overlay" xmlns="http://www.w3.org/2000/svg"></svg>
+          </div>
+        </div>
+        <p class="mt-4 text-center text-xs text-zinc-400 dark:text-zinc-600">
+          Drop a PDF anywhere here · it never leaves your browser
+        </p>
+      </main>
+
+      <aside
+        class="flex w-full shrink-0 flex-col border-t border-zinc-200 bg-white lg:w-[360px] lg:border-t-0 lg:border-l dark:border-white/5 dark:bg-zinc-900/50"
+        aria-label="Inspector"
+      >
+        <div role="tablist" class="flex gap-4 border-b border-zinc-200 px-4 dark:border-white/5">
+          <button type="button" role="tab" id="tab-run" aria-controls="panel-run" aria-selected="true" class="tab">
+            Run
+          </button>
+          <button type="button" role="tab" id="tab-objects" aria-controls="panel-objects" aria-selected="false" class="tab">
+            Text objects <span id="objects-count" class="text-zinc-400 dark:text-zinc-600"></span>
+          </button>
+          <button type="button" role="tab" id="tab-json" aria-controls="panel-json" aria-selected="false" class="tab">
+            JSON
+          </button>
+        </div>
+
+        <div class="min-h-0 flex-1 overflow-auto p-4">
+          <section id="panel-run" role="tabpanel" aria-labelledby="tab-run" class="space-y-3">
+            <p id="run-empty" class="py-6 text-center text-zinc-400 dark:text-zinc-500">Hover a marker on the page</p>
+            <div id="run-details" class="card space-y-3 p-4" hidden>
+              <div class="flex items-start justify-between gap-2">
+                <div id="run-text" class="font-mono text-base break-all text-zinc-950 dark:text-white"></div>
+                <span
+                  id="run-pinned"
+                  class="shrink-0 rounded-md bg-livre/10 px-1.5 py-0.5 text-[11px] font-medium text-pink-700 dark:text-pink-300"
+                  hidden
+                  >Pinned</span
+                >
+              </div>
+              <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[13px]">
+                <dt class="text-zinc-500">Font</dt>
+                <dd id="run-font" class="font-mono text-zinc-800 dark:text-zinc-200"></dd>
+                <dt class="text-zinc-500">Origin</dt>
+                <dd id="run-origin" class="font-mono text-zinc-800 dark:text-zinc-200"></dd>
+                <dt class="text-zinc-500">Bytes</dt>
+                <dd id="run-bytes" class="font-mono break-all text-zinc-800 dark:text-zinc-200"></dd>
+              </dl>
+            </div>
+            <p class="text-xs text-zinc-400 dark:text-zinc-500">Click a marker to pin it, again to release it.</p>
+          </section>
+
+          <section id="panel-objects" role="tabpanel" aria-labelledby="tab-objects" hidden>
+            <ol id="objects" class="space-y-1"></ol>
+          </section>
+
+          <section id="panel-json" role="tabpanel" aria-labelledby="tab-json" hidden>
+            <pre id="json" class="card overflow-auto p-3 font-mono text-xs leading-relaxed text-zinc-800 dark:text-zinc-200"></pre>
+          </section>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 border-t border-zinc-200 p-4 text-center dark:border-white/5">
+          <div class="card py-2">
+            <div id="count-runs" class="text-lg font-semibold text-zinc-950 tabular-nums dark:text-white">–</div>
+            <div class="text-[11px] text-zinc-500">runs</div>
+          </div>
+          <div class="card py-2">
+            <div id="count-objects" class="text-lg font-semibold text-zinc-950 tabular-nums dark:text-white">–</div>
+            <div class="text-[11px] text-zinc-500">text objects</div>
+          </div>
+          <div class="card py-2">
+            <div id="count-items" class="text-lg font-semibold text-zinc-950 tabular-nums dark:text-white">–</div>
+            <div class="text-[11px] text-zinc-500">pdf.js items</div>
+          </div>
+        </div>
+
+        <footer class="border-t border-zinc-200 px-4 py-3 font-mono text-[11px] text-zinc-400 dark:border-white/5 dark:text-zinc-600">
+          <span id="version">livre</span>
+        </footer>
+      </aside>
+    </div>
+  </body>
+</html>

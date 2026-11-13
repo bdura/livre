@@ -1,0 +1,19 @@
+{
+  // Each `.ts` file compiles to the `.js` beside it, which the page loads as is: no bundler.
+  // Imports name the emitted `.js` files; `pkg/` holds the wasm-bindgen output, `.d.ts`
+  // included, so it must be built before type-checking.
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["es2023", "dom", "dom.iterable"],
+    "types": [],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true
+  },
+  "include": ["*.ts"]
+}

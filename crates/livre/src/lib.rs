@@ -13,3 +13,6 @@ mod document;
 mod filtering;
 
 pub use document::InMemoryDocument;
+
+/// The version of this crate, as published.
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
