@@ -215,7 +215,7 @@ fn field_statement(
         (_, Some(key)) => key,
     };
 
-    // Design §6.3: errors carry the PDF key, slash included, and nothing else.
+    // Errors carry the PDF key, slash included, and nothing else.
     let label = format!("/{key}");
     let label = quote!(::winnow::error::StrContext::Label(#label));
 
