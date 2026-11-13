@@ -272,13 +272,10 @@ where
     }
 }
 
-impl Iterator for TextObject {
-    // NOTE: text is decoded from raw PDF string bytes using best-effort heuristics
-    // (UTF-16BE if a BOM is present, Latin-1 otherwise). Actual decoding requires
-    // the font's encoding map.
-    type Item = ((f32, f32), String);
-
-    fn next(&mut self) -> Option<Self::Item> {
+impl TextObject {
+    /// The undecoded form of the [`Iterator`] item: the start position of the next shown
+    /// string and its raw bytes, before [`PDFString::decode`] guesses an encoding.
+    pub fn next_raw(&mut self) -> Option<((f32, f32), PDFString)> {
         if self.text_buffer.is_none() {
             let buffer = self.buffer.as_mut()?;
 
@@ -296,22 +293,31 @@ impl Iterator for TextObject {
             }
         }
 
-        // NOTE: decoding is best-effort; see `PDFString::decode` for the heuristic.
-        let text = self.text_buffer.take()?.decode();
-
+        let text = self.text_buffer.take()?;
         Some((self.ctm.apply(self.matrix.translation()), text))
     }
 }
 
-impl<Ops> Iterator for TextObjectStream<Ops>
-where
-    Ops: Iterator<Item = Operator>,
-{
+impl Iterator for TextObject {
+    // NOTE: text is decoded from raw PDF string bytes using best-effort heuristics
+    // (UTF-16BE if a BOM is present, Latin-1 otherwise). Actual decoding requires
+    // the font's encoding map.
     type Item = ((f32, f32), String);
 
     fn next(&mut self) -> Option<Self::Item> {
+        self.next_raw().map(|(pos, s)| (pos, s.decode()))
+    }
+}
+
+impl<Ops> TextObjectStream<Ops>
+where
+    Ops: Iterator<Item = Operator>,
+{
+    /// The undecoded form of the [`Iterator`] item: the start position of the next shown
+    /// string and its raw bytes, before [`PDFString::decode`] guesses an encoding.
+    pub fn next_raw(&mut self) -> Option<((f32, f32), PDFString)> {
         loop {
-            if let Some(out) = self.text_object.next() {
+            if let Some(out) = self.text_object.next_raw() {
                 return Some(out);
             }
 
@@ -324,6 +330,17 @@ where
                 }
             }
         }
+    }
+}
+
+impl<Ops> Iterator for TextObjectStream<Ops>
+where
+    Ops: Iterator<Item = Operator>,
+{
+    type Item = ((f32, f32), String);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next_raw().map(|(pos, s)| (pos, s.decode()))
     }
 }
 
@@ -399,6 +416,32 @@ mod tests {
             parse_text_object(ops.into_iter(), &mut GraphicsState::default()),
             Err(ContentError::UnexpectedTextShowingOperator(_))
         ));
+    }
+
+    #[test]
+    fn next_raw_keeps_the_bytes_that_decoding_conflates() {
+        let input = b"BT /F1 12 Tf <FEFF0041> Tj (A) Tj ET";
+
+        let ops = operators(input);
+        let mut stream = parse_text_object(ops.into_iter(), &mut GraphicsState::default())
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            stream.next_raw(),
+            Some(((0.0, 0.0), PDFString(vec![0xFE, 0xFF, 0x00, 0x41])))
+        );
+        assert_eq!(
+            stream.next_raw(),
+            Some(((0.0, 0.0), PDFString(b"A".to_vec())))
+        );
+        assert!(stream.next_raw().is_none());
+
+        let ops = operators(input);
+        let stream = parse_text_object(ops.into_iter(), &mut GraphicsState::default())
+            .unwrap()
+            .unwrap();
+        let texts: Vec<String> = stream.map(|(_, text)| text).collect();
+        assert_eq!(texts, ["A", "A"]);
     }
 }
 

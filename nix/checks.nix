@@ -53,7 +53,7 @@
     // {
       pname = "${commonArgs.pname}-wasm32";
       CARGO_BUILD_TARGET = "wasm32-unknown-unknown";
-      cargoExtraArgs = "--locked -p livre";
+      cargoExtraArgs = "--locked -p livre -p livre-wasm";
       doCheck = false;
     };
 in {
@@ -99,7 +99,7 @@ in {
     }
   );
 
-  # livre compiles for the browser.
+  # livre and its wasm glue compile for the browser.
   livre-wasm32 = craneLib.mkCargoDerivation (
     wasm32Args
     // {

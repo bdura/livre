@@ -1,0 +1,4 @@
+# The wasm glue behind the demo page is deployed with the site, never published.
+[[package]]
+name = "livre-wasm"
+release = false
