@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-      # FIXME: remove before mergine
-      - feat/wasm-demo
   workflow_dispatch:
 
 permissions:
