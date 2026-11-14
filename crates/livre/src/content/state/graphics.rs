@@ -3,26 +3,34 @@
 
 use super::{
     space::{DefaultUser, User},
-    Matrix,
+    Matrix, TextStateParameters,
 };
 
 /// The part of the graphics state that livre tracks: the current transformation matrix
-/// (CTM) and the stack that `q` and `Q` push to and pop from.
+/// (CTM), the text state parameters, and the stack that `q` and `Q` push to and pop from.
 ///
 /// The CTM starts as the identity, so positions derived from it are expressed in the
 /// page's default user space (the space of the `MediaBox`). The other parameters of the
-/// graphics state (colour, line width, clipping, text state set outside `BT`) are not
-/// tracked yet.
+/// graphics state (colour, line width, clipping) are not tracked yet.
 #[derive(Debug, Clone, PartialEq)]
-pub struct GraphicsState {
+pub(crate) struct GraphicsState {
     ctm: Matrix<User, DefaultUser>,
-    stack: Vec<Matrix<User, DefaultUser>>,
+    text_state: TextStateParameters,
+    stack: Vec<Snapshot>,
+}
+
+/// What `q` saves and `Q` restores.
+#[derive(Debug, Clone, PartialEq)]
+struct Snapshot {
+    ctm: Matrix<User, DefaultUser>,
+    text_state: TextStateParameters,
 }
 
 impl Default for GraphicsState {
     fn default() -> Self {
         Self {
             ctm: Matrix::coincident(),
+            text_state: TextStateParameters::default(),
             stack: Vec::new(),
         }
     }
@@ -34,6 +42,12 @@ impl GraphicsState {
         self.ctm
     }
 
+    /// The text state parameters (ISO 32000-2, 9.3). They are part of the graphics state,
+    /// so they persist from one text object to the next and `q`/`Q` save and restore them.
+    pub fn text_state_mut(&mut self) -> &mut TextStateParameters {
+        &mut self.text_state
+    }
+
     /// The `cm` operator: `CTM' = M × CTM`, so `matrix` applies before the current CTM.
     pub fn concatenate(&mut self, matrix: Matrix<User, User>) {
         self.ctm = matrix.then(self.ctm);
@@ -41,14 +55,20 @@ impl GraphicsState {
 
     /// The `q` operator.
     pub fn save(&mut self) {
-        self.stack.push(self.ctm);
+        self.stack.push(Snapshot {
+            ctm: self.ctm,
+            text_state: self.text_state.clone(),
+        });
     }
 
     /// The `Q` operator. A `Q` without a matching `q` is an error in the specification;
     /// livre ignores it and keeps the current state.
     pub fn restore(&mut self) {
         match self.stack.pop() {
-            Some(ctm) => self.ctm = ctm,
+            Some(Snapshot { ctm, text_state }) => {
+                self.ctm = ctm;
+                self.text_state = text_state;
+            }
             None => tracing::warn!("`Q` without a matching `q`: ignored"),
         }
     }
@@ -88,5 +108,19 @@ mod tests {
         state.restore();
 
         assert_eq!(state.ctm().translation(), Point::new(1.0, 2.0));
+    }
+
+    #[test]
+    fn restore_pops_the_text_state_with_the_ctm() {
+        let mut state = GraphicsState::default();
+
+        state.text_state_mut().set_leading(1.0);
+        state.save();
+        state.concatenate(translation(10.0, 0.0));
+        state.text_state_mut().set_leading(2.0);
+
+        state.restore();
+        assert_eq!(state.text_state.leading, 1.0);
+        assert_eq!(state.ctm().translation(), Point::new(0.0, 0.0));
     }
 }

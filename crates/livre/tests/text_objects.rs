@@ -1,7 +1,7 @@
 use std::{fs::File, io::Read};
 
 use livre::{
-    content::{operators::Operator, parse_text_object, DefaultUser, GraphicsState, Point},
+    content::{operators::Operator, DefaultUser, Point, TextObjects},
     extraction::Extract,
     InMemoryDocument,
 };
@@ -31,9 +31,9 @@ fn runs(path: &str) -> Vec<(Point<DefaultUser>, String)> {
         let mut stream = BStr::new(&content);
 
         let mut it = iterator(&mut stream, preceded(multispace0, Operator::extract));
-        let mut graphics_state = GraphicsState::default();
+        let mut objects = TextObjects::new(&mut it);
 
-        while let Some(text_object) = parse_text_object(&mut it, &mut graphics_state).unwrap() {
+        while let Some(text_object) = objects.next_object().unwrap() {
             runs.extend(text_object);
         }
 

@@ -1,7 +1,7 @@
 use std::{fs::File, io::Read};
 
 use livre::{
-    content::{operators::Operator, parse_text_object, GraphicsState},
+    content::{operators::Operator, TextObjects},
     extraction::Extract,
     InMemoryDocument,
 };
@@ -34,11 +34,9 @@ fn main() {
             let mut stream = BStr::new(&content);
 
             let mut it = iterator(&mut stream, preceded(multispace0, Operator::extract));
-            let mut graphics_state = GraphicsState::default();
+            let mut objects = TextObjects::new(&mut it);
 
-            while let Some(mut text_state) =
-                parse_text_object(&mut it, &mut graphics_state).unwrap()
-            {
+            while let Some(mut text_state) = objects.next_object().unwrap() {
                 println!("NEW TEXT OBJECT");
                 for (position, text) in &mut text_state {
                     println!("- {:?} {:?}", position, text);

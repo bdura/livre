@@ -70,26 +70,20 @@ fn xref_stream_pdf_parses_without_errors() {
     assert_eq!(first_page_runs(&analysis), first_page_runs(&analyze(TEXT)));
 }
 
-// Pins today's failure: the second text object shows text with the font selected in the
-// first, which livre still discards at `ET`.
 #[test]
-fn font_before_bt_pdf_stops_at_the_second_text_object() {
+fn font_before_bt_pdf_parses_without_errors() {
     let analysis = analyze(FONT_BEFORE_BT);
-    assert_eq!(analysis.document, None);
-    assert_eq!(analysis.pages.len(), 1);
+    assert_clean(&analysis, 1);
 
-    let page = &analysis.pages[0];
-    let error = page.error.as_ref().expect("the page stage fails");
-    assert_eq!(error.stage, Stage::TextObject);
-    assert!(
-        error.message.contains("UnexpectedTextShowingOperator"),
-        "{}",
-        error.message
-    );
+    let text_objects = &analysis.pages[0].text_objects;
+    assert_eq!(text_objects.len(), 4);
+    assert!(text_objects.iter().all(|object| object.runs.len() == 1));
 
-    let runs = first_page_runs(&analysis);
-    assert_eq!(runs.len(), 1);
-    assert_eq!(runs[0].text, "first");
+    let texts: Vec<&str> = first_page_runs(&analysis)
+        .iter()
+        .map(|run| run.text.as_str())
+        .collect();
+    assert_eq!(texts, ["first", "second", "big", "small again"]);
 }
 
 #[test]

@@ -1,5 +1,5 @@
 use livre::{
-    content::{operators::Operator, parse_text_object, GraphicsState},
+    content::{operators::Operator, TextObjects},
     extraction::Extract,
     structure::Page as LivrePage,
     InMemoryDocument,
@@ -104,11 +104,12 @@ fn analyze_page(doc: &InMemoryDocument, index: usize, page: &LivrePage) -> Page 
 fn extract_text_objects(content: &[u8], text_objects: &mut Vec<TextObject>) -> Option<StageError> {
     let mut stream = BStr::new(content);
     let mut it = iterator(&mut stream, preceded(multispace0, Operator::extract));
-    // One per content stream: a `cm` at the top of the page applies to every text object.
-    let mut graphics_state = GraphicsState::default();
+    // One per content stream: a `cm` or a `Tf` at the top of the page applies to every
+    // text object below it.
+    let mut objects = TextObjects::new(&mut it);
 
     loop {
-        let mut text_object = match parse_text_object(&mut it, &mut graphics_state) {
+        let mut text_object = match objects.next_object() {
             Ok(Some(text_object)) => text_object,
             Ok(None) => break,
             Err(e) => return Some(stage_error(Stage::TextObject, e)),

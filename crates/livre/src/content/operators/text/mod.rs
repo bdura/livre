@@ -61,7 +61,7 @@ impl TextOperator {
         match self {
             Self::TextShowingOperator(op) => op.apply(text_object),
             Self::TextPositioningOperator(op) => op.apply(text_object),
-            Self::TextStateOperator(op) => op.apply(&mut text_object.parameters),
+            Self::TextStateOperator(op) => op.apply(text_object.parameters),
         }
     }
 }
