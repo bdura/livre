@@ -13,6 +13,14 @@ const pdfjs: PdfJs = await import(`${PDFJS}/pdf.min.mjs`);
 pdfjs.GlobalWorkerOptions.workerSrc = `${PDFJS}/pdf.worker.min.mjs`;
 
 const REPOSITORY = "https://github.com/bdura/livre";
+// Zoom multiplies the fit-to-width scale; the buttons step through these factors.
+const ZOOM_STEPS = [0.5, 0.67, 0.8, 1, 1.25, 1.5, 2, 2.5, 3, 4];
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 4;
+// The widest a page is drawn at 100%.
+const FIT_MAX_WIDTH = 768;
+// Safari draws nothing on a larger canvas: past it, the page renders at a lower resolution.
+const MAX_CANVAS_PIXELS = 16_000_000;
 const ISSUES = `${REPOSITORY}/issues/new`;
 
 /** The element `id`, which the page must hold as a `kind`. */
@@ -36,6 +44,9 @@ const ui = {
   viewer: $("viewer", HTMLDivElement),
   canvas: $("canvas", HTMLCanvasElement),
   overlay: $("overlay", SVGSVGElement),
+  zoomOut: $("zoom-out", HTMLButtonElement),
+  zoomReset: $("zoom-reset", HTMLButtonElement),
+  zoomIn: $("zoom-in", HTMLButtonElement),
   json: $("json", HTMLPreElement),
   version: $("version", HTMLSpanElement),
   layerLivre: $("layer-livre", HTMLInputElement),
@@ -81,6 +92,8 @@ interface State {
   viewport: PageViewport | null;
   /** The run the inspector keeps showing. */
   pinned: RunIndices | null;
+  /** A factor of the fit-to-width scale. */
+  zoom: number;
 }
 
 export const state: State = {
@@ -92,6 +105,7 @@ export const state: State = {
   numPages: 0,
   viewport: null,
   pinned: null,
+  zoom: 1,
 };
 
 /** The rendered page an overlay draws over. */
@@ -157,7 +171,9 @@ async function load(name: string, bytes: Uint8Array): Promise<void> {
     pageNumber: 1,
     numPages: 0,
     viewport: null,
+    zoom: 1,
   } satisfies Partial<State>);
+  updateZoom();
   showSource(name);
 
   let pdfError: unknown = null;
@@ -201,6 +217,7 @@ async function show(n: number, pdfError: unknown = null): Promise<void> {
   hoveredRun = null;
   highlightedObject = null;
   updatePager();
+  ui.viewer.scrollTo(0, 0);
   showBanners(livrePage(), pdfError === null ? null : `pdf.js could not open this file: ${message(pdfError)}`);
   showJson();
   showInspector();
@@ -258,19 +275,20 @@ async function render(): Promise<void> {
   if (superseded()) return;
 
   const unscaled = page.getViewport({ scale: 1 });
-  const scale = ui.viewer.clientWidth / unscaled.width;
-  const viewport = page.getViewport({ scale });
-  const dpr = window.devicePixelRatio || 1;
+  const viewport = page.getViewport({ scale: sheetScale(unscaled.width) });
+  const dpr = Math.min(
+    window.devicePixelRatio || 1,
+    Math.sqrt(MAX_CANVAS_PIXELS / (viewport.width * viewport.height)),
+  );
 
-  const { canvas, overlay } = ui;
+  // Drawn off-screen and swapped in, so a zoomed page never blanks while it renders.
+  const canvas = document.createElement("canvas");
+  canvas.id = ui.canvas.id;
+  canvas.className = ui.canvas.className;
   canvas.width = Math.floor(viewport.width * dpr);
   canvas.height = Math.floor(viewport.height * dpr);
   canvas.style.width = `${viewport.width}px`;
   canvas.style.height = `${viewport.height}px`;
-  overlay.setAttribute("width", String(viewport.width));
-  overlay.setAttribute("height", String(viewport.height));
-  overlay.setAttribute("viewBox", `0 0 ${viewport.width} ${viewport.height}`);
-  state.viewport = viewport;
 
   const task = page.render({
     canvas,
@@ -285,8 +303,74 @@ async function render(): Promise<void> {
     throw e;
   }
   if (renderTask === task) renderTask = null;
+  if (superseded()) return;
+
+  ui.canvas.replaceWith(canvas);
+  ui.canvas = canvas;
+  const { overlay } = ui;
+  overlay.setAttribute("width", String(viewport.width));
+  overlay.setAttribute("height", String(viewport.height));
+  overlay.setAttribute("viewBox", `0 0 ${viewport.width} ${viewport.height}`);
+  state.viewport = viewport;
 
   drawOverlays({ pdf, pageNumber, viewport });
+}
+
+/** The scale of a page `width` units wide: the viewer's width, at most `FIT_MAX_WIDTH`, times the zoom. */
+function sheetScale(width: number): number {
+  const style = getComputedStyle(ui.viewer);
+  const room = ui.viewer.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+  return (Math.min(room, FIT_MAX_WIDTH) / width) * state.zoom;
+}
+
+/**
+ * Zoom to `target`, keeping the point at `anchor` (client coordinates) in place, or the
+ * middle of the viewer. The page is stretched at once and rendered again once zooming stops.
+ */
+function zoomTo(target: number, anchor?: { x: number; y: number }): void {
+  const zoom = Math.min(Math.max(target, MIN_ZOOM), MAX_ZOOM);
+  if (zoom === state.zoom) return;
+  state.zoom = zoom;
+  updateZoom();
+  const viewport = state.viewport;
+  if (!viewport) return;
+  // A render under way is for the old zoom.
+  renderGeneration++;
+  renderTask?.cancel();
+
+  const box = ui.viewer.getBoundingClientRect();
+  const x = anchor?.x ?? box.left + box.width / 2;
+  const y = anchor?.y ?? box.top + box.height / 2;
+  const before = ui.canvas.getBoundingClientRect();
+
+  // The page's size in PDF units, whatever the scale it was last rendered at.
+  const scale = sheetScale(viewport.width / viewport.scale);
+  const width = (viewport.width / viewport.scale) * scale;
+  const height = (viewport.height / viewport.scale) * scale;
+  ui.canvas.style.width = `${width}px`;
+  ui.canvas.style.height = `${height}px`;
+  // The viewBox stays: the drawn overlay stretches with the page until it is redrawn.
+  ui.overlay.setAttribute("width", String(width));
+  ui.overlay.setAttribute("height", String(height));
+
+  const after = ui.canvas.getBoundingClientRect();
+  const ratio = after.width / before.width;
+  ui.viewer.scrollBy(after.left + (x - before.left) * ratio - x, after.top + (y - before.top) * ratio - y);
+  scheduleRender();
+}
+
+function updateZoom(): void {
+  ui.zoomReset.textContent = `${Math.round(state.zoom * 100)}%`;
+  ui.zoomOut.disabled = state.zoom <= MIN_ZOOM;
+  ui.zoomIn.disabled = state.zoom >= MAX_ZOOM;
+}
+
+let renderTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** Render once the resizing or zooming that calls this has stopped. */
+function scheduleRender(): void {
+  clearTimeout(renderTimer);
+  renderTimer = setTimeout(render, 150);
 }
 
 function clearSheet(): void {
@@ -695,11 +779,26 @@ ui.dropzone.addEventListener("drop", (event) => {
   if (file) void loadFile(file);
 });
 
-let resizeTimer: ReturnType<typeof setTimeout> | undefined;
-window.addEventListener("resize", () => {
-  clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(render, 150);
-});
+window.addEventListener("resize", scheduleRender);
+
+ui.zoomIn.addEventListener("click", () => zoomTo(ZOOM_STEPS.find((step) => step > state.zoom + 0.001) ?? MAX_ZOOM));
+ui.zoomOut.addEventListener("click", () =>
+  zoomTo(ZOOM_STEPS.findLast((step) => step < state.zoom - 0.001) ?? MIN_ZOOM),
+);
+ui.zoomReset.addEventListener("click", () => zoomTo(1));
+// A trackpad pinch arrives as a wheel event with `ctrlKey` set.
+ui.viewer.addEventListener(
+  "wheel",
+  (event) => {
+    if (!event.ctrlKey && !event.metaKey) return;
+    // Over the page, the browser's own zoom would scale the whole interface.
+    event.preventDefault();
+    const lines = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16 : 1;
+    const delta = Math.min(Math.max(event.deltaY * lines, -50), 50);
+    zoomTo(state.zoom * Math.exp(-delta / 100), { x: event.clientX, y: event.clientY });
+  },
+  { passive: false },
+);
 
 void showVersion();
 await loadFixture(ui.fixture.value);

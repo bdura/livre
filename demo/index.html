@@ -65,6 +65,19 @@
         <button id="next" type="button" class="pager-button" aria-label="Next page" disabled>›</button>
       </nav>
 
+      <div class="chip flex items-center" role="group" aria-label="Zoom">
+        <button id="zoom-out" type="button" class="pager-button" aria-label="Zoom out">−</button>
+        <button
+          id="zoom-reset"
+          type="button"
+          class="w-12 py-1.5 text-center font-medium text-zinc-950 tabular-nums hover:text-zinc-600 dark:text-white dark:hover:text-zinc-300"
+          title="Fit to width"
+        >
+          100%
+        </button>
+        <button id="zoom-in" type="button" class="pager-button" aria-label="Zoom in">+</button>
+      </div>
+
       <fieldset class="chip flex items-center gap-1 p-1">
         <legend class="sr-only">Layers</legend>
         <!-- Real checkboxes, styled through their label: the toggle logic reads `checked`. -->
@@ -98,17 +111,18 @@
     <div class="flex flex-1 flex-col lg:min-h-0 lg:flex-row">
       <main
         id="dropzone"
-        class="relative flex-1 p-4 outline-2 -outline-offset-8 outline-transparent transition-colors data-dragging:bg-livre/5 data-dragging:outline-dashed data-dragging:outline-livre sm:p-8 lg:overflow-auto"
+        class="relative flex min-w-0 flex-1 flex-col outline-2 -outline-offset-8 outline-transparent transition-colors data-dragging:bg-livre/5 data-dragging:outline-dashed data-dragging:outline-livre lg:min-h-0"
       >
-        <div id="viewer" class="mx-auto w-full max-w-3xl">
+        <!-- Scrolls a zoomed page; bounded below 1024px so the inspector stays a scroll away. -->
+        <div id="viewer" class="max-h-[70vh] overflow-auto p-4 sm:p-8 lg:max-h-none lg:min-h-0 lg:flex-1">
           <div class="sheet relative mx-auto w-fit bg-white shadow-2xl shadow-black/20 ring-1 ring-black/5 dark:shadow-black/50">
             <canvas id="canvas" class="block"></canvas>
             <svg id="overlay" class="overlay" xmlns="http://www.w3.org/2000/svg"></svg>
           </div>
+          <p class="mt-4 text-center text-xs text-zinc-400 dark:text-zinc-600">
+            Drop a PDF anywhere here · it never leaves your browser
+          </p>
         </div>
-        <p class="mt-4 text-center text-xs text-zinc-400 dark:text-zinc-600">
-          Drop a PDF anywhere here · it never leaves your browser
-        </p>
       </main>
 
       <aside
