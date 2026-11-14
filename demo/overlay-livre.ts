@@ -2,7 +2,9 @@
 //
 // livre knows where each shown string starts and ends, from the font widths, and at what
 // font size. So each run is a box from its start to its end, one font size tall, with a
-// dot at its baseline origin, and each text object a dashed hull around its runs' boxes.
+// dot at its baseline origin. Each text object also gets a hull around its runs' boxes,
+// shown only while the inspector highlights it: Word exports split a line into many small
+// text objects, whose hulls would otherwise cover the page in overlapping frames.
 // The box height is the font size, not the glyphs' real extent: compare widths and
 // baselines with the pdf.js boxes, not heights.
 
@@ -33,7 +35,6 @@ export function drawLivreLayer(svg: SVGSVGElement, page: Page, viewport: PageVie
   page.text_objects.forEach((object, objectIndex) => {
     if (object.runs.length === 0) return;
     const box = new Bounds();
-    let maxSize = 0;
     object.runs.forEach((run, runIndex) => {
       // The height goes straight up in user space, not across the baseline: boxes fit unrotated text only.
       const corners: Corners = [
@@ -43,18 +44,16 @@ export function drawLivreLayer(svg: SVGSVGElement, page: Page, viewport: PageVie
         viewport.convertToViewportPoint(run.x, run.y + run.size),
       ];
       for (const corner of corners) box.add(...corner);
-      maxSize = Math.max(maxSize, run.size);
       layer.append(runMarker(corners, objectIndex, runIndex));
     });
-    const pad = maxSize * viewport.scale;
     // Behind the markers, so it never takes their pointer events.
     layer.prepend(
       element("rect", {
         class: "hull",
-        x: box.xmin - pad,
-        y: box.ymin - pad,
-        width: box.xmax - box.xmin + 2 * pad,
-        height: box.ymax - box.ymin + 2 * pad,
+        x: box.xmin,
+        y: box.ymin,
+        width: box.xmax - box.xmin,
+        height: box.ymax - box.ymin,
         "data-object": objectIndex,
       }),
     );

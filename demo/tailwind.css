@@ -102,10 +102,9 @@
   stroke-width: 2;
 }
 
+/* Hidden unless highlighted: one hull per text object clutters pages split into many. */
 .overlay g.livre .hull {
-  stroke-width: 1;
-  stroke-dasharray: 4 3;
-  opacity: 0.8;
+  visibility: hidden;
 }
 
 /* While the inspector's list is hovered, all but its hovered text object fade. */
@@ -115,10 +114,9 @@
 
 /* The text object hovered in the inspector's list. */
 .overlay g.livre .hull.highlight {
+  visibility: visible;
   fill: color-mix(in srgb, var(--color-livre) 12%, transparent);
-  stroke-dasharray: none;
   stroke-width: 2;
-  opacity: 1;
 }
 
 .overlay g.pdfjs .item {
