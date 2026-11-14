@@ -96,25 +96,31 @@ impl Default for TextStateParameters {
 }
 
 impl TextStateParameters {
+    /// Select the font and font size (`Tf`).
     pub fn set_font(&mut self, font: Font) {
         self.font = Some(font);
     }
+    /// Set the character spacing, in unscaled text space units (`Tc`).
     pub fn set_character_spacing(&mut self, spacing: f32) {
         self.character_spacing = spacing;
     }
+    /// Set the word spacing, in unscaled text space units (`Tw`).
     pub fn set_word_spacing(&mut self, spacing: f32) {
         self.word_spacing = spacing;
     }
-    /// Set the horizontal scaling, as a percentage of the normal glyph width.
+    /// Set the horizontal scaling, as a percentage of the normal glyph width (`Tz`).
     pub fn set_horizontal_scaling(&mut self, scaling: f32) {
         self.horizontal_scaling = scaling;
     }
+    /// Set the leading, in unscaled text space units (`TL`).
     pub fn set_leading(&mut self, leading: f32) {
         self.leading = leading;
     }
+    /// Set the text rendering mode (`Tr`).
     pub fn set_rendering_mode(&mut self, mode: RenderingMode) {
         self.rendering_mode = mode;
     }
+    /// Set the text rise, in unscaled text space units (`Ts`).
     pub fn set_rise(&mut self, rise: f32) {
         self.rise = rise;
     }
@@ -209,16 +215,20 @@ impl<'a> TextObject<'a> {
         self.matrix.then(self.ctm)
     }
 
-    pub fn move_to(&mut self, x: f32, y: f32) {
-        self.matrix.translate(Displacement::new(x, y));
+    /// Translate the text matrix by `offset`, expressed in text space (`Td`).
+    pub fn move_to(&mut self, offset: Displacement<Text>) {
+        self.matrix.translate(offset);
     }
+    /// Translate the text matrix down by the leading, to the start of the next line (`T*`).
     pub fn move_to_next_line(&mut self) {
-        self.matrix
-            .translate(Displacement::new(0.0, -self.parameters.leading));
+        self.move_to(Displacement::new(0.0, -self.parameters.leading));
     }
+    /// Buffer a shown string (`Tj`), to be yielded as the next run.
     pub fn add_text(&mut self, text: PDFString) {
         self.text_buffer = Some(text);
     }
+    /// Buffer the strings and offsets of a `TJ` array, to be yielded as runs in order, each
+    /// offset moving the text matrix before the string that follows it.
     pub fn add_text_array(&mut self, array: Vec<TextArrayElement>) {
         self.buffer = Some(array.into());
     }
@@ -274,11 +284,19 @@ struct Started {
 ///
 /// Not an [`Iterator`], since each item borrows it:
 ///
-/// ```ignore
+/// ```
+/// # use livre::{content::{operators::Operator, Run, TextObjects}, extraction::Extract};
+/// # use winnow::{ascii::multispace0, combinator::{iterator, preceded}, BStr};
+/// # let mut content = BStr::new(b"/F1 12 Tf BT 72 700 Td (Hello) Tj ET");
+/// # let mut operators = iterator(&mut content, preceded(multispace0, Operator::extract));
 /// let mut objects = TextObjects::new(&mut operators);
 /// while let Some(stream) = objects.next_object()? {
-///     for Run { position, text } in stream { /* ... */ }
+///     for Run { position, text } in stream {
+/// #       assert_eq!((position.x, position.y, text.decode()), (72.0, 700.0, "Hello".into()));
+///         /* ... */
+///     }
 /// }
+/// # Ok::<(), livre::content::ContentError>(())
 /// ```
 pub struct TextObjects<Ops> {
     ops: Ops,

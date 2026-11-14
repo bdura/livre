@@ -22,14 +22,20 @@ pub struct User;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DefaultUser;
 
-/// A point in the space `S`.
+/// A location in the coordinate space `S`, such as a run position in [`DefaultUser`] space.
+///
+/// Its coordinates are in the units of `S`. Only a [`Matrix`](super::Matrix) whose source
+/// space is `S` maps it into another space.
 pub struct Point<S> {
+    /// Horizontal coordinate, in units of `S`.
     pub x: f32,
+    /// Vertical coordinate, in units of `S`.
     pub y: f32,
     space: PhantomData<fn() -> S>,
 }
 
 impl<S> Point<S> {
+    /// The point `(x, y)` of `S`.
     pub const fn new(x: f32, y: f32) -> Self {
         Self {
             x,
@@ -39,15 +45,20 @@ impl<S> Point<S> {
     }
 }
 
-/// A vector in the space `S`: the difference between two points, such as a `Td` operand
-/// or a `TJ` offset.
+/// A vector in the coordinate space `S`: the difference between two points, such as a `Td`
+/// operand or a `TJ` offset in [`Text`] space.
+///
+/// Adding it to a [`Point`] of the same space moves that point by `(dx, dy)`.
 pub struct Displacement<S> {
+    /// Horizontal component, in units of `S`.
     pub dx: f32,
+    /// Vertical component, in units of `S`.
     pub dy: f32,
     space: PhantomData<fn() -> S>,
 }
 
 impl<S> Displacement<S> {
+    /// The displacement `(dx, dy)` in `S`.
     pub const fn new(dx: f32, dy: f32) -> Self {
         Self {
             dx,
@@ -65,7 +76,9 @@ impl<S> Add<Displacement<S>> for Point<S> {
     }
 }
 
-// Hand-written so that the markers need not implement the traits themselves.
+// Hand-written rather than derived: a derive would bound each impl on `S` (`S: Clone`,
+// `S: PartialEq`, ...) although `S` only appears in `PhantomData`. These impls hold for
+// every `S`, so code generic over the space needs no such bounds.
 
 impl<S> Clone for Point<S> {
     fn clone(&self) -> Self {

@@ -166,7 +166,7 @@ and the root manifest only lists the members and their shared package metadata.
 │       └── state/             # Content stream state management
 │           ├── mod.rs
 │           ├── matrix.rs      # Matrix<From, To>: transformation matrices between spaces
-│           ├── space.rs       # Coordinate space markers and Point<Space>
+│           ├── space.rs       # Coordinate space markers, Point<Space> and Displacement<Space>
 │           ├── graphics.rs    # GraphicsState: CTM, text state and their q/Q stack
 │           └── text.rs        # TextObjects, TextObject, TextObjectStream, Run, text state
 │
@@ -278,7 +278,10 @@ Showing text with no font selected is `NoFontSelected`.
 - **Add support for a new PDF structure type**: Define a struct and implement
   `Extract` and `Build` as needed, typically in the `structure/` module.
 - **Add a new content operator**: Add a variant to `content::operators::Operator`
-  and implement its parsing in the appropriate text or graphics submodule.
+  and implement its parsing in the appropriate text or graphics submodule. A text
+  operator also implements `TextStateOperation`, `TextPositioningOperation` or
+  `TextShowingOperation`, depending on whether it mutates the text state parameters,
+  the text matrix or the text object's buffered strings.
 - **Add a new stream filter**: Implement the `Filtering` trait for your filter
   type in `filtering.rs`.
 - **Create a custom builder**: Implement the `Builder` trait for your type to

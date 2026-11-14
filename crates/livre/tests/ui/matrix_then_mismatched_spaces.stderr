@@ -11,5 +11,5 @@ error[E0308]: mismatched types
 note: method defined here
  --> src/content/state/matrix.rs
   |
-  |     pub fn then<C>(self, other: Matrix<B, C>) -> Matrix<A, C> {
+  |     pub fn then<Next>(self, other: Matrix<To, Next>) -> Matrix<From, Next> {
   |            ^^^^

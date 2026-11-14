@@ -174,7 +174,6 @@ fn font_before_bt_matches_its_golden_runs() {
     assert_eq!(actual.len(), expected.len(), "runs: {actual:?}");
 
     for (i, ((object, run), golden)) in actual.iter().zip(&expected).enumerate() {
-        // One run per text object, in order.
         assert_eq!(*object, i, "run {i} in text object {object}");
         assert!(
             (run.x - golden.x).abs() < 1e-2 && (run.y - golden.y).abs() < 1e-2,

@@ -3,7 +3,7 @@ use enum_dispatch::enum_dispatch;
 use winnow::{combinator::trace, BStr, ModalResult, Parser};
 
 use crate::{
-    content::state::{Matrix, Text, TextObject, User},
+    content::state::{Displacement, Matrix, Text, TextObject, User},
     extraction::{extract, Extract},
 };
 
@@ -40,7 +40,7 @@ pub struct MoveByOffset(f32, f32);
 
 impl TextPositioningOperation for MoveByOffset {
     fn apply(self, text_object: &mut TextObject) {
-        text_object.move_to(self.0, self.1);
+        text_object.move_to(Displacement::new(self.0, self.1));
     }
 }
 
@@ -60,21 +60,24 @@ pub struct MoveByOffsetAndSetLeading(pub(crate) f32, pub(crate) f32);
 impl TextPositioningOperation for MoveByOffsetAndSetLeading {
     fn apply(self, text_object: &mut TextObject) {
         text_object.parameters.set_leading(-self.1);
-        text_object.move_to(self.0, self.1);
+        text_object.move_to(Displacement::new(self.0, self.1));
     }
 }
 
 /// `Tm` operator.
 ///
+/// Replace the text matrix outright: the six operands `[a b c d e f]` map text space to user
+/// space.
+///
 /// ```raw
 /// 1 0 0 -1 370.70721 .47981739 Tm
 /// ```
-///
-/// The six operands are read as numbers and assembled into a text matrix here, so that
-/// no matrix exists without its spaces.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SetTextMatrix(Matrix<Text, User>);
 
+// Assembled from six numbers rather than by extracting a `Matrix`: only `Matrix<User, User>`
+// is extractable, for `cm`, so the `Text` to `User` space pair is asserted here, where the
+// operator gives the numbers that meaning.
 impl Extract<'_> for SetTextMatrix {
     fn extract(input: &mut &BStr) -> ModalResult<Self> {
         trace(

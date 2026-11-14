@@ -31,28 +31,28 @@ fn main() {
 
         for page in doc.pages().unwrap().iter() {
             let content = page.build_content(&doc).unwrap();
-            let mut stream = BStr::new(&content);
+            let mut input = BStr::new(&content);
 
-            let mut it = iterator(&mut stream, preceded(multispace0, Operator::extract));
+            let mut it = iterator(&mut input, preceded(multispace0, Operator::extract));
             let mut objects = TextObjects::new(&mut it);
 
-            while let Some(mut text_state) = objects.next_object().unwrap() {
+            while let Some(mut stream) = objects.next_object().unwrap() {
                 println!("NEW TEXT OBJECT");
-                for Run { position, text } in &mut text_state {
+                for Run { position, text } in &mut stream {
                     println!("- {:?} {:?}", position, text.decode());
                 }
                 println!("END TEXT OBJECT");
                 println!();
             }
 
-            multispace0::<&BStr, ContextError>(&mut stream).unwrap();
+            multispace0::<&BStr, ContextError>(&mut input).unwrap();
 
-            if !stream.is_empty() {
+            if !input.is_empty() {
                 println!();
                 println!("Issue while parsing");
                 println!(
                     "{}",
-                    String::from_utf8_lossy(&stream[..500.min(stream.len())])
+                    String::from_utf8_lossy(&input[..500.min(input.len())])
                 );
                 panic!("Parsing did not consume the entire input");
             }

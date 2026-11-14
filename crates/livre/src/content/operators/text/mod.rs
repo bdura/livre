@@ -29,6 +29,8 @@ use super::Operator;
 /// these operators apply outside a text object as well as inside one.
 #[enum_dispatch]
 pub trait TextStateOperation: Sized {
+    /// Update the text state parameters: the operator's effect lasts until another
+    /// operator overrides it or `Q` restores an earlier state.
     fn apply(self, parameters: &mut TextStateParameters);
 }
 
@@ -36,6 +38,7 @@ pub trait TextStateOperation: Sized {
 /// leading, through the text object's parameters.
 #[enum_dispatch]
 pub trait TextPositioningOperation: Sized {
+    /// Update the text object's text matrix. `TD` also sets the leading in its parameters.
     fn apply(self, text_object: &mut TextObject);
 }
 
@@ -43,6 +46,8 @@ pub trait TextPositioningOperation: Sized {
 /// next line first, and `"` also sets the word and character spacing.
 #[enum_dispatch]
 pub trait TextShowingOperation: Sized {
+    /// Buffer the shown string, or `TJ` array, in the text object for its stream to yield
+    /// as runs. `'` and `"` move the text matrix first, and `"` sets the spacing parameters.
     fn apply(self, text_object: &mut TextObject);
 }
 
@@ -55,8 +60,9 @@ pub enum TextOperator {
 }
 
 impl TextOperator {
-    /// Apply the operator inside a text object, dispatching to its category: text state
-    /// operators act on the text object's parameters.
+    /// Apply the operator inside a text object, dispatching to its category. Text state
+    /// operators mutate the text state parameters the object borrows from the graphics
+    /// state, so their effect persists past `ET`.
     pub fn apply(self, text_object: &mut TextObject) {
         match self {
             Self::TextShowingOperator(op) => op.apply(text_object),

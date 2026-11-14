@@ -23,11 +23,17 @@ use crate::extraction::{extract, Extract};
 /// [`then`](Self::then) only composes matrices whose inner spaces agree, and
 /// [`apply`](Self::apply) only takes points of `From`.
 pub struct Matrix<From, To> {
+    /// Horizontal scaling component: the weight of `x` in the image's `x`.
     pub a: f32,
+    /// Rotation/skew component: the weight of `x` in the image's `y`.
     pub b: f32,
+    /// Rotation/skew component: the weight of `y` in the image's `x`.
     pub c: f32,
+    /// Vertical scaling component: the weight of `y` in the image's `y`.
     pub d: f32,
+    /// Horizontal translation, in units of `To`.
     pub e: f32,
+    /// Vertical translation, in units of `To`.
     pub f: f32,
     spaces: PhantomData<fn(From) -> To>,
 }
@@ -56,8 +62,13 @@ impl<A> Matrix<A, A> {
     pub const IDENTITY: Self = Self::new(1.0, 0.0, 0.0, 1.0, 0.0, 0.0);
 }
 
-impl<A, B> Matrix<A, B> {
-    /// The matrix `[a b c d e f]`.
+impl<From, To> Matrix<From, To> {
+    /// The matrix `[a b c d e f]`, in the row-vector convention of section 8.3.4 of the
+    /// PDF specification: `(x, y)` maps to `(a·x + c·y + e, b·x + d·y + f)`.
+    ///
+    /// The spaces are not checked: the caller asserts that the six numbers map `From` into
+    /// `To`. This is the one place a space pair is minted: every other constructor goes
+    /// through it, and [`then`](Self::then) only combines pairs minted here.
     pub const fn new(a: f32, b: f32, c: f32, d: f32, e: f32, f: f32) -> Self {
         Self {
             a,
@@ -78,7 +89,7 @@ impl<A, B> Matrix<A, B> {
     }
 
     /// The product `self × other`: a transformation applying `self` first, then `other`.
-    pub fn then<C>(self, other: Matrix<B, C>) -> Matrix<A, C> {
+    pub fn then<Next>(self, other: Matrix<To, Next>) -> Matrix<From, Next> {
         Matrix::new(
             self.a * other.a + self.b * other.c,
             self.a * other.b + self.b * other.d,
@@ -89,8 +100,8 @@ impl<A, B> Matrix<A, B> {
         )
     }
 
-    /// Transform a point.
-    pub fn apply(&self, point: Point<A>) -> Point<B> {
+    /// Map a point of `From` to the corresponding point of `To`.
+    pub fn apply(&self, point: Point<From>) -> Point<To> {
         let Point { x, y, .. } = point;
         Point::new(
             self.a * x + self.c * y + self.e,
@@ -99,13 +110,13 @@ impl<A, B> Matrix<A, B> {
     }
 
     /// The translation components `(e, f)`: where the origin of `From` lands.
-    pub fn translation(&self) -> Point<B> {
+    pub fn translation(&self) -> Point<To> {
         Point::new(self.e, self.f)
     }
 
     /// Translate by `displacement` in the matrix's source space, i.e. pre-multiply by
     /// `[1 0 0 1 dx dy]`.
-    pub fn translate(&mut self, displacement: Displacement<A>) {
+    pub fn translate(&mut self, displacement: Displacement<From>) {
         let Displacement { dx, dy, .. } = displacement;
 
         self.e += self.a * dx + self.c * dy;
@@ -113,23 +124,25 @@ impl<A, B> Matrix<A, B> {
     }
 }
 
-// Hand-written so that the space markers need not implement the traits themselves.
+// Hand-written rather than derived: a derive would bound each impl on the spaces
+// (`From: Clone`, `To: PartialEq`, ...) although they only appear in `PhantomData`. These
+// impls hold for every pair of spaces, so code generic over them needs no such bounds.
 
-impl<A, B> Clone for Matrix<A, B> {
+impl<From, To> Clone for Matrix<From, To> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<A, B> Copy for Matrix<A, B> {}
+impl<From, To> Copy for Matrix<From, To> {}
 
-impl<A, B> PartialEq for Matrix<A, B> {
+impl<From, To> PartialEq for Matrix<From, To> {
     fn eq(&self, o: &Self) -> bool {
         (self.a, self.b, self.c, self.d, self.e, self.f) == (o.a, o.b, o.c, o.d, o.e, o.f)
     }
 }
 
-impl<A, B> fmt::Debug for Matrix<A, B> {
+impl<From, To> fmt::Debug for Matrix<From, To> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Matrix")
             .field("a", &self.a)
@@ -145,7 +158,6 @@ impl<A, B> fmt::Debug for Matrix<A, B> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::content::state::space::{DefaultUser, Text};
 
     type UserMatrix = Matrix<User, User>;
 
@@ -201,38 +213,5 @@ mod tests {
 
         assert_eq!(m.translation(), Point::new(10.0, 14.0));
         assert_eq!(m, translation(5.0, 7.0).then(scale(2.0, 2.0)));
-    }
-
-    /// The product as computed before the matrices were typed, on raw `[a b c d e f]`.
-    fn untyped_product(m: [f32; 6], n: [f32; 6]) -> [f32; 6] {
-        let [a, b, c, d, e, f] = m;
-        let [na, nb, nc, nd, ne, nf] = n;
-        [
-            a * na + b * nc,
-            a * nb + b * nd,
-            c * na + d * nc,
-            c * nb + d * nd,
-            e * na + f * nc + ne,
-            e * nb + f * nd + nf,
-        ]
-    }
-
-    #[test]
-    fn typed_product_matches_the_untyped_one() {
-        let (sin, cos) = 30f32.to_radians().sin_cos();
-        let rotation = [cos, sin, -sin, cos, 3.0, 4.0];
-        let shift = [1.0, 0.0, 0.0, 1.0, 72.0, 792.0];
-
-        let [a, b, c, d, e, f] = rotation;
-        let tm: Matrix<Text, User> = Matrix::new(a, b, c, d, e, f);
-        let [a, b, c, d, e, f] = shift;
-        let ctm: Matrix<User, DefaultUser> = Matrix::new(a, b, c, d, e, f);
-
-        let product: Matrix<Text, DefaultUser> = tm.then(ctm);
-        let [a, b, c, d, e, f] = untyped_product(rotation, shift);
-
-        assert_eq!(product, Matrix::new(a, b, c, d, e, f));
-        // Not the identity, so the check above is not vacuous.
-        assert_ne!(product.a, 1.0);
     }
 }

@@ -7,6 +7,9 @@ pub enum ContentError {
     /// the text object nor earlier in the content stream.
     #[error("Got a text showing operator before any `Tf` selected a font")]
     NoFontSelected,
+    /// A text object has no `ET`: the content stream ends inside it, either before it shows
+    /// any text or after its stream ended (dropped, or out of operators) without reading
+    /// the `ET`.
     #[error("`BT` tag was not closed")]
     IncompleteTextObject,
 }
