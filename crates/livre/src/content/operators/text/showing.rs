@@ -10,12 +10,12 @@ use crate::{
     extraction::{extract, Extract, HexadecimalString, LiteralString, PDFString},
 };
 
-use super::TextOperation;
+use super::TextShowingOperation;
 
 /// Abstraction over any text-showing operator, as defined in section 9.4.3 of the PDF
 /// specification.
 #[derive(Debug, Clone, PartialEq)]
-#[enum_dispatch(TextOperation)]
+#[enum_dispatch(TextShowingOperation)]
 pub enum TextShowingOperator {
     /// The `Tj` operator. Show a text string.
     ShowText(ShowText),
@@ -52,7 +52,7 @@ impl Display for ShowText {
     }
 }
 
-impl TextOperation for ShowText {
+impl TextShowingOperation for ShowText {
     fn apply(self, text_object: &mut TextObject) {
         text_object.add_text(self.0);
     }
@@ -69,7 +69,7 @@ impl TextOperation for ShowText {
 #[derive(Debug, Clone, PartialEq, Extract)]
 pub struct MoveToNextLineAndShowText(PDFString);
 
-impl TextOperation for MoveToNextLineAndShowText {
+impl TextShowingOperation for MoveToNextLineAndShowText {
     fn apply(self, text_object: &mut TextObject) {
         text_object.move_to_next_line();
         text_object.add_text(self.0);
@@ -90,13 +90,13 @@ impl Display for MoveToNextLineAndShowText {
 #[derive(Debug, Clone, PartialEq, Extract)]
 pub struct MoveToNextLineAndShowTextWithSpacing(f32, f32, PDFString);
 
-impl TextOperation for MoveToNextLineAndShowTextWithSpacing {
+impl TextShowingOperation for MoveToNextLineAndShowTextWithSpacing {
     fn apply(self, text_object: &mut TextObject) {
         let MoveToNextLineAndShowTextWithSpacing(aw, ac, text) = self;
 
         text_object.move_to_next_line();
-        text_object.set_word_spacing(aw);
-        text_object.set_character_spacing(ac);
+        text_object.parameters.set_word_spacing(aw);
+        text_object.parameters.set_character_spacing(ac);
         text_object.add_text(text);
     }
 }
@@ -124,7 +124,7 @@ impl Display for MoveToNextLineAndShowTextWithSpacing {
 #[derive(Debug, Clone, PartialEq, Extract)]
 pub struct ShowTextArray(Vec<TextArrayElement>);
 
-impl TextOperation for ShowTextArray {
+impl TextShowingOperation for ShowTextArray {
     fn apply(self, text_object: &mut TextObject) {
         text_object.add_text_array(self.0);
     }

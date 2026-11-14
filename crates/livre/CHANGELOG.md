@@ -10,17 +10,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `livre::VERSION`: the crate version, as published
-- `next_raw` on `TextObject` and `TextObjectStream`: the iterator item with the shown string's raw `PDFString` bytes instead of its decoded text
 
 ### Fixed
 
 - Apply `/DecodeParms` predictors after `FlateDecode`: PNG (10 to 15) and TIFF (2, 8 bits per component), so cross-reference streams written with `/Predictor 12` decode correctly
 - Read every field of a cross-reference stream row: free and uncompressed entries now consume their whole `/W` row, and a zero-width type field defaults to type 1
 - Scale `TJ` offsets by the font size and horizontal scaling, as the spec requires: they were applied in raw thousandths of a unit
+- Keep the text state parameters in the graphics state: a `Tf` (or any text state operator) outside `BT`/`ET` applies to the text objects that follow, the font carries from one text object to the next, and `q`/`Q` save and restore it with the CTM. A text object that shows text before its own `Tf` no longer fails
 
 ### Changed
 
 - Raise the minimum supported Rust version to 1.85 (required by trybuild's dependencies)
+- Replace the free function `parse_text_object` with `TextObjects`, which owns a content stream's operators and graphics state and lends out its text objects one at a time (it is not an `Iterator`): `while let Some(stream) = objects.next_object()? { … }`. `GraphicsState` is no longer public
+- Text object streams yield `Run { position, text }`: the position as a `Point<DefaultUser>`, the shown string as its raw `PDFString` (`text.decode()` for the text)
+- Type matrices and points by coordinate space: `Matrix<From, To>` and `Point<Space>` over the `Text`, `User` and `DefaultUser` markers, so composing mismatched matrices, or applying a matrix to a point of another space, does not compile
+- `TextObject::move_to(x, y)` becomes `move_by(offset)`, taking a `Displacement<Text>`: the move is relative to the current position, as `Td` is
+- `ContentError::NoFontSelected`, when text is shown with no font selected, replaces `UnexpectedTextShowingOperator`; a text operator outside `BT`/`ET` is skipped with a warning
 
 ## [0.5.0](https://github.com/bdura/livre/compare/livre-v0.4.0...livre-v0.5.0) - 2025-03-09
 

@@ -52,10 +52,13 @@ The system is designed as a layered architecture:
    references and build complete objects. This is where the `Build` and `Builder`
    traits live, enabling lazy resolution of object graphs.
 
-4. **Content layer** (`content/`): Parsing of page content streams, including text
-   operators, the graphics state (`q`, `Q`, `cm`) that positions them, and text object
-   state management. This is the highest-level layer for extracting human-readable
-   content.
+4. **Content layer** (`content/`): Parsing of page content streams into text runs.
+   `TextObjects` walks a page's operators and owns its graphics state: the CTM and the
+   text state parameters (font, spacing, leading...), saved and restored together by
+   `q`/`Q`, so a `Tf` outside `BT` or in an earlier text object still applies. Each text
+   object it hands out yields `Run { position, text }`, positioned in default user
+   space. Matrices and points are typed by coordinate space (`Text`, `User`,
+   `DefaultUser`). This is the highest-level layer for extracting human-readable content.
 
 The library deliberately does **not** render PDFs, edit PDFs, or handle encryption.
 It focuses solely on reading and extracting data from existing PDF files in a
@@ -149,7 +152,7 @@ and the root manifest only lists the members and their shared package metadata.
 │   │       └── trailer.rs     # Trailer dictionary
 │   │
 │   └── content/               # Page content parsing
-│       ├── mod.rs             # Module exports and parse_text_object
+│       ├── mod.rs             # Module exports
 │       ├── error.rs           # Content parsing errors
 │       ├── operators/         # Content stream operators
 │       │   ├── mod.rs         # Operator enum and parsing
@@ -162,9 +165,10 @@ and the root manifest only lists the members and their shared package metadata.
 │       │       └── state.rs   # Text state operators
 │       └── state/             # Content stream state management
 │           ├── mod.rs
-│           ├── matrix.rs      # Transformation matrices
-│           ├── graphics.rs    # GraphicsState: CTM and its q/Q stack
-│           └── text.rs        # TextObject and parse_text_object
+│           ├── matrix.rs      # Matrix<From, To>: transformation matrices between spaces
+│           ├── space.rs       # Coordinate space markers, Point<Space> and Displacement<Space>
+│           ├── graphics.rs    # GraphicsState: CTM, text state and their q/Q stack
+│           └── text.rs        # TextObjects, TextObject, TextObjectStream, Run, text state
 │
 ├── examples/                  # Runnable examples
 │   ├── content.rs            # Extract raw content streams
@@ -174,7 +178,7 @@ and the root manifest only lists the members and their shared package metadata.
 │
 └── tests/                    # Integration tests
     ├── content.rs           # Content parsing tests
-    ├── text_objects.rs       # Text object tests
+    ├── text_objects.rs       # Text object tests, golden runs of font-before-bt.pdf
     ├── xref_stream.rs       # Golden test: a predicted xref stream reads like the original
     ├── incremental_update.rs # Cross-reference sections chained through /Prev
     ├── derive.rs            # Behavioural tests for the derives, as a downstream crate
@@ -259,6 +263,14 @@ containing references to the page tree and other document-level information.
 **`Page`** (structure/pages.rs): Represents a page in the PDF, containing content
 streams and resources.
 
+**`TextObjects`** (content/state/text.rs): The entry point for text extraction. It
+wraps a page's operator iterator and owns the graphics state for the whole content
+stream: text state operators and `q`/`Q`/`cm` met outside `BT` update it, and
+`next_object()` hands out a `TextObjectStream` borrowing it mutably, which yields
+`Run`s. A dropped stream is skipped to its `ET`, text state operators still applied;
+a missing `ET` is reported by the next `next_object()` as `IncompleteTextObject`.
+Showing text with no font selected is `NoFontSelected`.
+
 ## Common tasks
 
 - **Add support for a new PDF primitive type**: Implement `Extract` for your type
@@ -266,7 +278,10 @@ streams and resources.
 - **Add support for a new PDF structure type**: Define a struct and implement
   `Extract` and `Build` as needed, typically in the `structure/` module.
 - **Add a new content operator**: Add a variant to `content::operators::Operator`
-  and implement its parsing in the appropriate text or graphics submodule.
+  and implement its parsing in the appropriate text or graphics submodule. A text
+  operator also implements `TextStateOperation`, `TextPositioningOperation` or
+  `TextShowingOperation`, depending on whether it mutates the text state parameters,
+  the text matrix or the text object's buffered strings.
 - **Add a new stream filter**: Implement the `Filtering` trait for your filter
   type in `filtering.rs`.
 - **Create a custom builder**: Implement the `Builder` trait for your type to

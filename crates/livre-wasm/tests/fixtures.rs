@@ -12,6 +12,11 @@ const TEXT_XREF_STREAM: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../livre/tests/resources/text-xref-stream.pdf"
 ));
+/// Text state set outside or before `BT`, carried into later text objects.
+const FONT_BEFORE_BT: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../livre/tests/resources/font-before-bt.pdf"
+));
 
 /// The checks every fixture passes: a clean parse of `page_count` pages with a media box
 /// each, and at least one shown string on the first page.
@@ -63,6 +68,22 @@ fn xref_stream_pdf_parses_without_errors() {
     let analysis = analyze(TEXT_XREF_STREAM);
     assert_clean(&analysis, 1);
     assert_eq!(first_page_runs(&analysis), first_page_runs(&analyze(TEXT)));
+}
+
+#[test]
+fn font_before_bt_pdf_parses_without_errors() {
+    let analysis = analyze(FONT_BEFORE_BT);
+    assert_clean(&analysis, 1);
+
+    let text_objects = &analysis.pages[0].text_objects;
+    assert_eq!(text_objects.len(), 4);
+    assert!(text_objects.iter().all(|object| object.runs.len() == 1));
+
+    let texts: Vec<&str> = first_page_runs(&analysis)
+        .iter()
+        .map(|run| run.text.as_str())
+        .collect();
+    assert_eq!(texts, ["first", "second", "big", "small again"]);
 }
 
 #[test]

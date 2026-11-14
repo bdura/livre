@@ -1,5 +1,5 @@
 use livre::{
-    content::{operators::Operator, parse_text_object, GraphicsState},
+    content::{operators::Operator, TextObjects},
     extraction::Extract,
     structure::Page as LivrePage,
     InMemoryDocument,
@@ -102,22 +102,23 @@ fn analyze_page(doc: &InMemoryDocument, index: usize, page: &LivrePage) -> Page 
 /// Push the text objects of `content` onto `text_objects`, returning the error that
 /// stopped the parse, if any.
 fn extract_text_objects(content: &[u8], text_objects: &mut Vec<TextObject>) -> Option<StageError> {
-    let mut stream = BStr::new(content);
-    let mut it = iterator(&mut stream, preceded(multispace0, Operator::extract));
-    // One per content stream: a `cm` at the top of the page applies to every text object.
-    let mut graphics_state = GraphicsState::default();
+    let mut input = BStr::new(content);
+    let mut it = iterator(&mut input, preceded(multispace0, Operator::extract));
+    // One per content stream: a `cm` or a `Tf` at the top of the page applies to every
+    // text object below it.
+    let mut objects = TextObjects::new(&mut it);
 
     loop {
-        let mut text_object = match parse_text_object(&mut it, &mut graphics_state) {
-            Ok(Some(text_object)) => text_object,
+        let mut stream = match objects.next_object() {
+            Ok(Some(stream)) => stream,
             Ok(None) => break,
             Err(e) => return Some(stage_error(Stage::TextObject, e)),
         };
 
         let mut runs = Vec::new();
-        while let Some(((x, y), raw)) = text_object.next_raw() {
+        while let Some(run) = stream.next() {
             // The font in effect is the one of the run just yielded.
-            let (font, size) = match &text_object.text_object().parameters.font {
+            let (font, size) = match &stream.text_object().parameters.font {
                 Some(font) => (
                     String::from_utf8_lossy(&font.name.0).into_owned(),
                     font.size,
@@ -125,12 +126,12 @@ fn extract_text_objects(content: &[u8], text_objects: &mut Vec<TextObject>) -> O
                 None => (String::new(), 0.0),
             };
             runs.push(Run {
-                x,
-                y,
+                x: run.position.x,
+                y: run.position.y,
                 font,
                 size,
-                text: raw.decode(),
-                bytes: raw.0.iter().map(|b| format!("{b:02x}")).collect(),
+                text: run.text.decode(),
+                bytes: run.text.0.iter().map(|b| format!("{b:02x}")).collect(),
             });
         }
         text_objects.push(TextObject { runs });
@@ -142,8 +143,8 @@ fn extract_text_objects(content: &[u8], text_objects: &mut Vec<TextObject>) -> O
 
     // An operator livre cannot parse stops the iterator without an error: whatever
     // remains past the trailing whitespace is that operator onwards.
-    if multispace0::<&BStr, ContextError>(&mut stream).is_ok() && !stream.is_empty() {
-        let preview = &stream[..LEFTOVER_PREVIEW.min(stream.len())];
+    if multispace0::<&BStr, ContextError>(&mut input).is_ok() && !input.is_empty() {
+        let preview = &input[..LEFTOVER_PREVIEW.min(input.len())];
         return Some(StageError {
             stage: Stage::Operators,
             message: format!(

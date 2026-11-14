@@ -11,9 +11,9 @@
 //! Since our primary goal is to be a text extraction library, we focus on text operators and
 //! on the graphics state operators that place them (`q`, `Q`, `cm`), although we plan to
 //! expand this to other types of content in the future. With that in mind, the main entry
-//! point for content parsing is [`parse_text_object`], which tracks a [`GraphicsState`]
-//! between text objects, simplifies the process of extracting text from a content stream, and
-//! skips any other type of operator.
+//! point for content parsing is [`TextObjects`]: it walks a page's operators, tracks the
+//! graphics state (the CTM and the text state, through `q` and `Q`) across text objects,
+//! yields each text object that shows text, and skips any other type of operator.
 
 mod error;
 pub mod operators;
@@ -21,6 +21,6 @@ mod state;
 
 pub use error::ContentError;
 pub use state::{
-    parse_text_object, Font, GraphicsState, Matrix, RenderingMode, TextObject, TextObjectStream,
-    TextStateParameters,
+    DefaultUser, Displacement, Font, Matrix, Point, RenderingMode, Run, Text, TextObject,
+    TextObjectStream, TextObjects, TextStateParameters, User,
 };

@@ -7,7 +7,7 @@
 use enum_dispatch::enum_dispatch;
 
 use crate::{
-    content::state::{GraphicsState, Matrix},
+    content::state::{GraphicsState, Matrix, User},
     extraction::Extract,
 };
 
@@ -15,9 +15,10 @@ use super::Operator;
 
 /// Abstraction over the special graphics state operators, as defined in section 8.4.4 of
 /// the PDF specification.
-/// Defines operations that act on the [`GraphicsState`].
+/// Defines operations that act on the graphics state, which only
+/// [`TextObjects`](crate::content::TextObjects) holds.
 #[enum_dispatch]
-pub trait GraphicsStateOperation: Sized {
+pub(crate) trait GraphicsStateOperation: Sized {
     fn apply(self, state: &mut GraphicsState);
 }
 
@@ -67,7 +68,7 @@ impl GraphicsStateOperation for RestoreGraphicsState {
 /// 1 0 0 -1 0 792 cm
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Extract)]
-pub struct ConcatenateMatrix(pub Matrix);
+pub struct ConcatenateMatrix(pub Matrix<User, User>);
 
 impl GraphicsStateOperation for ConcatenateMatrix {
     fn apply(self, state: &mut GraphicsState) {

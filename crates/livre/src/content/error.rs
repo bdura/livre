@@ -1,12 +1,15 @@
 use thiserror::Error;
 
-use super::operators::text::TextShowingOperator;
-
 /// Errors related to content parsing.
 #[derive(Error, Debug)]
 pub enum ContentError {
-    #[error("Got a text showing operator before setting the font and font size: {0:?}")]
-    UnexpectedTextShowingOperator(TextShowingOperator),
+    /// Text was shown while the text state had no font: no `Tf` ran before it, neither in
+    /// the text object nor earlier in the content stream.
+    #[error("Got a text showing operator before any `Tf` selected a font")]
+    NoFontSelected,
+    /// A text object has no `ET`: the content stream ends inside it, either before it shows
+    /// any text or after its stream ended (dropped, or out of operators) without reading
+    /// the `ET`.
     #[error("`BT` tag was not closed")]
     IncompleteTextObject,
 }
