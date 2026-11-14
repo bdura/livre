@@ -42,6 +42,13 @@ pub struct Page {
     pub error: Option<StageError>,
 }
 
+/// A point in default user space units.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Tsify)]
+pub struct Point {
+    pub x: f32,
+    pub y: f32,
+}
+
 /// A rectangle by its corners, in default user space units.
 #[derive(Debug, Clone, PartialEq, Serialize, Tsify)]
 pub struct Rect {
@@ -62,17 +69,13 @@ pub struct TextObject {
 #[derive(Debug, Clone, PartialEq, Serialize, Tsify)]
 #[tsify(missing_as_null)]
 pub struct Run {
-    /// Start position, in default user space: the point `(0, rise)` of text space through
+    /// Where the string starts, on its baseline: the point `(0, rise)` of text space through
     /// the text matrix and the CTM in force at `BT`.
-    pub x: f32,
-    /// Baseline of the start position.
-    pub y: f32,
-    /// End position, in default user space: the same point once the text matrix has
-    /// advanced past every glyph of the string. Composite fonts advance by spacing only,
-    /// so their runs end short.
-    pub end_x: f32,
-    /// Baseline of the end position; differs from `y` only under a rotated or skewed matrix.
-    pub end_y: f32,
+    pub start: Point,
+    /// Where the string ends: the same point once the text matrix has advanced past every
+    /// glyph. Composite fonts advance by spacing only, so their runs end short. Its `y`
+    /// differs from `start`'s only under a rotated or skewed matrix.
+    pub end: Point,
     /// Font resource name, lossily decoded as UTF-8.
     pub font: String,
     /// How the font is read, by its `/Subtype`; `None` when no font is selected.

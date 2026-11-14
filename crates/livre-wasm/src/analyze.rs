@@ -11,7 +11,7 @@ use winnow::{
     BStr,
 };
 
-use crate::dto::{Analysis, FontKind, Page, Rect, Run, Stage, StageError, TextObject};
+use crate::dto::{Analysis, FontKind, Page, Point, Rect, Run, Stage, StageError, TextObject};
 
 /// US Letter, the fallback for a page tree without the (required) `MediaBox`.
 const LETTER: Rect = Rect {
@@ -144,10 +144,14 @@ fn extract_text_objects(
                 None => (String::new(), None, None, 0.0),
             };
             runs.push(Run {
-                x: run.start.x,
-                y: run.start.y,
-                end_x: run.end.x,
-                end_y: run.end.y,
+                start: Point {
+                    x: run.start.x,
+                    y: run.start.y,
+                },
+                end: Point {
+                    x: run.end.x,
+                    y: run.end.y,
+                },
                 font,
                 font_kind,
                 base_font,

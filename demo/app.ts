@@ -581,8 +581,8 @@ function showRun(indices: RunIndices | null): void {
   ui.runFont.textContent = run.font_kind
     ? `${run.font} · ${run.base_font ?? "(no /BaseFont)"} (${run.font_kind}) · ${round(run.size)}`
     : "(none)";
-  ui.runOrigin.textContent = `(${round(run.x)}, ${round(run.y)})`;
-  ui.runEnd.textContent = `(${round(run.end_x)}, ${round(run.end_y)})`;
+  ui.runOrigin.textContent = `(${round(run.start.x)}, ${round(run.start.y)})`;
+  ui.runEnd.textContent = `(${round(run.end.x)}, ${round(run.end.y)})`;
   ui.runBytes.textContent = run.bytes.match(/../g)?.join(" ") ?? "";
   const runs = livrePage()?.text_objects[indices.object]?.runs.length ?? 0;
   ui.runObject.textContent = `Object ${indices.object + 1}`;

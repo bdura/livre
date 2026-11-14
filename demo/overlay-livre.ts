@@ -38,10 +38,10 @@ export function drawLivreLayer(svg: SVGSVGElement, page: Page, viewport: PageVie
     object.runs.forEach((run, runIndex) => {
       // The height goes straight up in user space, not across the baseline: boxes fit unrotated text only.
       const corners: Corners = [
-        viewport.convertToViewportPoint(run.x, run.y),
-        viewport.convertToViewportPoint(run.end_x, run.end_y),
-        viewport.convertToViewportPoint(run.end_x, run.end_y + run.size),
-        viewport.convertToViewportPoint(run.x, run.y + run.size),
+        viewport.convertToViewportPoint(run.start.x, run.start.y),
+        viewport.convertToViewportPoint(run.end.x, run.end.y),
+        viewport.convertToViewportPoint(run.end.x, run.end.y + run.size),
+        viewport.convertToViewportPoint(run.start.x, run.start.y + run.size),
       ];
       for (const corner of corners) box.add(...corner);
       layer.append(runMarker(corners, objectIndex, runIndex));

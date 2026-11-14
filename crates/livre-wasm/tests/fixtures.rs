@@ -1,4 +1,6 @@
-use livre_wasm::{analyze, Analysis, FontKind, Page, Rect, Run, Stage, StageError, TextObject};
+use livre_wasm::{
+    analyze, Analysis, FontKind, Page, Point, Rect, Run, Stage, StageError, TextObject,
+};
 
 const TEXT: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -127,10 +129,11 @@ fn kerned_pdf_first_line_spreads_across_its_width() {
     assert_eq!(runs.len(), line.len());
 
     assert!(
-        runs.windows(2).all(|pair| pair[0].x < pair[1].x),
+        runs.windows(2)
+            .all(|pair| pair[0].start.x < pair[1].start.x),
         "x not strictly increasing: {runs:?}"
     );
-    let actual = runs[runs.len() - 1].end_x - runs[0].x;
+    let actual = runs[runs.len() - 1].end.x - runs[0].start.x;
     assert!(
         (actual - width).abs() < 1e-2,
         "line width: expected {width}, got {actual}"
@@ -190,10 +193,8 @@ fn run_fields_round_trip_through_json() {
             user_unit: 1.0,
             text_objects: vec![TextObject {
                 runs: vec![Run {
-                    x: 1.0,
-                    y: 2.0,
-                    end_x: 3.0,
-                    end_y: 2.0,
+                    start: Point { x: 1.0, y: 2.0 },
+                    end: Point { x: 3.0, y: 2.0 },
                     font: "F1".into(),
                     font_kind: Some(FontKind::Simple),
                     base_font: Some("Helvetica".into()),
@@ -221,8 +222,8 @@ fn run_fields_round_trip_through_json() {
         "text_objects",
         "runs",
         "bytes",
-        "end_x",
-        "end_y",
+        "start",
+        "end",
         "xmin",
     ] {
         assert!(json.contains(&format!("\"{field}\":")), "{field} in {json}");
