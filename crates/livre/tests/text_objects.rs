@@ -53,7 +53,7 @@ fn runs(path: &str) -> Vec<Run> {
 #[case("tests/resources/text.pdf")]
 #[case("tests/resources/text-xref-stream.pdf")]
 fn test_content(#[case] path: &str) {
-    for Run { position, text } in runs(path) {
+    for Run { position, text, .. } in runs(path) {
         println!("- {:?} {:?}", position, text.decode());
     }
 }
@@ -140,7 +140,7 @@ fn font_runs(path: &str) -> Vec<(usize, GoldenRun)> {
 
         let mut index = 0;
         while let Some(mut text_object) = objects.next_object().unwrap() {
-            while let Some(Run { position, text }) = text_object.next() {
+            while let Some(Run { position, text, .. }) = text_object.next() {
                 let font = text_object
                     .text_object()
                     .parameters
