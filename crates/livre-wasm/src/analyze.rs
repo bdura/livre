@@ -1,5 +1,5 @@
 use livre::{
-    content::{operators::Operator, Fonts, TextObjects},
+    content::{operators::Operator, Font, Fonts, TextObjects},
     extraction::Extract,
     structure::Page as LivrePage,
     InMemoryDocument,
@@ -11,7 +11,7 @@ use winnow::{
     BStr,
 };
 
-use crate::dto::{Analysis, Page, Rect, Run, Stage, StageError, TextObject};
+use crate::dto::{Analysis, FontKind, Page, Rect, Run, Stage, StageError, TextObject};
 
 /// US Letter, the fallback for a page tree without the (required) `MediaBox`.
 const LETTER: Rect = Rect {
@@ -127,12 +127,21 @@ fn extract_text_objects(
         let mut runs = Vec::new();
         while let Some(run) = stream.next() {
             // The font in effect is the one of the run just yielded.
-            let (font, size) = match &stream.text_object().parameters.font {
-                Some(font) => (
-                    String::from_utf8_lossy(&font.name.0).into_owned(),
-                    font.size.0,
-                ),
-                None => (String::new(), 0.0),
+            let (font, font_kind, base_font, size) = match &stream.text_object().parameters.font {
+                Some(selected) => {
+                    let (kind, base_font) = match selected.font {
+                        Font::Simple(font) => (FontKind::Simple, Some(&font.base_font)),
+                        Font::Type3(_) => (FontKind::Type3, None),
+                        Font::Composite(font) => (FontKind::Composite, Some(&font.base_font)),
+                    };
+                    (
+                        String::from_utf8_lossy(&selected.name.0).into_owned(),
+                        Some(kind),
+                        base_font.map(|name| String::from_utf8_lossy(&name.0).into_owned()),
+                        selected.size.0,
+                    )
+                }
+                None => (String::new(), None, None, 0.0),
             };
             runs.push(Run {
                 x: run.position.x,
@@ -140,6 +149,8 @@ fn extract_text_objects(
                 end_x: run.end.x,
                 end_y: run.end.y,
                 font,
+                font_kind,
+                base_font,
                 size,
                 text: run.text.decode(),
                 bytes: run.text.0.iter().map(|b| format!("{b:02x}")).collect(),

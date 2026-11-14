@@ -578,7 +578,9 @@ function showRun(indices: RunIndices | null): void {
   // JSON quoting shows control characters such as the NULs of 2-byte composite strings.
   ui.runText.textContent = JSON.stringify(run.text);
   ui.runPinned.hidden = !samePlace(indices, state.pinned);
-  ui.runFont.textContent = `${run.font || "(none)"} · ${round(run.size)}`;
+  ui.runFont.textContent = run.font_kind
+    ? `${run.font} · ${run.base_font ?? "(no /BaseFont)"} (${run.font_kind}) · ${round(run.size)}`
+    : "(none)";
   ui.runOrigin.textContent = `(${round(run.x)}, ${round(run.y)})`;
   ui.runEnd.textContent = `(${round(run.end_x)}, ${round(run.end_y)})`;
   ui.runBytes.textContent = run.bytes.match(/../g)?.join(" ") ?? "";

@@ -1,4 +1,4 @@
-use livre_wasm::{analyze, Analysis, Page, Rect, Run, Stage, StageError, TextObject};
+use livre_wasm::{analyze, Analysis, FontKind, Page, Rect, Run, Stage, StageError, TextObject};
 
 const TEXT: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -138,6 +138,16 @@ fn kerned_pdf_first_line_spreads_across_its_width() {
 }
 
 #[test]
+fn kerned_pdf_runs_name_their_font() {
+    let analysis = analyze(KERNED);
+    let run = &analysis.pages[0].text_objects[0].runs[0];
+
+    assert_eq!(run.font, "F1");
+    assert_eq!(run.font_kind, Some(FontKind::Simple));
+    assert_eq!(run.base_font.as_deref(), Some("Helvetica"));
+}
+
+#[test]
 fn garbage_is_a_document_error() {
     let analysis = analyze(b"not a pdf");
     assert!(matches!(
@@ -185,6 +195,8 @@ fn run_fields_round_trip_through_json() {
                     end_x: 3.0,
                     end_y: 2.0,
                     font: "F1".into(),
+                    font_kind: Some(FontKind::Simple),
+                    base_font: Some("Helvetica".into()),
                     size: 12.0,
                     text: "A".into(),
                     bytes: "41".into(),
@@ -200,6 +212,8 @@ fn run_fields_round_trip_through_json() {
     let json = serde_json::to_string(&analysis).unwrap();
 
     assert!(json.contains(r#""stage":"text-object""#), "{json}");
+    assert!(json.contains(r#""font_kind":"simple""#), "{json}");
+    assert!(json.contains(r#""base_font":"Helvetica""#), "{json}");
     for field in [
         "media_box",
         "media_box_defaulted",

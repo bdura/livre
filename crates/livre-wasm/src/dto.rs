@@ -60,6 +60,7 @@ pub struct TextObject {
 
 /// One shown string.
 #[derive(Debug, Clone, PartialEq, Serialize, Tsify)]
+#[tsify(missing_as_null)]
 pub struct Run {
     /// Start position, in default user space: the point `(0, rise)` of text space through
     /// the text matrix and the CTM in force at `BT`.
@@ -74,12 +75,29 @@ pub struct Run {
     pub end_y: f32,
     /// Font resource name, lossily decoded as UTF-8.
     pub font: String,
+    /// How the font is read, by its `/Subtype`; `None` when no font is selected.
+    pub font_kind: Option<FontKind>,
+    /// The font's `/BaseFont`, lossily decoded as UTF-8; `None` for a `Type3` font, which
+    /// has none, or when no font is selected.
+    pub base_font: Option<String>,
     /// Font size from `Tf`, in text space units: the scale of the text matrix is not applied.
     pub size: f32,
     /// Best-effort decoding of `bytes`: UTF-16BE behind a BOM, Latin-1 otherwise.
     pub text: String,
     /// The raw string bytes, as lowercase hex.
     pub bytes: String,
+}
+
+/// The kind of font a run is shown in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Tsify)]
+#[serde(rename_all = "kebab-case")]
+pub enum FontKind {
+    /// `Type1`, `MMType1` or `TrueType`.
+    Simple,
+    /// `Type3`.
+    Type3,
+    /// `Type0`: its glyphs are given zero width.
+    Composite,
 }
 
 /// Where and why extraction stopped.
