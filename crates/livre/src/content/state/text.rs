@@ -22,7 +22,7 @@ use crate::{
         error::{ContentError, Result},
         operators::{
             graphics::GraphicsStateOperation,
-            text::{TextArrayElement, TextOperation, TextOperator},
+            text::{TextArrayElement, TextOperator},
             Operator,
         },
         state::{
@@ -92,6 +92,31 @@ impl Default for TextStateParameters {
             rendering_mode: RenderingMode::Fill,
             rise: 0.0,
         }
+    }
+}
+
+impl TextStateParameters {
+    pub fn set_font(&mut self, font: Font) {
+        self.font = Some(font);
+    }
+    pub fn set_character_spacing(&mut self, spacing: f32) {
+        self.character_spacing = spacing;
+    }
+    pub fn set_word_spacing(&mut self, spacing: f32) {
+        self.word_spacing = spacing;
+    }
+    /// Set the horizontal scaling, as a percentage of the normal glyph width.
+    pub fn set_horizontal_scaling(&mut self, scaling: f32) {
+        self.horizontal_scaling = scaling;
+    }
+    pub fn set_leading(&mut self, leading: f32) {
+        self.leading = leading;
+    }
+    pub fn set_rendering_mode(&mut self, mode: RenderingMode) {
+        self.rendering_mode = mode;
+    }
+    pub fn set_rise(&mut self, rise: f32) {
+        self.rise = rise;
     }
 }
 
@@ -175,9 +200,6 @@ impl TextObject {
         self.matrix.then(self.ctm)
     }
 
-    pub fn set_font(&mut self, font: Font) {
-        self.parameters.font = Some(font);
-    }
     pub fn move_to(&mut self, x: f32, y: f32) {
         self.matrix.translate(Displacement::new(x, y));
     }
@@ -190,18 +212,6 @@ impl TextObject {
     }
     pub fn add_text_array(&mut self, array: Vec<TextArrayElement>) {
         self.buffer = Some(array.into());
-    }
-    pub fn set_leading(&mut self, leading: f32) {
-        self.parameters.leading = leading;
-    }
-    pub fn set_character_spacing(&mut self, ac: f32) {
-        self.parameters.character_spacing = ac;
-    }
-    pub fn set_word_spacing(&mut self, aw: f32) {
-        self.parameters.word_spacing = aw;
-    }
-    pub fn set_horizontal_scaling(&mut self, scaling: f32) {
-        self.parameters.horizontal_scaling = scaling;
     }
 }
 
@@ -482,6 +492,39 @@ mod tests {
             .unwrap();
         let positions: Vec<Point<DefaultUser>> = stream.map(|(pos, _)| pos).collect();
         assert_eq!(positions, [Point::new(0.0, 0.0), Point::new(10.0, 0.0)]);
+    }
+
+    #[test]
+    fn big_td_sets_the_leading_used_by_t_star() {
+        let ops = operators(b"BT /F1 12 Tf 0 -14 TD (a) Tj T* (b) Tj ET");
+        let mut stream = parse_text_object(ops.into_iter(), &mut GraphicsState::default())
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(
+            stream.next(),
+            Some((Point::new(0.0, -14.0), "a".to_string()))
+        );
+        assert_eq!(stream.text_object.parameters.leading, 14.0);
+        assert_eq!(
+            stream.next(),
+            Some((Point::new(0.0, -28.0), "b".to_string()))
+        );
+    }
+
+    #[test]
+    fn double_quote_moves_to_the_next_line_and_sets_the_spacing() {
+        let ops = operators(b"BT /F1 12 Tf 14 TL 3 1 (a) \" ET");
+        let mut stream = parse_text_object(ops.into_iter(), &mut GraphicsState::default())
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(
+            stream.next(),
+            Some((Point::new(0.0, -14.0), "a".to_string()))
+        );
+        assert_eq!(stream.text_object.parameters.word_spacing, 3.0);
+        assert_eq!(stream.text_object.parameters.character_spacing, 1.0);
     }
 }
 

@@ -7,12 +7,12 @@ use crate::{
     extraction::{extract, Extract},
 };
 
-use super::TextOperation;
+use super::TextPositioningOperation;
 
 /// Abstraction over text positioning operators, as defined in section 9.4.2 of the PDF
 /// specification.
 #[derive(Debug, Clone, PartialEq)]
-#[enum_dispatch(TextOperation)]
+#[enum_dispatch(TextPositioningOperation)]
 pub enum TextPositioningOperator {
     /// The `Td` operator. Move to the start of the next line, offset from the start of the current
     /// line by `(tx, ty)`.
@@ -38,7 +38,7 @@ pub enum TextPositioningOperator {
 #[derive(Debug, Clone, Copy, PartialEq, Extract)]
 pub struct MoveByOffset(f32, f32);
 
-impl TextOperation for MoveByOffset {
+impl TextPositioningOperation for MoveByOffset {
     fn apply(self, text_object: &mut TextObject) {
         text_object.move_to(self.0, self.1);
     }
@@ -57,9 +57,9 @@ impl TextOperation for MoveByOffset {
 #[derive(Debug, Clone, Copy, PartialEq, Extract)]
 pub struct MoveByOffsetAndSetLeading(pub(crate) f32, pub(crate) f32);
 
-impl TextOperation for MoveByOffsetAndSetLeading {
+impl TextPositioningOperation for MoveByOffsetAndSetLeading {
     fn apply(self, text_object: &mut TextObject) {
-        text_object.set_leading(-self.1);
+        text_object.parameters.set_leading(-self.1);
         text_object.move_to(self.0, self.1);
     }
 }
@@ -85,7 +85,7 @@ impl Extract<'_> for SetTextMatrix {
     }
 }
 
-impl TextOperation for SetTextMatrix {
+impl TextPositioningOperation for SetTextMatrix {
     fn apply(self, text_object: &mut TextObject) {
         text_object.matrix = self.0;
     }
@@ -105,7 +105,7 @@ impl TextOperation for SetTextMatrix {
 #[derive(Debug, Clone, Copy, PartialEq, Extract)]
 pub struct MoveToNextLine;
 
-impl TextOperation for MoveToNextLine {
+impl TextPositioningOperation for MoveToNextLine {
     fn apply(self, text_object: &mut TextObject) {
         text_object.move_to_next_line();
     }
