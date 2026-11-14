@@ -11,7 +11,7 @@ mod simple;
 mod type3;
 mod widths;
 
-use std::fmt;
+use std::{collections::HashMap, fmt};
 
 use winnow::{
     error::{ContextError, ErrMode, FromExternalError, StrContext},
@@ -39,6 +39,29 @@ pub enum Font {
     Type3(Type3Font),
     /// `Type0`, as a placeholder.
     Composite(CompositeFont),
+}
+
+/// The fonts a page's content stream can select with `Tf`, by resource name: the page's
+/// `/Resources /Font` map with every reference resolved.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Fonts(HashMap<Name, Font>);
+
+impl Fonts {
+    /// No fonts: a page whose resources have no `/Font` entry.
+    pub fn empty() -> Self {
+        Self::default()
+    }
+
+    /// The font under the resource name `name`, as `Tf` spells it.
+    pub fn get(&self, name: &Name) -> Option<&Font> {
+        self.0.get(name)
+    }
+}
+
+impl FromIterator<(Name, Font)> for Fonts {
+    fn from_iter<I: IntoIterator<Item = (Name, Font)>>(iter: I) -> Self {
+        Self(iter.into_iter().collect())
+    }
 }
 
 /// The text space length of a thousandth: glyph space for `Type1`, `TrueType` and, until
@@ -141,6 +164,26 @@ pub(crate) mod tests {
     /// The font in the dictionary literal `input`, following references through `objects`.
     pub(crate) fn font_with(input: &[u8], objects: &HashMap<ReferenceId, &BStr>) -> Font {
         Font::build(&mut input.as_ref(), objects).unwrap()
+    }
+
+    /// A standard-14 font dictionary with a `/Widths` table, so parsing it does not warn.
+    pub(crate) const HELVETICA: &[u8] =
+        b"<</Type/Font/Subtype/Type1/BaseFont/Helvetica/FirstChar 32/LastChar 32/Widths[278]>>";
+
+    /// The fonts of a page, each given by its resource name and its dictionary literal.
+    pub(crate) fn fonts(entries: &[(&str, &[u8])]) -> Fonts {
+        entries
+            .iter()
+            .map(|&(name, input)| (Name::from(name), font(input)))
+            .collect()
+    }
+
+    #[test]
+    fn fonts_get_finds_by_resource_name() {
+        let fonts = fonts(&[("F1", HELVETICA)]);
+        assert!(fonts.get(&"F1".into()).is_some());
+        assert!(fonts.get(&"F2".into()).is_none());
+        assert!(Fonts::empty().get(&"F1".into()).is_none());
     }
 
     #[test]

@@ -20,6 +20,7 @@ use winnow::{
 use crate::{
     content::{
         error::{ContentError, Result},
+        font::{Font, Fonts},
         operators::{
             graphics::GraphicsStateOperation,
             text::{TextArrayElement, TextOperator, TextShowingOperation, TextStateOperation},
@@ -33,21 +34,30 @@ use crate::{
     extraction::{Extract, Name, PDFString},
 };
 
-/// The font selected by the `Tf` operator: a resource name and a size.
+/// A font size, `Tfs`: the scale from the font's text space unit to the text matrix's.
+///
+/// A newtype so that a size is never passed where a width or a spacing is expected.
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub struct FontSize(pub f32);
+
+/// The font selected by the `Tf` operator, borrowed from the page's [`Fonts`].
 #[derive(Debug, Clone, PartialEq)]
-pub struct Font {
-    /// Font resource name.
-    /// NOTE: this is set to become an actual object in the future.
+pub struct SelectedFont<'f> {
+    /// The resource name `Tf` selected the font by.
     pub name: Name,
-    /// Font size, a scaling factor applied to every glyph's size parameters.
-    pub size: f32,
+    /// The font itself.
+    pub font: &'f Font,
+    /// The font size, a scaling factor applied to every glyph's size parameters.
+    pub size: FontSize,
 }
 
 /// Text state parameters, as defined in section 9.3 of the PDF specification.
+///
+/// The selected font is borrowed from the page's [`Fonts`] for `'f`.
 #[derive(Debug, Clone, PartialEq)]
-pub struct TextStateParameters {
+pub struct TextStateParameters<'f> {
     /// Font and font size. `None` until a `Tf` operator selects one.
-    pub font: Option<Font>,
+    pub font: Option<SelectedFont<'f>>,
     /// Spacing between characters, in unscaled text space units. Added to the horizontal or
     /// vertical component of the glyph's displacement, depending on the writing mode.
     ///
@@ -81,7 +91,7 @@ pub struct TextStateParameters {
     pub rise: f32,
 }
 
-impl Default for TextStateParameters {
+impl Default for TextStateParameters<'_> {
     fn default() -> Self {
         Self {
             font: None,
@@ -95,9 +105,9 @@ impl Default for TextStateParameters {
     }
 }
 
-impl TextStateParameters {
+impl<'f> TextStateParameters<'f> {
     /// Select the font and font size (`Tf`).
-    pub fn set_font(&mut self, font: Font) {
+    pub fn set_font(&mut self, font: SelectedFont<'f>) {
         self.font = Some(font);
     }
     /// Set the character spacing, in unscaled text space units (`Tc`).
@@ -177,7 +187,7 @@ pub struct Run {
 /// A text object: the state the text operators act on between `BT` and `ET`.
 ///
 /// Its shown strings are read through the [`TextObjectStream`] that owns it.
-pub struct TextObject<'a> {
+pub struct TextObject<'a, 'f> {
     /// Text matrix, `Tm`. Governs the transformation of text space to user space. Showing
     /// operators and `TJ` offsets advance it; line moves reset it to the
     /// [line matrix](Self::line_matrix).
@@ -194,7 +204,9 @@ pub struct TextObject<'a> {
     ///
     /// Borrowed from the graphics state: the text state operators inside the object mutate
     /// it in place, so a `Tf` here is still in force in the next text object.
-    pub parameters: &'a mut TextStateParameters,
+    pub parameters: &'a mut TextStateParameters<'f>,
+    /// The page's fonts, which `Tf` selects from.
+    pub fonts: &'f Fonts,
     // FIXME: this indirection will be needed down the line. For now it seems a bit dumb.
     // It should be replaced with a `VecDeque<u8>` to allow the *font* to iterate over the text
     pub text_buffer: Option<PDFString>,
@@ -202,14 +214,19 @@ pub struct TextObject<'a> {
     pub buffer: Option<VecDeque<TextArrayElement>>,
 }
 
-impl<'a> TextObject<'a> {
+impl<'a, 'f> TextObject<'a, 'f> {
     /// The text object at `BT`: identity text matrix, nothing to show yet.
-    fn begin(ctm: Matrix<User, DefaultUser>, parameters: &'a mut TextStateParameters) -> Self {
+    fn begin(
+        ctm: Matrix<User, DefaultUser>,
+        parameters: &'a mut TextStateParameters<'f>,
+        fonts: &'f Fonts,
+    ) -> Self {
         Self {
             matrix: Matrix::coincident(),
             line_matrix: Matrix::coincident(),
             ctm,
             parameters,
+            fonts,
             text_buffer: None,
             buffer: None,
         }
@@ -262,7 +279,7 @@ impl<'a> TextObject<'a> {
                     TextArrayElement::Offset(offset) => {
                         // ISO 32000-2, 9.4.4: tx = -n/1000 · Tfs · Th, the offset being
                         // in thousandths of a unit of glyph space.
-                        let size = self.parameters.font.as_ref().map_or(0.0, |f| f.size);
+                        let size = self.parameters.font.as_ref().map_or(0.0, |f| f.size.0);
                         let scaling = self.parameters.horizontal_scaling / 100.0;
                         let shift: Displacement<Text> =
                             Displacement::new(-offset / 1_000.0 * size * scaling, 0.0);
@@ -299,14 +316,20 @@ struct Started {
 /// starts from the CTM and text state then in force. Text positioning and showing
 /// operators outside `BT` are illegal and skipped with a warning.
 ///
+/// Borrows the page's [`Fonts`] for `'f`: `Tf` selects from them, and the text state keeps
+/// a borrow of the selected font.
+///
 /// Not an [`Iterator`], since each item borrows it:
 ///
 /// ```
-/// # use livre::{content::{operators::Operator, Run, TextObjects}, extraction::Extract};
+/// # use livre::{content::{operators::Operator, Fonts, Run, TextObjects}, extraction::{extract, Extract, Name}};
 /// # use winnow::{ascii::multispace0, combinator::{iterator, preceded}, BStr};
+/// # let font = extract(&mut BStr::new(b"<</Type/Font/Subtype/Type1/BaseFont/Helvetica/FirstChar 32/LastChar 32/Widths[278]>>")).unwrap();
+/// # let fonts: Fonts = [(Name::from("F1"), font)].into_iter().collect();
 /// # let mut content = BStr::new(b"/F1 12 Tf BT 72 700 Td (Hello) Tj ET");
 /// # let mut operators = iterator(&mut content, preceded(multispace0, Operator::extract));
-/// let mut objects = TextObjects::new(&mut operators);
+/// // `fonts` comes from `Page::fonts`.
+/// let mut objects = TextObjects::new(&mut operators, &fonts);
 /// while let Some(stream) = objects.next_object()? {
 ///     for Run { position, text } in stream {
 /// #       assert_eq!((position.x, position.y, text.decode()), (72.0, 700.0, "Hello".into()));
@@ -315,24 +338,31 @@ struct Started {
 /// }
 /// # Ok::<(), livre::content::ContentError>(())
 /// ```
-pub struct TextObjects<Ops> {
+pub struct TextObjects<'f, Ops> {
     ops: Ops,
-    graphics_state: GraphicsState,
+    fonts: &'f Fonts,
+    graphics_state: GraphicsState<'f>,
     /// Inside a text object whose `ET` has not been read yet: its stream was dropped before
     /// the end, or opening it failed.
     open: bool,
+    /// The error that ended the last stream early, returned by the next
+    /// [`next_object`](Self::next_object).
+    error: Option<ContentError>,
 }
 
-impl<Ops> TextObjects<Ops>
+impl<'f, Ops> TextObjects<'f, Ops>
 where
     Ops: Iterator<Item = Operator>,
 {
-    /// Start at the top of a content stream, with the default graphics state.
-    pub fn new(ops: Ops) -> Self {
+    /// Start at the top of a content stream, with the default graphics state. `Tf` selects
+    /// from `fonts`, the fonts of the page the content stream belongs to.
+    pub fn new(ops: Ops, fonts: &'f Fonts) -> Self {
         Self {
             ops,
+            fonts,
             graphics_state: GraphicsState::default(),
             open: false,
+            error: None,
         }
     }
 
@@ -348,7 +378,16 @@ where
     ///   selected a font, in it or earlier in the content stream.
     /// - [`ContentError::IncompleteTextObject`] if the content stream ends inside `BT`
     ///   before any text is shown, or after the previous text object without its `ET`.
-    pub fn next_object(&mut self) -> Result<Option<TextObjectStream<'_, Ops>>> {
+    /// - [`ContentError::UnknownFont`] if a `Tf` names a font absent from the fonts. Met
+    ///   outside a stream, it is returned at once. Met by a stream, it ends the stream, whose
+    ///   items are infallible [`Run`]s: the error is kept and returned by the next call,
+    ///   the way winnow's `iterator` reports its error through `finish` after the loop. The
+    ///   call after that resumes past the text object's `ET`.
+    pub fn next_object(&mut self) -> Result<Option<TextObjectStream<'_, 'f, Ops>>> {
+        if let Some(error) = self.error.take() {
+            return Err(error);
+        }
+
         if self.open {
             self.skip_to_end()?;
         }
@@ -373,18 +412,20 @@ where
                             ..TextObject::begin(
                                 self.graphics_state.ctm(),
                                 self.graphics_state.text_state_mut(),
+                                self.fonts,
                             )
                         };
                         return Ok(Some(TextObjectStream {
                             text_object,
                             ops: &mut self.ops,
                             open: &mut self.open,
+                            error: &mut self.error,
                         }));
                     }
                 }
                 Some(Operator::GraphicsState(op)) => op.apply(&mut self.graphics_state),
                 Some(Operator::Text(TextOperator::TextStateOperator(op))) => {
-                    op.apply(self.graphics_state.text_state_mut())
+                    op.apply(self.graphics_state.text_state_mut(), self.fonts)?
                 }
                 Some(Operator::Text(op)) => {
                     tracing::warn!("Text operator outside `BT`: skipped: {:?}", op);
@@ -405,6 +446,7 @@ where
         let mut text_object = TextObject::begin(
             self.graphics_state.ctm(),
             self.graphics_state.text_state_mut(),
+            self.fonts,
         );
 
         for operator in &mut self.ops {
@@ -433,7 +475,7 @@ where
                         buffer,
                     }));
                 }
-                Operator::Text(op) => op.apply(&mut text_object),
+                Operator::Text(op) => op.apply(&mut text_object)?,
                 _ => {
                     tracing::debug!("Skipping operator: {:?}", operator);
                 }
@@ -453,7 +495,7 @@ where
             match operator {
                 Operator::EndText(_) => return Ok(()),
                 Operator::Text(TextOperator::TextStateOperator(op)) => {
-                    op.apply(self.graphics_state.text_state_mut())
+                    op.apply(self.graphics_state.text_state_mut(), self.fonts)?
                 }
                 _ => {}
             }
@@ -470,31 +512,38 @@ where
 /// force for the run just yielded are read from [`text_object`](Self::text_object).
 ///
 /// Borrows the [`TextObjects`] it comes from: its operators, and the graphics state's text
-/// state through the text object.
-pub struct TextObjectStream<'a, Ops> {
-    text_object: TextObject<'a>,
+/// state through the text object. A `Tf` naming an unknown font ends the stream; the
+/// error is returned by the next [`TextObjects::next_object`].
+pub struct TextObjectStream<'a, 'f, Ops> {
+    text_object: TextObject<'a, 'f>,
     ops: &'a mut Ops,
     /// Whether the owning [`TextObjects`] is inside a text object: lowered on `ET`.
     open: &'a mut bool,
+    /// Where the error that ends the stream early is kept for the owning [`TextObjects`].
+    error: &'a mut Option<ContentError>,
 }
 
-impl<'a, Ops> TextObjectStream<'a, Ops> {
+impl<'a, 'f, Ops> TextObjectStream<'a, 'f, Ops> {
     /// The text object in its current state: the font, matrix and parameters that applied
     /// to the last element yielded by the stream.
-    pub fn text_object(&self) -> &TextObject<'a> {
+    pub fn text_object(&self) -> &TextObject<'a, 'f> {
         &self.text_object
     }
 }
 
-impl<Ops> Iterator for TextObjectStream<'_, Ops>
+impl<Ops> Iterator for TextObjectStream<'_, '_, Ops>
 where
     Ops: Iterator<Item = Operator>,
 {
     type Item = Run;
 
-    /// The next shown string, applying the text operators before it. Ends at `ET`, or with
-    /// the operators.
+    /// The next shown string, applying the text operators before it. Ends at `ET`, with
+    /// the operators, or at an operator that fails to apply.
     fn next(&mut self) -> Option<Run> {
+        if self.error.is_some() {
+            return None;
+        }
+
         loop {
             if let Some(run) = self.text_object.next_run() {
                 return Some(run);
@@ -506,7 +555,12 @@ where
                     *self.open = false;
                     return None;
                 }
-                Operator::Text(op) => op.apply(&mut self.text_object),
+                Operator::Text(op) => {
+                    if let Err(error) = op.apply(&mut self.text_object) {
+                        *self.error = Some(error);
+                        return None;
+                    }
+                }
                 _ => {
                     tracing::debug!("Skipping operator: {:?}", op);
                 }
@@ -519,7 +573,10 @@ where
 mod tests {
     use winnow::{ascii::multispace0, combinator::preceded, BStr};
 
+    use std::sync::LazyLock;
+
     use super::*;
+    use crate::content::font::tests::{fonts, HELVETICA};
 
     /// Parse a content stream into its operators.
     fn operators(input: &[u8]) -> Vec<Operator> {
@@ -531,13 +588,32 @@ mod tests {
         ops
     }
 
-    /// The text objects of a content stream.
-    fn objects(input: &[u8]) -> TextObjects<std::vec::IntoIter<Operator>> {
-        TextObjects::new(operators(input).into_iter())
+    /// The fonts the tests' content streams select: `F1`, `F2` and `F4`.
+    pub(super) static PAGE_FONTS: LazyLock<Fonts> =
+        LazyLock::new(|| fonts(&[("F1", HELVETICA), ("F2", HELVETICA), ("F4", HELVETICA)]));
+
+    /// The text objects of a content stream, selecting from `fonts`.
+    fn objects_with<'f>(
+        input: &[u8],
+        fonts: &'f Fonts,
+    ) -> TextObjects<'f, std::vec::IntoIter<Operator>> {
+        TextObjects::new(operators(input).into_iter(), fonts)
     }
 
+    /// The text objects of a content stream, selecting from [`PAGE_FONTS`].
+    fn objects(input: &[u8]) -> TextObjects<'static, std::vec::IntoIter<Operator>> {
+        objects_with(input, &PAGE_FONTS)
+    }
+
+    /// The resource name and size of a selected font.
+    type Selected = (Name, FontSize);
+
     /// A shown string, decoded, with the font in force when it was yielded.
-    type Shown = (String, Option<Font>);
+    type Shown = (String, Option<Selected>);
+
+    fn selected(parameters: &TextStateParameters) -> Option<Selected> {
+        parameters.font.as_ref().map(|f| (f.name.clone(), f.size))
+    }
 
     /// Every text object of a content stream, as the runs it yields, each with the font in
     /// force when it was yielded.
@@ -548,7 +624,7 @@ mod tests {
         while let Some(mut stream) = objects.next_object()? {
             let mut runs = Vec::new();
             while let Some(Run { text, .. }) = stream.next() {
-                runs.push((text.decode(), stream.text_object().parameters.font.clone()));
+                runs.push((text.decode(), selected(stream.text_object().parameters)));
             }
             out.push(runs);
         }
@@ -556,15 +632,65 @@ mod tests {
         Ok(out)
     }
 
-    fn font(name: &str, size: f32) -> Font {
-        Font {
-            name: Name(name.as_bytes().to_vec()),
-            size,
-        }
+    fn font(name: &str, size: f32) -> Selected {
+        (Name::from(name), FontSize(size))
     }
 
     fn run(text: &str, name: &str, size: f32) -> Shown {
         (text.to_string(), Some(font(name, size)))
+    }
+
+    #[test]
+    fn tf_selects_the_font_from_the_page_fonts() {
+        let fonts = fonts(&[("F1", HELVETICA)]);
+        let mut objects = objects_with(b"/F1 12 Tf BT (a) Tj ET", &fonts);
+        let mut stream = objects.next_object().unwrap().unwrap();
+
+        stream.next().unwrap();
+        let selected = stream.text_object().parameters.font.as_ref().unwrap();
+        assert_eq!(selected.name, Name::from("F1"));
+        assert!(std::ptr::eq(
+            selected.font,
+            fonts.get(&"F1".into()).unwrap()
+        ));
+        assert_eq!(selected.size, FontSize(12.0));
+    }
+
+    #[test]
+    fn tf_with_an_unknown_font_outside_bt_is_an_error() {
+        let fonts = fonts(&[("F1", HELVETICA)]);
+        let mut objects = objects_with(b"/F9 12 Tf", &fonts);
+
+        assert!(matches!(
+            objects.next_object(),
+            Err(ContentError::UnknownFont(name)) if name == Name::from("F9")
+        ));
+    }
+
+    #[test]
+    fn tf_with_an_unknown_font_inside_bt_ends_the_stream_then_errors() {
+        let fonts = fonts(&[("F1", HELVETICA)]);
+        let mut objects = objects_with(b"BT /F1 12 Tf (a) Tj /F9 10 Tf (b) Tj ET", &fonts);
+
+        let stream = objects.next_object().unwrap().unwrap();
+        let texts: Vec<String> = stream.map(|Run { text, .. }| text.decode()).collect();
+        assert_eq!(texts, ["a"]);
+
+        assert!(matches!(
+            objects.next_object(),
+            Err(ContentError::UnknownFont(name)) if name == Name::from("F9")
+        ));
+    }
+
+    #[test]
+    fn tf_with_an_unknown_font_before_the_first_run_is_an_error() {
+        let fonts = fonts(&[("F1", HELVETICA)]);
+        let mut objects = objects_with(b"BT /F9 10 Tf (b) Tj ET", &fonts);
+
+        assert!(matches!(
+            objects.next_object(),
+            Err(ContentError::UnknownFont(name)) if name == Name::from("F9")
+        ));
     }
 
     #[test]
@@ -676,7 +802,10 @@ mod tests {
 
         let Run { text, .. } = stream.next().unwrap();
         assert_eq!(text.decode(), "c");
-        assert_eq!(stream.text_object().parameters.font, Some(font("F2", 8.0)));
+        assert_eq!(
+            selected(stream.text_object().parameters),
+            Some(font("F2", 8.0))
+        );
     }
 
     #[test]
@@ -768,13 +897,14 @@ mod graphics_state_tests {
 
     use super::*;
 
-    fn objects(input: &[u8]) -> TextObjects<std::vec::IntoIter<Operator>> {
+    /// The text objects of a content stream, selecting `F1` and `F4` from the page fonts.
+    fn objects(input: &[u8]) -> TextObjects<'static, std::vec::IntoIter<Operator>> {
         let mut stream = BStr::new(input);
         let mut it =
             winnow::combinator::iterator(&mut stream, preceded(multispace0, Operator::extract));
         let ops: Vec<Operator> = (&mut it).collect();
         it.finish().unwrap();
-        TextObjects::new(ops.into_iter())
+        TextObjects::new(ops.into_iter(), &super::tests::PAGE_FONTS)
     }
 
     /// Every run position of a content stream.

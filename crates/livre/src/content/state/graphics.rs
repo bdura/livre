@@ -13,20 +13,20 @@ use super::{
 /// page's default user space (the space of the `MediaBox`). The other parameters of the
 /// graphics state (colour, line width, clipping) are not tracked yet.
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct GraphicsState {
+pub(crate) struct GraphicsState<'f> {
     ctm: Matrix<User, DefaultUser>,
-    text_state: TextStateParameters,
-    stack: Vec<Snapshot>,
+    text_state: TextStateParameters<'f>,
+    stack: Vec<Snapshot<'f>>,
 }
 
 /// What `q` saves and `Q` restores.
 #[derive(Debug, Clone, PartialEq)]
-struct Snapshot {
+struct Snapshot<'f> {
     ctm: Matrix<User, DefaultUser>,
-    text_state: TextStateParameters,
+    text_state: TextStateParameters<'f>,
 }
 
-impl Default for GraphicsState {
+impl Default for GraphicsState<'_> {
     fn default() -> Self {
         Self {
             ctm: Matrix::coincident(),
@@ -36,7 +36,7 @@ impl Default for GraphicsState {
     }
 }
 
-impl GraphicsState {
+impl<'f> GraphicsState<'f> {
     /// The current transformation matrix: user space to default user space.
     pub fn ctm(&self) -> Matrix<User, DefaultUser> {
         self.ctm
@@ -44,7 +44,7 @@ impl GraphicsState {
 
     /// The text state parameters (ISO 32000-2, 9.3). They are part of the graphics state,
     /// so they persist from one text object to the next and `q`/`Q` save and restore them.
-    pub fn text_state_mut(&mut self) -> &mut TextStateParameters {
+    pub fn text_state_mut(&mut self) -> &mut TextStateParameters<'f> {
         &mut self.text_state
     }
 

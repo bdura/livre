@@ -31,7 +31,8 @@ fn runs(path: &str) -> Vec<Run> {
         let mut stream = BStr::new(&content);
 
         let mut it = iterator(&mut stream, preceded(multispace0, Operator::extract));
-        let mut objects = TextObjects::new(&mut it);
+        let fonts = page.fonts(&doc).unwrap();
+        let mut objects = TextObjects::new(&mut it, &fonts);
 
         while let Some(text_object) = objects.next_object().unwrap() {
             runs.extend(text_object);
@@ -134,7 +135,8 @@ fn font_runs(path: &str) -> Vec<(usize, GoldenRun)> {
         let mut stream = BStr::new(&content);
 
         let mut it = iterator(&mut stream, preceded(multispace0, Operator::extract));
-        let mut objects = TextObjects::new(&mut it);
+        let fonts = page.fonts(&doc).unwrap();
+        let mut objects = TextObjects::new(&mut it, &fonts);
 
         let mut index = 0;
         while let Some(mut text_object) = objects.next_object().unwrap() {
@@ -151,7 +153,7 @@ fn font_runs(path: &str) -> Vec<(usize, GoldenRun)> {
                         x: position.x,
                         y: position.y,
                         font: String::from_utf8_lossy(&font.name.0).into_owned(),
-                        size: font.size,
+                        size: font.size.0,
                         text: text.decode(),
                     },
                 ));
@@ -187,4 +189,66 @@ fn font_before_bt_matches_its_golden_runs() {
         assert_eq!(run.size, golden.size, "run {i}");
         assert_eq!(run.text, golden.text, "run {i}");
     }
+}
+
+/// A PDF of `objects`, given as `(object number, object body)` and written with generation
+/// 0, with object 1 as its catalog.
+fn build_pdf(objects: &[(usize, &str)]) -> Vec<u8> {
+    let mut pdf = b"%PDF-1.7\n".to_vec();
+    let mut offsets = Vec::new();
+
+    for &(number, body) in objects {
+        offsets.push((number, pdf.len()));
+        pdf.extend(format!("{number} 0 obj\n{body}\nendobj\n").as_bytes());
+    }
+
+    let startxref = pdf.len();
+    pdf.extend(b"xref\n0 1\n0000000000 65535 f \n");
+    for (number, offset) in offsets {
+        pdf.extend(format!("{number} 1\n{offset:010} 00000 n \n").as_bytes());
+    }
+    pdf.extend(
+        format!(
+            "trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{startxref}\n%%EOF\n",
+            objects.len() + 1
+        )
+        .as_bytes(),
+    );
+
+    pdf
+}
+
+/// The reproduction of a page whose `/Resources` has no `/Font`, showing only a path: the
+/// page tree parses, and the page has no text object.
+#[test]
+fn page_without_font_resources_parses() {
+    let content = "0 0 1 rg 20 20 160 160 re f";
+    let pdf = build_pdf(&[
+        (1, "<< /Type /Catalog /Pages 2 0 R >>"),
+        (2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>"),
+        (
+            3,
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources << /ProcSet [/PDF] >> /Contents 4 0 R >>",
+        ),
+        (
+            4,
+            &format!(
+                "<< /Length {} >>\nstream\n{content}\nendstream",
+                content.len()
+            ),
+        ),
+    ]);
+    let doc = InMemoryDocument::extract(&mut pdf.as_slice().as_ref()).unwrap();
+
+    let pages = doc.pages().unwrap();
+    assert_eq!(pages.len(), 1);
+
+    let page = &pages[0];
+    let fonts = page.fonts(&doc).unwrap();
+    let content = page.build_content(&doc).unwrap();
+    let mut input = BStr::new(&content);
+    let mut it = iterator(&mut input, preceded(multispace0, Operator::extract));
+    let mut objects = TextObjects::new(&mut it, &fonts);
+
+    assert!(objects.next_object().unwrap().is_none());
 }

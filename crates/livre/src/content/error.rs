@@ -1,5 +1,7 @@
 use thiserror::Error;
 
+use crate::extraction::Name;
+
 /// Errors related to content parsing.
 #[derive(Error, Debug)]
 pub enum ContentError {
@@ -12,6 +14,9 @@ pub enum ContentError {
     /// the `ET`.
     #[error("`BT` tag was not closed")]
     IncompleteTextObject,
+    /// A `Tf` named a font absent from the page's `/Resources /Font` map.
+    #[error("`Tf` selects /{}, which is not among the page's font resources", String::from_utf8_lossy(.0))]
+    UnknownFont(Name),
 }
 
 pub type Result<T, E = ContentError> = std::result::Result<T, E>;

@@ -1,7 +1,11 @@
 use enum_dispatch::enum_dispatch;
 
 use crate::{
-    content::state::{Font, RenderingMode, TextStateParameters},
+    content::{
+        error::{ContentError, Result},
+        state::{FontSize, RenderingMode, SelectedFont, TextStateParameters},
+        Fonts,
+    },
     extraction::{Extract, Name},
 };
 
@@ -30,8 +34,9 @@ pub enum TextStateOperator {
 pub struct SetCharacterSpacing(pub(crate) f32);
 
 impl TextStateOperation for SetCharacterSpacing {
-    fn apply(self, parameters: &mut TextStateParameters) {
+    fn apply<'f>(self, parameters: &mut TextStateParameters<'f>, _: &'f Fonts) -> Result<()> {
         parameters.set_character_spacing(self.0);
+        Ok(())
     }
 }
 
@@ -41,8 +46,9 @@ impl TextStateOperation for SetCharacterSpacing {
 pub struct SetWordSpacing(pub(crate) f32);
 
 impl TextStateOperation for SetWordSpacing {
-    fn apply(self, parameters: &mut TextStateParameters) {
+    fn apply<'f>(self, parameters: &mut TextStateParameters<'f>, _: &'f Fonts) -> Result<()> {
         parameters.set_word_spacing(self.0);
+        Ok(())
     }
 }
 
@@ -51,8 +57,9 @@ impl TextStateOperation for SetWordSpacing {
 pub struct SetHorizontalScaling(f32);
 
 impl TextStateOperation for SetHorizontalScaling {
-    fn apply(self, parameters: &mut TextStateParameters) {
+    fn apply<'f>(self, parameters: &mut TextStateParameters<'f>, _: &'f Fonts) -> Result<()> {
         parameters.set_horizontal_scaling(self.0);
+        Ok(())
     }
 }
 
@@ -61,8 +68,9 @@ impl TextStateOperation for SetHorizontalScaling {
 pub struct SetTextLeading(f32);
 
 impl TextStateOperation for SetTextLeading {
-    fn apply(self, parameters: &mut TextStateParameters) {
+    fn apply<'f>(self, parameters: &mut TextStateParameters<'f>, _: &'f Fonts) -> Result<()> {
         parameters.set_leading(self.0);
+        Ok(())
     }
 }
 
@@ -79,9 +87,22 @@ impl TextStateOperation for SetTextLeading {
 pub struct SetFontAndFontSize(pub(crate) Name, pub(crate) f32);
 
 impl TextStateOperation for SetFontAndFontSize {
-    fn apply(self, parameters: &mut TextStateParameters) {
+    /// Select the font named by the operator in `fonts`.
+    ///
+    /// # Errors
+    ///
+    /// [`ContentError::UnknownFont`] if `fonts` has no font under that name.
+    fn apply<'f>(self, parameters: &mut TextStateParameters<'f>, fonts: &'f Fonts) -> Result<()> {
         let SetFontAndFontSize(name, size) = self;
-        parameters.set_font(Font { name, size });
+        let font = fonts
+            .get(&name)
+            .ok_or_else(|| ContentError::UnknownFont(name.clone()))?;
+        parameters.set_font(SelectedFont {
+            name,
+            font,
+            size: FontSize(size),
+        });
+        Ok(())
     }
 }
 
@@ -94,8 +115,9 @@ impl TextStateOperation for SetFontAndFontSize {
 pub struct SetTextRenderingMode(RenderingMode);
 
 impl TextStateOperation for SetTextRenderingMode {
-    fn apply(self, parameters: &mut TextStateParameters) {
+    fn apply<'f>(self, parameters: &mut TextStateParameters<'f>, _: &'f Fonts) -> Result<()> {
         parameters.set_rendering_mode(self.0);
+        Ok(())
     }
 }
 
@@ -104,8 +126,9 @@ impl TextStateOperation for SetTextRenderingMode {
 pub struct SetTextRise(f32);
 
 impl TextStateOperation for SetTextRise {
-    fn apply(self, parameters: &mut TextStateParameters) {
+    fn apply<'f>(self, parameters: &mut TextStateParameters<'f>, _: &'f Fonts) -> Result<()> {
         parameters.set_rise(self.0);
+        Ok(())
     }
 }
 
@@ -114,10 +137,14 @@ mod tests {
     use winnow::{ascii::multispace0, combinator::preceded, BStr};
 
     use super::*;
-    use crate::content::operators::{text::TextOperator, Operator};
+    use crate::content::{
+        font::tests::{fonts, HELVETICA},
+        operators::{text::TextOperator, Operator},
+    };
 
     #[test]
     fn state_operators_apply_to_bare_parameters() {
+        let fonts = fonts(&[("F1", HELVETICA)]);
         let mut input = BStr::new(b"/F1 12 Tf 2 Tc".as_slice());
         let mut it =
             winnow::combinator::iterator(&mut input, preceded(multispace0, Operator::extract));
@@ -127,20 +154,31 @@ mod tests {
             let Operator::Text(TextOperator::TextStateOperator(op)) = operator else {
                 panic!("not a text state operator: {operator:?}");
             };
-            op.apply(&mut parameters);
+            op.apply(&mut parameters, &fonts).unwrap();
         }
         it.finish().unwrap();
 
         assert_eq!(
             parameters,
             TextStateParameters {
-                font: Some(Font {
+                font: Some(SelectedFont {
                     name: Name(b"F1".to_vec()),
-                    size: 12.0
+                    font: fonts.get(&Name(b"F1".to_vec())).unwrap(),
+                    size: FontSize(12.0),
                 }),
                 character_spacing: 2.0,
                 ..TextStateParameters::default()
             }
         );
+    }
+
+    #[test]
+    fn tf_with_an_unknown_font_is_an_error() {
+        let fonts = fonts(&[("F1", HELVETICA)]);
+        let mut parameters = TextStateParameters::default();
+        let result = SetFontAndFontSize(Name(b"F9".to_vec()), 12.0).apply(&mut parameters, &fonts);
+
+        assert!(matches!(result, Err(ContentError::UnknownFont(Name(name))) if name == b"F9"));
+        assert_eq!(parameters.font, None);
     }
 }

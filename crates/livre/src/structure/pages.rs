@@ -6,6 +6,7 @@ use winnow::{
 };
 
 use crate::{
+    content::{Font, Fonts},
     extraction::{
         extract, Date, Extract, FromRawDict, Id, Map, MaybeArray, Name, OptRef, RawDict, Rectangle,
         Reference, Stream, Todo,
@@ -16,8 +17,19 @@ use crate::{
 /// Page resources.
 #[derive(Debug, PartialEq, Clone, FromRawDict)]
 pub struct Resources {
-    /// Font dictionary.
-    pub font: HashMap<Name, Reference<()>>,
+    /// Font dictionary: the fonts the content streams select with `Tf`, by resource name.
+    /// Empty when the resources have no `/Font` entry.
+    #[livre(default)]
+    pub font: HashMap<Name, Reference<Font>>,
+}
+
+impl Build for Resources {
+    fn build<B>(input: &mut &BStr, _builder: &B) -> ModalResult<Self>
+    where
+        B: Builder,
+    {
+        extract(input)
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -173,6 +185,9 @@ pub struct InheritablePageProperties {
 
 impl InheritablePageProperties {
     pub fn merge_with_parent(&mut self, parent_props: &InheritablePageProperties) {
+        if let Some(resources) = &parent_props.resources {
+            self.resources.get_or_insert_with(|| resources.clone());
+        }
         if let Some(media_box) = parent_props.media_box {
             self.media_box.get_or_insert(media_box);
         }
@@ -288,6 +303,37 @@ impl Page {
         let content = contents?.into_iter().flatten().collect();
         Ok(content)
     }
+
+    /// The fonts the page's content streams can select, resolved through `builder`: every
+    /// entry of the `/Font` map of the page's resources, inherited or its own. Empty if the
+    /// page has no resources, or resources without `/Font`.
+    ///
+    /// Resolution is eager: font dictionaries are small, and the content layer then works
+    /// on [`Fonts`] alone, without a document.
+    ///
+    /// # Errors
+    ///
+    /// Any error following the resources or a font reference, or parsing a font.
+    pub fn fonts<B>(&self, builder: &B) -> ModalResult<Fonts>
+    where
+        B: Builder,
+    {
+        let built;
+        let resources = match &self.inheritable_props.resources {
+            None => return Ok(Fonts::empty()),
+            Some(OptRef::Direct(resources)) => resources,
+            Some(OptRef::Ref(reference)) => {
+                built = builder.build_reference(*reference)?;
+                &built
+            }
+        };
+
+        resources
+            .font
+            .iter()
+            .map(|(name, &reference)| Ok((name.clone(), builder.build_reference(reference)?)))
+            .collect()
+    }
 }
 
 /// Element from the page tree node.
@@ -341,7 +387,10 @@ mod tests {
     use indoc::indoc;
     use rstest::rstest;
 
-    use crate::extraction::Extract;
+    use crate::{
+        content::{Code, GlyphWidth},
+        extraction::{Extract, ReferenceId},
+    };
 
     use super::*;
 
@@ -431,5 +480,72 @@ mod tests {
         let page = Page::extract(&mut input.as_ref()).unwrap();
         let InheritablePageProperties { media_box, .. } = page.inheritable_props;
         assert_eq!(media_box, Some(expected));
+    }
+
+    #[test]
+    fn resources_without_font_have_no_fonts() {
+        let resources = Resources::extract(&mut b"<</ProcSet[/PDF]>>".as_slice().as_ref()).unwrap();
+        assert!(resources.font.is_empty());
+    }
+
+    #[test]
+    fn resources_read_typed_font_references() {
+        let resources =
+            Resources::extract(&mut b"<</Font<</F1 7 0 R>>>>".as_slice().as_ref()).unwrap();
+        let expected: Reference<Font> = (7, 0).into();
+        assert_eq!(
+            resources.font,
+            HashMap::from([(Name::from("F1"), expected)])
+        );
+    }
+
+    #[test]
+    fn page_fonts_resolve_every_reference() {
+        let objects: HashMap<ReferenceId, &BStr> = [
+            (
+                (7, 0).into(),
+                b"7 0 obj\n<</Type/Font/Subtype/Type1/BaseFont/Helvetica/FirstChar 65/LastChar 65/Widths[667]>>\nendobj"
+                    .as_slice()
+                    .as_ref(),
+            ),
+            (
+                (9, 0).into(),
+                b"9 0 obj\n<</Type/Font/Subtype/TrueType/BaseFont/Arial/FirstChar 65/LastChar 65/Widths[722]>>\nendobj"
+                    .as_slice()
+                    .as_ref(),
+            ),
+        ]
+        .into();
+        let page = Page::extract(
+            &mut b"<</Type/Page/Resources<</Font<</F1 7 0 R/F2 9 0 R>>>>>>"
+                .as_slice()
+                .as_ref(),
+        )
+        .unwrap();
+
+        let fonts = page.fonts(&objects).unwrap();
+
+        let width = |name: &str| fonts.get(&name.into()).unwrap().width(Code::one_byte(65));
+        assert_eq!(width("F1"), GlyphWidth(667.0));
+        assert_eq!(width("F2"), GlyphWidth(722.0));
+    }
+
+    #[test]
+    fn page_without_resources_has_no_fonts() {
+        let page = Page::extract(&mut b"<</Type/Page>>".as_slice().as_ref()).unwrap();
+        assert_eq!(page.fonts(&()).unwrap(), Fonts::empty());
+    }
+
+    #[test]
+    fn page_inherits_the_resources_of_its_parent() {
+        let parent = InheritablePageProperties::extract(
+            &mut b"<</Resources<</Font<</F1 7 0 R>>>>>>".as_slice().as_ref(),
+        )
+        .unwrap();
+        let mut page = Page::extract(&mut b"<</Type/Page>>".as_slice().as_ref()).unwrap();
+
+        page.inheritable_props.merge_with_parent(&parent);
+
+        assert_eq!(page.inheritable_props.resources, parent.resources);
     }
 }

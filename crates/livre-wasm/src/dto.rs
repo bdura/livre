@@ -93,7 +93,7 @@ pub enum Stage {
     Document,
     /// Flattening the page tree.
     Pages,
-    /// Decoding and concatenating a page's content streams.
+    /// Decoding and concatenating a page's content streams, and resolving its fonts.
     Content,
     /// Parsing a page's content stream into operators.
     Operators,

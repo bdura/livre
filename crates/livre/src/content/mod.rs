@@ -22,9 +22,10 @@ mod state;
 
 pub use error::ContentError;
 pub use font::{
-    Code, Codes, CompositeFont, Font, FontDescriptor, GlyphWidth, SimpleFont, Type3Font, Widths,
+    Code, Codes, CompositeFont, Font, FontDescriptor, Fonts, GlyphWidth, SimpleFont, Type3Font,
+    Widths,
 };
 pub use state::{
-    DefaultUser, Displacement, Glyph, Matrix, Point, RenderingMode, Run, Text, TextObject,
-    TextObjectStream, TextObjects, TextStateParameters, User,
+    DefaultUser, Displacement, FontSize, Glyph, Matrix, Point, RenderingMode, Run, SelectedFont,
+    Text, TextObject, TextObjectStream, TextObjects, TextStateParameters, User,
 };
