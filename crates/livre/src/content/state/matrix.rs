@@ -58,6 +58,17 @@ impl<From, To> Extract<'_> for Matrix<From, To> {
     }
 }
 
+/// The six numbers of a PDF array `[a b c d e f]`, such as a font's `/FontMatrix`, as
+/// [`Matrix::new`] takes them.
+///
+/// As with [`Matrix::new`], the declared type asserts the spaces: convert into a field or
+/// binding whose type names both.
+impl<F, T> std::convert::From<[f32; 6]> for Matrix<F, T> {
+    fn from([a, b, c, d, e, f]: [f32; 6]) -> Self {
+        Self::new(a, b, c, d, e, f)
+    }
+}
+
 impl<A> Default for Matrix<A, A> {
     fn default() -> Self {
         Self::IDENTITY

@@ -1,7 +1,12 @@
 //! Glyph widths of fonts with one-byte codes, from `/FirstChar`, `/Widths` and the font
 //! descriptor's `/MissingWidth` (ISO 32000-2, 9.6.2, Table 109, and 9.8, Table 120).
 
-use crate::follow_refs::BuildFromRawDict;
+use winnow::ModalResult;
+
+use crate::{
+    extraction::RawDict,
+    follow_refs::{BuildFromRawDict, Builder},
+};
 
 use super::Code;
 
@@ -93,6 +98,17 @@ impl From<WidthsDict> for Widths {
     ) -> Self {
         let missing_width = font_descriptor.map_or(0.0, |d| d.missing_width);
         Widths::from_parts(first_char, widths, missing_width)
+    }
+}
+
+/// Reads `/FirstChar`, `/Widths` and `/FontDescriptor` from a font dictionary, so that a
+/// font can flatten its widths into its own fields.
+impl BuildFromRawDict for Widths {
+    fn build_from_raw_dict<B>(dict: &mut RawDict<'_>, builder: &B) -> ModalResult<Self>
+    where
+        B: Builder,
+    {
+        WidthsDict::build_from_raw_dict(dict, builder).map(Into::into)
     }
 }
 
