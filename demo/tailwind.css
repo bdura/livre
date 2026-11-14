@@ -71,8 +71,16 @@
   cursor: pointer;
 }
 
-.overlay g.livre .run line {
-  stroke-width: 1.5;
+.overlay g.livre .run .box {
+  stroke-width: 1;
+  fill: color-mix(in srgb, var(--color-livre) 8%, transparent);
+  /* The whole box hovers, not only its outline. */
+  pointer-events: visible;
+}
+
+.overlay g.livre .run.active .box {
+  stroke-width: 2;
+  fill: color-mix(in srgb, var(--color-livre) 20%, transparent);
 }
 
 .overlay g.livre .run line.hit {

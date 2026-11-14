@@ -137,6 +137,8 @@ fn extract_text_objects(
             runs.push(Run {
                 x: run.position.x,
                 y: run.position.y,
+                end_x: run.end.x,
+                end_y: run.end.y,
                 font,
                 size,
                 text: run.text.decode(),

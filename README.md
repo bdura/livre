@@ -14,7 +14,9 @@ all PDF primitive types in a type-safe manner.
 The [browser demo](https://bdura.github.io/livre/) runs livre, compiled to WebAssembly,
 on a PDF of your choosing and draws what it extracted over a pdf.js render of the page,
 next to pdf.js's own text layer. Files stay in your browser: nothing is uploaded.
-Until font parsing lands, the overlay shows where each string starts, not its extent.
+The overlay draws each string from where it starts to where it ends, as livre reads them
+from simple fonts' widths. Composite fonts (`Type0`, common in Word exports) are not read yet:
+their strings advance by the character and word spacing only.
 See [`demo/README.md`](demo/README.md) to run it locally.
 
 ## Obtaining the PDF specification
@@ -31,3 +33,5 @@ Visit the [PDF Association's website](https://pdfa.org/resource/iso-32000-pdf/) 
 - [x] (`v0.5.0`) Parser for pages' content operators & text content
 - [ ] (`v0.6.0`) Parser for fonts definition - starting with "simple fonts".
       This step will allow iterating over characters and their actual position.
+  - [x] Glyph widths of simple fonts, so each shown string has a start and an end
+  - [ ] Decoding character codes to text, and composite (`Type0`) fonts

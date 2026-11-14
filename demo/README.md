@@ -2,7 +2,7 @@
 
 A static page that runs livre, compiled to WebAssembly, on a PDF picked by the
 visitor. pdf.js (loaded from jsdelivr at the version pinned in `app.ts`) renders
-the current page under two overlays: livre's run markers and pdf.js's own text
+the current page under two overlays: livre's run boxes and pdf.js's own text
 items. The page zooms from 50% to 400% of its fit-to-width size (the top bar's
 buttons, or ⌘/Ctrl and the wheel or a pinch), rendered again at each scale so
 that the markers keep their size while the page grows. An inspector beside the page shows the hovered or pinned run, the page's

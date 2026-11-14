@@ -22,6 +22,11 @@ const KERNED: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../livre/tests/resources/kerned.pdf"
 ));
+/// The expected runs of `kerned.pdf`: `x y end_x end_y (text)` per line, `#` lines aside.
+const KERNED_RUNS: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../livre/tests/resources/kerned.txt"
+));
 
 /// The checks every fixture passes: a clean parse of `page_count` pages with a media box
 /// each, and at least one shown string on the first page.
@@ -98,6 +103,40 @@ fn kerned_pdf_parses_without_errors() {
     assert_eq!(analysis.pages[0].text_objects.len(), 4);
 }
 
+/// The first text object of `kerned.pdf` is one kerned `TJ` line: its runs advance along
+/// the line instead of clustering at its start, and span the width `kerned.txt` expects.
+#[test]
+fn kerned_pdf_first_line_spreads_across_its_width() {
+    // `[x, y, end_x, end_y]` of every expected run.
+    let expected: Vec<Vec<f32>> = KERNED_RUNS
+        .lines()
+        .filter(|line| !line.trim().is_empty() && !line.starts_with('#'))
+        .map(|line| {
+            line.split(' ')
+                .take(4)
+                .map(|field| field.parse().unwrap())
+                .collect()
+        })
+        .collect();
+    let first_y = expected[0][1];
+    let line: Vec<&Vec<f32>> = expected.iter().filter(|run| run[1] == first_y).collect();
+    let width = line[line.len() - 1][2] - line[0][0];
+
+    let analysis = analyze(KERNED);
+    let runs = &analysis.pages[0].text_objects[0].runs;
+    assert_eq!(runs.len(), line.len());
+
+    assert!(
+        runs.windows(2).all(|pair| pair[0].x < pair[1].x),
+        "x not strictly increasing: {runs:?}"
+    );
+    let actual = runs[runs.len() - 1].end_x - runs[0].x;
+    assert!(
+        (actual - width).abs() < 1e-2,
+        "line width: expected {width}, got {actual}"
+    );
+}
+
 #[test]
 fn garbage_is_a_document_error() {
     let analysis = analyze(b"not a pdf");
@@ -143,6 +182,8 @@ fn run_fields_round_trip_through_json() {
                 runs: vec![Run {
                     x: 1.0,
                     y: 2.0,
+                    end_x: 3.0,
+                    end_y: 2.0,
                     font: "F1".into(),
                     size: 12.0,
                     text: "A".into(),
@@ -166,6 +207,8 @@ fn run_fields_round_trip_through_json() {
         "text_objects",
         "runs",
         "bytes",
+        "end_x",
+        "end_y",
         "xmin",
     ] {
         assert!(json.contains(&format!("\"{field}\":")), "{field} in {json}");

@@ -1,9 +1,9 @@
 // pdf.js's layer: the ground truth livre's layer is compared against.
 //
-// pdf.js knows each text item's full transform and advance, which livre lacks, so its
-// items are drawn as boxes: one font height tall, one advance wide, sitting on the
-// baseline. Where a livre marker is not at the left edge of a box on the same baseline,
-// livre is wrong or does not support what the page does.
+// pdf.js's items are drawn as boxes: one font height tall, one advance wide, sitting on
+// the baseline. Where a livre box does not span a pdf.js box on the same baseline, livre
+// is wrong or does not support what the page does. The two need not match one to one:
+// pdf.js merges or splits strings into items as it sees fit.
 
 import type { Matrix, PageViewport, PDFPageProxy, TextItem } from "./pdfjs.js";
 import { element } from "./svg.js";

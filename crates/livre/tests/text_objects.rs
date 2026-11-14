@@ -252,3 +252,76 @@ fn page_without_font_resources_parses() {
 
     assert!(objects.next_object().unwrap().is_none());
 }
+
+/// A run as `kerned.txt` lists it: start, end and decoded text.
+#[derive(Debug)]
+struct KernedRun {
+    x: f32,
+    y: f32,
+    end_x: f32,
+    end_y: f32,
+    text: String,
+}
+
+/// Parses `x y end_x end_y (text)`, one run per line, skipping blank and `#` lines. The
+/// parentheses around the text keep a space-only run intact.
+fn read_kerned(path: &str) -> Vec<KernedRun> {
+    std::fs::read_to_string(path)
+        .unwrap()
+        .lines()
+        .filter(|line| !line.trim().is_empty() && !line.starts_with('#'))
+        .map(|line| {
+            let mut fields = line.splitn(5, ' ');
+            let mut number = || fields.next().unwrap().parse().unwrap();
+            let (x, y, end_x, end_y) = (number(), number(), number(), number());
+            let text = fields.next().unwrap();
+            let text = text
+                .strip_prefix('(')
+                .and_then(|text| text.strip_suffix(')'))
+                .unwrap_or_else(|| panic!("text not in parentheses: {line:?}"));
+            KernedRun {
+                x,
+                y,
+                end_x,
+                end_y,
+                text: text.to_string(),
+            }
+        })
+        .collect()
+}
+
+/// `kerned.pdf` exercises every term of the advance on Helvetica widths: `TJ` numbers,
+/// `Tc`, `Tw` on the space, `Tz`, and a `Td` after a `TJ` that moves from the line matrix
+/// rather than from where the text ended (line four, `(C)` at `(72, 628)`).
+#[test]
+fn kerned_runs_start_and_end_where_expected() {
+    let expected = read_kerned("tests/resources/kerned.txt");
+    let actual = runs("tests/resources/kerned.pdf");
+
+    assert_eq!(expected.len(), 12);
+    assert_eq!(actual.len(), expected.len(), "runs: {actual:?}");
+
+    let close = |a: f32, b: f32| (a - b).abs() < 1e-2;
+
+    for (i, (run, golden)) in actual.iter().zip(&expected).enumerate() {
+        assert!(
+            close(run.position.x, golden.x) && close(run.position.y, golden.y),
+            "run {i} {:?}: expected start ({}, {}), got ({}, {})",
+            golden.text,
+            golden.x,
+            golden.y,
+            run.position.x,
+            run.position.y
+        );
+        assert!(
+            close(run.end.x, golden.end_x) && close(run.end.y, golden.end_y),
+            "run {i} {:?}: expected end ({}, {}), got ({}, {})",
+            golden.text,
+            golden.end_x,
+            golden.end_y,
+            run.end.x,
+            run.end.y
+        );
+        assert_eq!(run.text.decode(), golden.text, "run {i}");
+    }
+}

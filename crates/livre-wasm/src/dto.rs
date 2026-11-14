@@ -61,11 +61,17 @@ pub struct TextObject {
 /// One shown string.
 #[derive(Debug, Clone, PartialEq, Serialize, Tsify)]
 pub struct Run {
-    /// Start position, in user space: the translation of the text matrix times the CTM in
-    /// force at `BT`. livre knows no glyph widths, so there is no extent.
+    /// Start position, in default user space: the point `(0, rise)` of text space through
+    /// the text matrix and the CTM in force at `BT`.
     pub x: f32,
     /// Baseline of the start position.
     pub y: f32,
+    /// End position, in default user space: the same point once the text matrix has
+    /// advanced past every glyph of the string. Composite fonts advance by spacing only,
+    /// so their runs end short.
+    pub end_x: f32,
+    /// Baseline of the end position; differs from `y` only under a rotated or skewed matrix.
+    pub end_y: f32,
     /// Font resource name, lossily decoded as UTF-8.
     pub font: String,
     /// Font size from `Tf`, in text space units: the scale of the text matrix is not applied.
