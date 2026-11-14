@@ -7,7 +7,7 @@
 use enum_dispatch::enum_dispatch;
 
 use crate::{
-    content::state::{GraphicsState, Matrix},
+    content::state::{GraphicsState, Matrix, User},
     extraction::Extract,
 };
 
@@ -67,7 +67,7 @@ impl GraphicsStateOperation for RestoreGraphicsState {
 /// 1 0 0 -1 0 792 cm
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Extract)]
-pub struct ConcatenateMatrix(pub Matrix);
+pub struct ConcatenateMatrix(pub Matrix<User, User>);
 
 impl GraphicsStateOperation for ConcatenateMatrix {
     fn apply(self, state: &mut GraphicsState) {

@@ -237,8 +237,11 @@ mod tests {
     #[rstest]
     #[case(b"q", SaveGraphicsState)]
     #[case(b"Q", RestoreGraphicsState)]
-    #[case(b"1 0 0 -1 0 792 cm", ConcatenateMatrix(Matrix { a: 1.0, b: 0.0, c: 0.0, d: -1.0, e: 0.0, f: 792.0 }))]
-    #[case(b".75 0 0 .75 72 86.546265 cm", ConcatenateMatrix(Matrix { a: 0.75, b: 0.0, c: 0.0, d: 0.75, e: 72.0, f: 86.546265 }))]
+    #[case(b"1 0 0 -1 0 792 cm", ConcatenateMatrix(Matrix::new(1.0, 0.0, 0.0, -1.0, 0.0, 792.0)))]
+    #[case(
+        b".75 0 0 .75 72 86.546265 cm",
+        ConcatenateMatrix(Matrix::new(0.75, 0.0, 0.0, 0.75, 72.0, 86.546265))
+    )]
     fn graphics_state_operators<O>(#[case] input: &[u8], #[case] expected: O)
     where
         O: Into<Operator>,

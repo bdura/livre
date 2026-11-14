@@ -115,7 +115,7 @@ fn extract_text_objects(content: &[u8], text_objects: &mut Vec<TextObject>) -> O
         };
 
         let mut runs = Vec::new();
-        while let Some(((x, y), raw)) = text_object.next_raw() {
+        while let Some((position, raw)) = text_object.next_raw() {
             // The font in effect is the one of the run just yielded.
             let (font, size) = match &text_object.text_object().parameters.font {
                 Some(font) => (
@@ -125,8 +125,8 @@ fn extract_text_objects(content: &[u8], text_objects: &mut Vec<TextObject>) -> O
                 None => (String::new(), 0.0),
             };
             runs.push(Run {
-                x,
-                y,
+                x: position.x,
+                y: position.y,
                 font,
                 size,
                 text: raw.decode(),

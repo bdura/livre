@@ -25,7 +25,10 @@ use crate::{
             text::{TextArrayElement, TextOperation, TextOperator},
             Operator,
         },
-        state::{GraphicsState, Matrix},
+        state::{
+            space::{DefaultUser, Displacement, Point, Text, User},
+            GraphicsState, Matrix,
+        },
     },
     extraction::{Extract, Name, PDFString},
 };
@@ -136,14 +139,13 @@ impl Extract<'_> for RenderingMode {
 ///
 /// The default text object is the state at `BT` on a page without `cm`: identity text
 /// matrix and CTM, default parameters and no font.
-#[derive(Default)]
 pub struct TextObject {
     /// Text matrix. Governs the transformation of text space to user space.
-    pub matrix: Matrix,
+    pub matrix: Matrix<Text, User>,
     /// The current transformation matrix in force at `BT`. Governs the transformation of
     /// user space to default user space. Constant for the whole text object, since `cm`,
     /// `q` and `Q` are not allowed inside one.
-    pub ctm: Matrix,
+    pub ctm: Matrix<User, DefaultUser>,
     /// All text state parameters: font, leading, character spacing, word spacing, etc.
     pub parameters: TextStateParameters,
     // FIXME: this indirection will be needed down the line. For now it seems a bit dumb.
@@ -153,11 +155,23 @@ pub struct TextObject {
     pub buffer: Option<VecDeque<TextArrayElement>>,
 }
 
+impl Default for TextObject {
+    fn default() -> Self {
+        Self {
+            matrix: Matrix::coincident(),
+            ctm: Matrix::coincident(),
+            parameters: TextStateParameters::default(),
+            text_buffer: None,
+            buffer: None,
+        }
+    }
+}
+
 impl TextObject {
     /// The matrix mapping text space to default user space: `Tm × CTM`. Its translation is
     /// the position the iterator yields; its other components carry the orientation and
     /// scale of the text, before the font size and rise are applied.
-    pub fn transformation(&self) -> Matrix {
+    pub fn transformation(&self) -> Matrix<Text, DefaultUser> {
         self.matrix.then(self.ctm)
     }
 
@@ -165,10 +179,11 @@ impl TextObject {
         self.parameters.font = Some(font);
     }
     pub fn move_to(&mut self, x: f32, y: f32) {
-        self.matrix.translate(x, y);
+        self.matrix.translate(Displacement::new(x, y));
     }
     pub fn move_to_next_line(&mut self) {
-        self.matrix.translate(0.0, -self.parameters.leading);
+        self.matrix
+            .translate(Displacement::new(0.0, -self.parameters.leading));
     }
     pub fn add_text(&mut self, text: PDFString) {
         self.text_buffer = Some(text);
@@ -209,7 +224,7 @@ impl TextObject {
     ///
     /// Returns `None` if the text object is closed by `ET` before any text could be shown:
     /// it is empty, and there is nothing to iterate over.
-    fn build<Ops>(ops: &mut Ops, ctm: Matrix) -> Result<Option<Self>>
+    fn build<Ops>(ops: &mut Ops, ctm: Matrix<User, DefaultUser>) -> Result<Option<Self>>
     where
         Ops: Iterator<Item = Operator>,
     {
@@ -275,7 +290,7 @@ where
 impl TextObject {
     /// The undecoded form of the [`Iterator`] item: the start position of the next shown
     /// string and its raw bytes, before [`PDFString::decode`] guesses an encoding.
-    pub fn next_raw(&mut self) -> Option<((f32, f32), PDFString)> {
+    pub fn next_raw(&mut self) -> Option<(Point<DefaultUser>, PDFString)> {
         if self.text_buffer.is_none() {
             let buffer = self.buffer.as_mut()?;
 
@@ -290,8 +305,9 @@ impl TextObject {
                         // in thousandths of a unit of glyph space.
                         let size = self.parameters.font.as_ref().map_or(0.0, |f| f.size);
                         let scaling = self.parameters.horizontal_scaling / 100.0;
-                        self.matrix
-                            .translate(-offset / 1_000.0 * size * scaling, 0.0);
+                        let shift: Displacement<Text> =
+                            Displacement::new(-offset / 1_000.0 * size * scaling, 0.0);
+                        self.matrix.translate(shift);
                     }
                 }
             }
@@ -303,7 +319,7 @@ impl TextObject {
 }
 
 impl Iterator for TextObject {
-    type Item = ((f32, f32), String);
+    type Item = (Point<DefaultUser>, String);
 
     /// The start position of the next shown string and its text, decoded by
     /// [`PDFString::decode`]'s best-effort heuristics (UTF-16BE behind a BOM, Latin-1
@@ -320,7 +336,7 @@ where
 {
     /// The undecoded form of the [`Iterator`] item: the start position of the next shown
     /// string and its raw bytes, before [`PDFString::decode`] guesses an encoding.
-    pub fn next_raw(&mut self) -> Option<((f32, f32), PDFString)> {
+    pub fn next_raw(&mut self) -> Option<(Point<DefaultUser>, PDFString)> {
         loop {
             if let Some(out) = self.text_object.next_raw() {
                 return Some(out);
@@ -342,7 +358,7 @@ impl<Ops> Iterator for TextObjectStream<Ops>
 where
     Ops: Iterator<Item = Operator>,
 {
-    type Item = ((f32, f32), String);
+    type Item = (Point<DefaultUser>, String);
 
     /// The start position of the next shown string and its text, decoded by
     /// [`PDFString::decode`]'s best-effort heuristics (UTF-16BE behind a BOM, Latin-1
@@ -404,7 +420,7 @@ mod tests {
             .unwrap()
             .unwrap();
 
-        assert_eq!(stream.next(), Some(((0.0, 0.0), "a".to_string())));
+        assert_eq!(stream.next(), Some((Point::new(0.0, 0.0), "a".to_string())));
         assert!(stream.next().is_none());
     }
 
@@ -437,11 +453,14 @@ mod tests {
             .unwrap();
         assert_eq!(
             stream.next_raw(),
-            Some(((0.0, 0.0), PDFString(vec![0xFE, 0xFF, 0x00, 0x41])))
+            Some((
+                Point::new(0.0, 0.0),
+                PDFString(vec![0xFE, 0xFF, 0x00, 0x41])
+            ))
         );
         assert_eq!(
             stream.next_raw(),
-            Some(((0.0, 0.0), PDFString(b"A".to_vec())))
+            Some((Point::new(0.0, 0.0), PDFString(b"A".to_vec())))
         );
         assert!(stream.next_raw().is_none());
 
@@ -461,8 +480,8 @@ mod tests {
         let stream = parse_text_object(ops.into_iter(), &mut GraphicsState::default())
             .unwrap()
             .unwrap();
-        let positions: Vec<(f32, f32)> = stream.map(|(pos, _)| pos).collect();
-        assert_eq!(positions, [(0.0, 0.0), (10.0, 0.0)]);
+        let positions: Vec<Point<DefaultUser>> = stream.map(|(pos, _)| pos).collect();
+        assert_eq!(positions, [Point::new(0.0, 0.0), Point::new(10.0, 0.0)]);
     }
 }
 
@@ -483,7 +502,7 @@ mod graphics_state_tests {
 
     /// Every run position of a content stream, with the graphics state carried across text
     /// objects as a caller would.
-    fn positions(input: &[u8]) -> Vec<(f32, f32)> {
+    fn positions(input: &[u8]) -> Vec<Point<DefaultUser>> {
         let mut ops = operators(input).into_iter();
         let mut graphics_state = GraphicsState::default();
         let mut positions = Vec::new();
@@ -495,7 +514,7 @@ mod graphics_state_tests {
         positions
     }
 
-    fn assert_close((x, y): (f32, f32), (ex, ey): (f32, f32)) {
+    fn assert_close(Point { x, y, .. }: Point<DefaultUser>, (ex, ey): (f32, f32)) {
         assert!(
             (x - ex).abs() < 1e-3 && (y - ey).abs() < 1e-3,
             "expected ({ex}, {ey}), got ({x}, {y})"
@@ -506,20 +525,23 @@ mod graphics_state_tests {
     fn cm_before_bt_transforms_the_run_position() {
         // (5, 7) in text space, scaled by 2 and moved by (10, 20).
         let positions = positions(b"2 0 0 2 10 20 cm BT /F1 12 Tf 5 7 Td (a) Tj ET");
-        assert_eq!(positions, vec![(20.0, 34.0)]);
+        assert_eq!(positions, vec![Point::new(20.0, 34.0)]);
     }
 
     #[test]
     fn q_and_big_q_restore_the_ctm_between_text_objects() {
         let positions =
             positions(b"q 1 0 0 1 100 0 cm BT /F1 12 Tf (a) Tj ET Q BT /F1 12 Tf (b) Tj ET");
-        assert_eq!(positions, vec![(100.0, 0.0), (0.0, 0.0)]);
+        assert_eq!(
+            positions,
+            vec![Point::new(100.0, 0.0), Point::new(0.0, 0.0)]
+        );
     }
 
     #[test]
     fn unbalanced_big_q_is_ignored() {
         let positions = positions(b"Q 1 0 0 1 3 4 cm BT /F1 12 Tf (a) Tj ET");
-        assert_eq!(positions, vec![(3.0, 4.0)]);
+        assert_eq!(positions, vec![Point::new(3.0, 4.0)]);
     }
 
     /// The first line of `tests/resources/text.pdf` (Skia output): the page is flipped once,
@@ -555,8 +577,8 @@ Q";
         let transformation = stream.text_object().transformation();
 
         // The `Tm` flip and the page flip cancel: text-space "up" is page "up", scaled by 0.75.
-        assert_close((transformation.a, transformation.d), (0.75, 0.75));
-        assert_close((transformation.b, transformation.c), (0.0, 0.0));
+        assert_close(Point::new(transformation.a, transformation.d), (0.75, 0.75));
+        assert_close(Point::new(transformation.b, transformation.c), (0.0, 0.0));
         assert_close(transformation.translation(), (132.4946, 695.1359));
     }
 }

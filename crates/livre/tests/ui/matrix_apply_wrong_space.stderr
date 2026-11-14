@@ -1,0 +1,15 @@
+error[E0308]: mismatched types
+ --> tests/ui/matrix_apply_wrong_space.rs:8:23
+  |
+8 |     let _ = ctm.apply(point);
+  |                 ----- ^^^^^ expected `Point<User>`, found `Point<Text>`
+  |                 |
+  |                 arguments to this method are incorrect
+  |
+  = note: expected struct `Point<User>`
+             found struct `Point<livre::content::Text>`
+note: method defined here
+ --> src/content/state/matrix.rs
+  |
+  |     pub fn apply(&self, point: Point<A>) -> Point<B> {
+  |            ^^^^^

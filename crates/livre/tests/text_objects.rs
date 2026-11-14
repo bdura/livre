@@ -1,7 +1,7 @@
 use std::{fs::File, io::Read};
 
 use livre::{
-    content::{operators::Operator, parse_text_object, GraphicsState},
+    content::{operators::Operator, parse_text_object, DefaultUser, GraphicsState, Point},
     extraction::Extract,
     InMemoryDocument,
 };
@@ -22,7 +22,7 @@ fn read_document(path: &str) -> InMemoryDocument {
 }
 
 /// Every run of every page: its position in default user space and its text.
-fn runs(path: &str) -> Vec<((f32, f32), String)> {
+fn runs(path: &str) -> Vec<(Point<DefaultUser>, String)> {
     let doc = read_document(path);
     let mut runs = Vec::new();
 
@@ -68,7 +68,7 @@ fn test_content(#[case] path: &str) {
 fn runs_are_positioned_through_the_ctm(#[case] path: &str) {
     let runs = runs(path);
 
-    fn assert_close((x, y): (f32, f32), (ex, ey): (f32, f32)) {
+    fn assert_close(Point { x, y, .. }: Point<DefaultUser>, (ex, ey): (f32, f32)) {
         assert!(
             (x - ex).abs() < 1e-2 && (y - ey).abs() < 1e-2,
             "expected ({ex}, {ey}), got ({x}, {y})"
@@ -78,10 +78,10 @@ fn runs_are_positioned_through_the_ctm(#[case] path: &str) {
     // First line, `X = 0`, `Y = 72`.
     assert_close(runs[0].0, (72.0, 709.6821));
     // Last line, `Y = 362.92529`: every run of a line shares its baseline.
-    let ((_, last_y), _) = runs[runs.len() - 1];
+    let last_y = runs[runs.len() - 1].0.y;
     assert!((last_y - 418.7568).abs() < 1e-2, "last y = {last_y}");
 
-    let ys: Vec<f32> = runs.iter().map(|((_, y), _)| *y).collect();
+    let ys: Vec<f32> = runs.iter().map(|(position, _)| position.y).collect();
     assert!(
         ys.iter().all(|y| (418.0..710.0).contains(y)),
         "a run left the text column"

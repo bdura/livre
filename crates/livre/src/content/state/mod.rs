@@ -6,10 +6,12 @@
 
 mod graphics;
 mod matrix;
+mod space;
 mod text;
 
 pub use graphics::GraphicsState;
 pub use matrix::Matrix;
+pub use space::{DefaultUser, Displacement, Point, Text, User};
 pub use text::{
     parse_text_object, Font, RenderingMode, TextObject, TextObjectStream, TextStateParameters,
 };

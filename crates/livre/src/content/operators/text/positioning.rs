@@ -1,8 +1,10 @@
 use enum_dispatch::enum_dispatch;
 
+use winnow::{combinator::trace, BStr, ModalResult, Parser};
+
 use crate::{
-    content::state::{Matrix, TextObject},
-    extraction::Extract,
+    content::state::{Matrix, Text, TextObject, User},
+    extraction::{extract, Extract},
 };
 
 use super::TextOperation;
@@ -67,8 +69,21 @@ impl TextOperation for MoveByOffsetAndSetLeading {
 /// ```raw
 /// 1 0 0 -1 370.70721 .47981739 Tm
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Extract)]
-pub struct SetTextMatrix(Matrix);
+///
+/// The six operands are read as numbers and assembled into a text matrix here, so that
+/// no matrix exists without its spaces.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SetTextMatrix(Matrix<Text, User>);
+
+impl Extract<'_> for SetTextMatrix {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
+        trace(
+            "livre-set-text-matrix",
+            extract.map(|(a, b, c, d, e, f)| Self(Matrix::new(a, b, c, d, e, f))),
+        )
+        .parse_next(input)
+    }
+}
 
 impl TextOperation for SetTextMatrix {
     fn apply(self, text_object: &mut TextObject) {

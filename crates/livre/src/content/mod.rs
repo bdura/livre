@@ -21,6 +21,6 @@ mod state;
 
 pub use error::ContentError;
 pub use state::{
-    parse_text_object, Font, GraphicsState, Matrix, RenderingMode, TextObject, TextObjectStream,
-    TextStateParameters,
+    parse_text_object, DefaultUser, Displacement, Font, GraphicsState, Matrix, Point,
+    RenderingMode, Text, TextObject, TextObjectStream, TextStateParameters, User,
 };
