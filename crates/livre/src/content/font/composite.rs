@@ -45,11 +45,12 @@ mod tests {
     }
 
     #[test]
+    #[tracing_test::traced_test]
     fn odd_trailing_byte_is_dropped() {
-        // A warning is logged as well; no subscriber captures it in the tests.
         let string = PDFString(b"\x00\x41\x00".to_vec());
         let codes: Vec<_> = calibri().codes(&string).collect();
 
         assert_eq!(codes, [Code::two_bytes(0x41)]);
+        assert!(logs_contain("Odd trailing byte 0x00"));
     }
 }

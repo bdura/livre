@@ -121,8 +121,8 @@ mod tests {
     }
 
     #[test]
+    #[tracing_test::traced_test]
     fn no_widths_gives_the_missing_width() {
-        // A warning is logged as well; no subscriber captures it in the tests.
         let font = font(b"<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>");
 
         let Font::Simple(SimpleFont { widths, .. }) = &font else {
@@ -132,5 +132,6 @@ mod tests {
         for code in [0, 32, 65, 255] {
             assert_eq!(width(&font, code), GlyphWidth(0.0));
         }
+        assert!(logs_contain("has no `/Widths`"));
     }
 }

@@ -1199,11 +1199,15 @@ mod advance_tests {
     }
 
     #[test]
+    #[tracing_test::traced_test]
     fn composite_fonts_advance_by_the_character_spacing_only() {
         // Two two-byte codes, zero wide: 2 · 1 Tc.
         let run = run(b"BT /F2 10 Tf 1 Tc 3 0 Td (\\000A\\000B) Tj ET");
         assert_close(run.position, (3.0, 0.0));
         assert_close(run.end, (3.0 + 2.0, 0.0));
+        assert!(logs_contain(
+            "is composite: its glyphs are given zero width"
+        ));
     }
 
     #[test]
