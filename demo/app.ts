@@ -50,6 +50,8 @@ const ui = {
   runFont: $("run-font", HTMLElement),
   runOrigin: $("run-origin", HTMLElement),
   runBytes: $("run-bytes", HTMLElement),
+  runObject: $("run-object", HTMLButtonElement),
+  runPlace: $("run-place", HTMLSpanElement),
   countRuns: $("count-runs", HTMLDivElement),
   countObjects: $("count-objects", HTMLDivElement),
   countItems: $("count-items", HTMLDivElement),
@@ -411,29 +413,73 @@ function showInspector(): void {
   ui.objects.replaceChildren(
     ...objects.map((object, index) => {
       const item = document.createElement("li");
-      item.className =
-        "flex items-baseline gap-3 rounded-lg px-2.5 py-1.5 hover:bg-zinc-100 dark:hover:bg-white/5";
       item.dataset.object = String(index);
 
-      const number = document.createElement("span");
-      number.className = "w-8 shrink-0 text-right font-mono text-xs text-zinc-400 tabular-nums dark:text-zinc-600";
-      number.textContent = String(index + 1);
+      // livre has no glyph widths, so it cannot tell a gap from a space: no separator.
+      const text = object.runs.length ? JSON.stringify(object.runs.map((run) => run.text).join("")) : "(no runs)";
+      const count = `${object.runs.length} run${object.runs.length === 1 ? "" : "s"}`;
+      const row = listRow(String(index + 1), text, count);
+      if (object.runs.length === 0) {
+        row.classList.add("pl-6");
+        item.append(row);
+        return item;
+      }
 
-      const text = document.createElement("span");
-      text.className = "min-w-0 flex-1 truncate font-mono text-xs text-zinc-800 dark:text-zinc-200";
-      const [first] = object.runs;
-      text.textContent = first ? JSON.stringify(first.text) : "(no runs)";
+      const details = document.createElement("details");
+      details.className = "group";
+      const summary = document.createElement("summary");
+      summary.className = "cursor-pointer list-none [&::-webkit-details-marker]:hidden";
+      const chevron = document.createElement("span");
+      chevron.className = "w-3 shrink-0 text-zinc-400 transition-transform group-open:rotate-90 dark:text-zinc-600";
+      chevron.textContent = "›";
+      row.prepend(chevron);
+      summary.append(row);
 
-      const count = document.createElement("span");
-      count.className = "shrink-0 text-xs text-zinc-400 dark:text-zinc-500";
-      count.textContent = `${object.runs.length} run${object.runs.length === 1 ? "" : "s"}`;
+      const runs = document.createElement("ol");
+      runs.className = "pl-6";
+      runs.append(
+        ...object.runs.map((run, runIndex) => {
+          const line = document.createElement("li");
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "block w-full text-left";
+          button.dataset.object = String(index);
+          button.dataset.run = String(runIndex);
+          button.append(listRow(String(runIndex + 1), JSON.stringify(run.text), String(round(run.size))));
+          line.append(button);
+          return line;
+        }),
+      );
 
-      item.append(number, text, count);
+      details.append(summary, runs);
+      item.append(details);
       return item;
     }),
   );
 
   showRun(null);
+}
+
+/** A line of the text object list: a number, some text truncated to fit, a note on the right. */
+function listRow(number: string, text: string, note: string): HTMLDivElement {
+  const row = document.createElement("div");
+  row.className =
+    "flex items-baseline gap-3 rounded-lg px-2.5 py-1.5 hover:bg-zinc-100 dark:hover:bg-white/5 [[data-active]_&]:bg-livre/10";
+
+  const index = document.createElement("span");
+  index.className = "w-8 shrink-0 text-right font-mono text-xs text-zinc-400 tabular-nums dark:text-zinc-600";
+  index.textContent = number;
+
+  const content = document.createElement("span");
+  content.className = "min-w-0 flex-1 truncate font-mono text-xs text-zinc-800 dark:text-zinc-200";
+  content.textContent = text;
+
+  const aside = document.createElement("span");
+  aside.className = "shrink-0 text-xs text-zinc-400 tabular-nums dark:text-zinc-500";
+  aside.textContent = note;
+
+  row.append(index, content, aside);
+  return row;
 }
 
 /** Show the run at `indices` in the Run tab, or the empty state. */
@@ -450,21 +496,51 @@ function showRun(indices: RunIndices | null): void {
   ui.runFont.textContent = `${run.font || "(none)"} · ${round(run.size)}`;
   ui.runOrigin.textContent = `(${round(run.x)}, ${round(run.y)})`;
   ui.runBytes.textContent = run.bytes.match(/../g)?.join(" ") ?? "";
+  const runs = livrePage()?.text_objects[indices.object]?.runs.length ?? 0;
+  ui.runObject.textContent = `Object ${indices.object + 1}`;
+  ui.runObject.dataset.object = String(indices.object);
+  ui.runObject.dataset.run = String(indices.run);
+  ui.runPlace.textContent = ` · run ${indices.run + 1} of ${runs}`;
 }
 
+/** Mark the run at `indices` both on the page and in the text object list. */
 function markActiveRun(indices: RunIndices | null): void {
   for (const marker of ui.overlay.querySelectorAll("g.livre .run.active")) marker.classList.remove("active");
+  for (const line of ui.objects.querySelectorAll<HTMLElement>("[data-active]")) delete line.dataset.active;
   if (!indices) return;
-  ui.overlay
-    .querySelector(`g.livre .run[data-object="${indices.object}"][data-run="${indices.run}"]`)
-    ?.classList.add("active");
+  const place = `[data-object="${indices.object}"][data-run="${indices.run}"]`;
+  ui.overlay.querySelector(`g.livre .run${place}`)?.classList.add("active");
+  const line = ui.objects.querySelector<HTMLElement>(`button${place}`);
+  if (line) line.dataset.active = "";
 }
 
+/** Highlight the hull and runs of `object` and dim the rest of livre's layer, or undo it. */
 function highlightHull(object: number | null): void {
   highlightedObject = object;
-  for (const hull of ui.overlay.querySelectorAll("g.livre .hull.highlight")) hull.classList.remove("highlight");
+  for (const shape of ui.overlay.querySelectorAll("g.livre .highlight")) shape.classList.remove("highlight");
+  ui.overlay.classList.toggle("focus-object", object !== null);
   if (object === null) return;
-  ui.overlay.querySelector(`g.livre .hull[data-object="${object}"]`)?.classList.add("highlight");
+  for (const shape of ui.overlay.querySelectorAll(`g.livre [data-object="${object}"]`)) {
+    shape.classList.add("highlight");
+  }
+}
+
+/** Open the text object of `indices` in its tab, with the run's line in view. */
+function revealRun(indices: RunIndices): void {
+  selectTab($("tab-objects", HTMLButtonElement));
+  const item = ui.objects.querySelector(`li[data-object="${indices.object}"]`);
+  const details = item?.querySelector("details");
+  if (details) details.open = true;
+  const line = item?.querySelector<HTMLButtonElement>(`button[data-run="${indices.run}"]`);
+  line?.scrollIntoView({ block: "nearest" });
+  line?.focus({ preventScroll: true });
+}
+
+/** Pin the run at `indices`, or release it if it is already pinned, and show it. */
+function pinRun(indices: RunIndices): void {
+  state.pinned = samePlace(indices, state.pinned) ? null : indices;
+  showRun(indices);
+  selectTab($("tab-run", HTMLButtonElement));
 }
 
 /** The indices of the marker `target` belongs to, if any. */
@@ -473,6 +549,14 @@ function runIndices(target: EventTarget | null): RunIndices | null {
   const marker = target.closest<SVGGElement>("g.livre .run");
   if (!marker) return null;
   return { object: Number(marker.dataset.object), run: Number(marker.dataset.run) };
+}
+
+/** The indices of the run line `target` belongs to in the list, or of the Run tab's link. */
+function listRunIndices(target: EventTarget | null): RunIndices | null {
+  if (!(target instanceof Element)) return null;
+  const line = target.closest<HTMLElement>("[data-object][data-run]");
+  if (!line) return null;
+  return { object: Number(line.dataset.object), run: Number(line.dataset.run) };
 }
 
 function samePlace(a: RunIndices | null, b: RunIndices | null): boolean {
@@ -558,18 +642,29 @@ ui.overlay.addEventListener("pointerout", (event) => {
 });
 ui.overlay.addEventListener("click", (event) => {
   const indices = runIndices(event.target);
-  if (!indices) return;
-  state.pinned = samePlace(indices, state.pinned) ? null : indices;
-  showRun(indices);
-  selectTab($("tab-run", HTMLButtonElement));
+  if (indices) pinRun(indices);
 });
 
 ui.objects.addEventListener("pointerover", (event) => {
   if (!(event.target instanceof Element)) return;
   const item = event.target.closest<HTMLLIElement>("li[data-object]");
   if (item) highlightHull(Number(item.dataset.object));
+  hoveredRun = listRunIndices(event.target);
+  showRun(hoveredRun ?? state.pinned);
 });
-ui.objects.addEventListener("pointerleave", () => highlightHull(null));
+ui.objects.addEventListener("pointerleave", () => {
+  highlightHull(null);
+  hoveredRun = null;
+  showRun(state.pinned);
+});
+ui.objects.addEventListener("click", (event) => {
+  const indices = listRunIndices(event.target);
+  if (indices) pinRun(indices);
+});
+ui.runObject.addEventListener("click", () => {
+  const indices = listRunIndices(ui.runObject);
+  if (indices) revealRun(indices);
+});
 
 for (const tab of ui.tabs) tab.addEventListener("click", () => selectTab(tab));
 // Arrow keys move between tabs, as the WAI-ARIA tabs pattern expects.
