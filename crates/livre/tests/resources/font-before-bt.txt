@@ -1,0 +1,4 @@
+72 700 F1 12 first
+72 680 F1 12 second
+72 640 F1 24 big
+72 600 F1 12 small again

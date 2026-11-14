@@ -12,6 +12,11 @@ const TEXT_XREF_STREAM: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../livre/tests/resources/text-xref-stream.pdf"
 ));
+/// Text state set outside or before `BT`, carried into later text objects.
+const FONT_BEFORE_BT: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../livre/tests/resources/font-before-bt.pdf"
+));
 
 /// The checks every fixture passes: a clean parse of `page_count` pages with a media box
 /// each, and at least one shown string on the first page.
@@ -63,6 +68,28 @@ fn xref_stream_pdf_parses_without_errors() {
     let analysis = analyze(TEXT_XREF_STREAM);
     assert_clean(&analysis, 1);
     assert_eq!(first_page_runs(&analysis), first_page_runs(&analyze(TEXT)));
+}
+
+// Pins today's failure: the second text object shows text with the font selected in the
+// first, which livre still discards at `ET`.
+#[test]
+fn font_before_bt_pdf_stops_at_the_second_text_object() {
+    let analysis = analyze(FONT_BEFORE_BT);
+    assert_eq!(analysis.document, None);
+    assert_eq!(analysis.pages.len(), 1);
+
+    let page = &analysis.pages[0];
+    let error = page.error.as_ref().expect("the page stage fails");
+    assert_eq!(error.stage, Stage::TextObject);
+    assert!(
+        error.message.contains("UnexpectedTextShowingOperator"),
+        "{}",
+        error.message
+    );
+
+    let runs = first_page_runs(&analysis);
+    assert_eq!(runs.len(), 1);
+    assert_eq!(runs[0].text, "first");
 }
 
 #[test]
