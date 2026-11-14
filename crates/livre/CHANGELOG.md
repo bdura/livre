@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replace the free function `parse_text_object` with `TextObjects`, which owns a content stream's operators and graphics state and lends out its text objects one at a time (it is not an `Iterator`): `while let Some(stream) = objects.next_object()? { … }`. `GraphicsState` is no longer public
 - Text object streams yield `Run { position, text }`: the position as a `Point<DefaultUser>`, the shown string as its raw `PDFString` (`text.decode()` for the text)
 - Type matrices and points by coordinate space: `Matrix<From, To>` and `Point<Space>` over the `Text`, `User` and `DefaultUser` markers, so composing mismatched matrices, or applying a matrix to a point of another space, does not compile
+- `TextObject::move_to(x, y)` becomes `move_by(offset)`, taking a `Displacement<Text>`: the move is relative to the current position, as `Td` is
 - `ContentError::NoFontSelected`, when text is shown with no font selected, replaces `UnexpectedTextShowingOperator`; a text operator outside `BT`/`ET` is skipped with a warning
 
 ## [0.5.0](https://github.com/bdura/livre/compare/livre-v0.4.0...livre-v0.5.0) - 2025-03-09

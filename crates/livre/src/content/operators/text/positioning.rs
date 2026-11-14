@@ -38,7 +38,7 @@ pub struct MoveByOffset(f32, f32);
 
 impl TextPositioningOperation for MoveByOffset {
     fn apply(self, text_object: &mut TextObject) {
-        text_object.move_to(Displacement::new(self.0, self.1));
+        text_object.move_by(Displacement::new(self.0, self.1));
     }
 }
 
@@ -58,7 +58,7 @@ pub struct MoveByOffsetAndSetLeading(pub(crate) f32, pub(crate) f32);
 impl TextPositioningOperation for MoveByOffsetAndSetLeading {
     fn apply(self, text_object: &mut TextObject) {
         text_object.parameters.set_leading(-self.1);
-        text_object.move_to(Displacement::new(self.0, self.1));
+        text_object.move_by(Displacement::new(self.0, self.1));
     }
 }
 

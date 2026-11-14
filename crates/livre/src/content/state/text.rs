@@ -216,12 +216,12 @@ impl<'a> TextObject<'a> {
     }
 
     /// Translate the text matrix by `offset`, expressed in text space (`Td`).
-    pub fn move_to(&mut self, offset: Displacement<Text>) {
+    pub fn move_by(&mut self, offset: Displacement<Text>) {
         self.matrix.translate(offset);
     }
     /// Translate the text matrix down by the leading, to the start of the next line (`T*`).
     pub fn move_to_next_line(&mut self) {
-        self.move_to(Displacement::new(0.0, -self.parameters.leading));
+        self.move_by(Displacement::new(0.0, -self.parameters.leading));
     }
     /// Buffer a shown string (`Tj`), to be yielded as the next run.
     pub fn add_text(&mut self, text: PDFString) {
