@@ -91,3 +91,101 @@ fn runs_are_positioned_through_the_ctm(#[case] path: &str) {
         "no run sits above the first line"
     );
 }
+
+/// A run as `font-before-bt.txt` lists it: position, font name and size, decoded text.
+#[derive(Debug, PartialEq)]
+struct GoldenRun {
+    x: f32,
+    y: f32,
+    font: String,
+    size: f32,
+    text: String,
+}
+
+/// Parses `x y font size text…`, one run per line; the text runs to the end of the line.
+fn read_golden(path: &str) -> Vec<GoldenRun> {
+    std::fs::read_to_string(path)
+        .unwrap()
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .map(|line| {
+            let mut fields = line.splitn(5, ' ');
+            let mut next = || fields.next().unwrap();
+            GoldenRun {
+                x: next().parse().unwrap(),
+                y: next().parse().unwrap(),
+                font: next().to_string(),
+                size: next().parse().unwrap(),
+                text: next().to_string(),
+            }
+        })
+        .collect()
+}
+
+/// `font-before-bt.pdf` selects its font once in the first text object, then sets a 24-point
+/// font outside `BT` inside `q`/`Q`: the text state must persist across text objects and be
+/// restored by `Q`. Each entry is `(text object index, run)`.
+fn font_runs(path: &str) -> Vec<(usize, GoldenRun)> {
+    let doc = read_document(path);
+    let mut runs = Vec::new();
+
+    for page in doc.pages().unwrap().iter() {
+        let content = page.build_content(&doc).unwrap();
+        let mut stream = BStr::new(&content);
+
+        let mut it = iterator(&mut stream, preceded(multispace0, Operator::extract));
+        let mut objects = TextObjects::new(&mut it);
+
+        let mut index = 0;
+        while let Some(mut text_object) = objects.next_object().unwrap() {
+            while let Some(Run { position, text }) = text_object.next() {
+                let font = text_object
+                    .text_object()
+                    .parameters
+                    .font
+                    .as_ref()
+                    .expect("a run is only yielded with a font selected");
+                runs.push((
+                    index,
+                    GoldenRun {
+                        x: position.x,
+                        y: position.y,
+                        font: String::from_utf8_lossy(&font.name.0).into_owned(),
+                        size: font.size,
+                        text: text.decode(),
+                    },
+                ));
+            }
+            index += 1;
+        }
+
+        it.finish().unwrap();
+    }
+
+    runs
+}
+
+#[test]
+fn font_before_bt_matches_its_golden_runs() {
+    let expected = read_golden("tests/resources/font-before-bt.txt");
+    let actual = font_runs("tests/resources/font-before-bt.pdf");
+
+    assert_eq!(expected.len(), 4);
+    assert_eq!(actual.len(), expected.len(), "runs: {actual:?}");
+
+    for (i, ((object, run), golden)) in actual.iter().zip(&expected).enumerate() {
+        // One run per text object, in order.
+        assert_eq!(*object, i, "run {i} in text object {object}");
+        assert!(
+            (run.x - golden.x).abs() < 1e-2 && (run.y - golden.y).abs() < 1e-2,
+            "run {i}: expected ({}, {}), got ({}, {})",
+            golden.x,
+            golden.y,
+            run.x,
+            run.y
+        );
+        assert_eq!(run.font, golden.font, "run {i}");
+        assert_eq!(run.size, golden.size, "run {i}");
+        assert_eq!(run.text, golden.text, "run {i}");
+    }
+}
