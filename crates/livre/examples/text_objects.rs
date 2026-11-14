@@ -1,7 +1,7 @@
 use std::{fs::File, io::Read};
 
 use livre::{
-    content::{operators::Operator, TextObjects},
+    content::{operators::Operator, Run, TextObjects},
     extraction::Extract,
     InMemoryDocument,
 };
@@ -38,8 +38,8 @@ fn main() {
 
             while let Some(mut text_state) = objects.next_object().unwrap() {
                 println!("NEW TEXT OBJECT");
-                for (position, text) in &mut text_state {
-                    println!("- {:?} {:?}", position, text);
+                for Run { position, text } in &mut text_state {
+                    println!("- {:?} {:?}", position, text.decode());
                 }
                 println!("END TEXT OBJECT");
                 println!();

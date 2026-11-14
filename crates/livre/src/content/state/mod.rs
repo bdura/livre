@@ -13,5 +13,5 @@ pub(crate) use graphics::GraphicsState;
 pub use matrix::Matrix;
 pub use space::{DefaultUser, Displacement, Point, Text, User};
 pub use text::{
-    Font, RenderingMode, TextObject, TextObjectStream, TextObjects, TextStateParameters,
+    Font, RenderingMode, Run, TextObject, TextObjectStream, TextObjects, TextStateParameters,
 };

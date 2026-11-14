@@ -156,11 +156,21 @@ impl Extract<'_> for RenderingMode {
     }
 }
 
+/// A shown string, as yielded by a [`TextObjectStream`].
+#[derive(Debug, Clone, PartialEq)]
+pub struct Run {
+    /// The start of the shown string in default user space: the translation of the text
+    /// matrix, mapped through the CTM in force at `BT`.
+    pub position: Point<DefaultUser>,
+    /// The string's bytes, undecoded: their meaning depends on the font's encoding.
+    /// [`PDFString::decode`] is a best-effort heuristic (UTF-16BE behind a BOM, Latin-1
+    /// otherwise) until fonts are modelled.
+    pub text: PDFString,
+}
+
 /// A text object: the state the text operators act on between `BT` and `ET`.
 ///
-/// Can be iterated over to extract text elements. Text is decoded
-/// from raw [`PDFString`] bytes using best-effort heuristics
-/// (UTF-16BE if a BOM is present, Latin-1 otherwise).
+/// Its shown strings are read through the [`TextObjectStream`] that owns it.
 pub struct TextObject<'a> {
     /// Text matrix. Governs the transformation of text space to user space.
     pub matrix: Matrix<Text, User>,
@@ -213,9 +223,9 @@ impl<'a> TextObject<'a> {
         self.buffer = Some(array.into());
     }
 
-    /// The undecoded form of the [`Iterator`] item: the start position of the next shown
-    /// string and its raw bytes, before [`PDFString::decode`] guesses an encoding.
-    pub fn next_raw(&mut self) -> Option<(Point<DefaultUser>, PDFString)> {
+    /// The next run buffered by the last showing operator, if any. Consumes the `TJ`
+    /// offsets met before it, moving the text matrix.
+    fn next_run(&mut self) -> Option<Run> {
         if self.text_buffer.is_none() {
             let buffer = self.buffer.as_mut()?;
 
@@ -239,19 +249,10 @@ impl<'a> TextObject<'a> {
         }
 
         let text = self.text_buffer.take()?;
-        Some((self.ctm.apply(self.matrix.translation()), text))
-    }
-}
-
-impl Iterator for TextObject<'_> {
-    type Item = (Point<DefaultUser>, String);
-
-    /// The start position of the next shown string and its text, decoded by
-    /// [`PDFString::decode`]'s best-effort heuristics (UTF-16BE behind a BOM, Latin-1
-    /// otherwise): actual decoding requires the font's encoding. Use
-    /// [`next_raw`](Self::next_raw) for the bytes.
-    fn next(&mut self) -> Option<Self::Item> {
-        self.next_raw().map(|(pos, s)| (pos, s.decode()))
+        Some(Run {
+            position: self.ctm.apply(self.matrix.translation()),
+            text,
+        })
     }
 }
 
@@ -276,7 +277,7 @@ struct Started {
 /// ```ignore
 /// let mut objects = TextObjects::new(&mut operators);
 /// while let Some(stream) = objects.next_object()? {
-///     for (position, text) in stream { /* ... */ }
+///     for Run { position, text } in stream { /* ... */ }
 /// }
 /// ```
 pub struct TextObjects<Ops> {
@@ -425,6 +426,10 @@ where
 
 /// A [`TextObject`] and the operators that apply to it, up to its `ET`.
 ///
+/// Iterates over the object's shown strings as [`Run`]s: each carries its start position in
+/// default user space and its undecoded bytes. The font and other text state parameters in
+/// force for the run just yielded are read from [`text_object`](Self::text_object).
+///
 /// Borrows the [`TextObjects`] it comes from: its operators, and the graphics state's text
 /// state through the text object.
 pub struct TextObjectStream<'a, Ops> {
@@ -442,16 +447,18 @@ impl<'a, Ops> TextObjectStream<'a, Ops> {
     }
 }
 
-impl<Ops> TextObjectStream<'_, Ops>
+impl<Ops> Iterator for TextObjectStream<'_, Ops>
 where
     Ops: Iterator<Item = Operator>,
 {
-    /// The undecoded form of the [`Iterator`] item: the start position of the next shown
-    /// string and its raw bytes, before [`PDFString::decode`] guesses an encoding.
-    pub fn next_raw(&mut self) -> Option<(Point<DefaultUser>, PDFString)> {
+    type Item = Run;
+
+    /// The next shown string, applying the text operators before it. Ends at `ET`, or with
+    /// the operators.
+    fn next(&mut self) -> Option<Run> {
         loop {
-            if let Some(out) = self.text_object.next_raw() {
-                return Some(out);
+            if let Some(run) = self.text_object.next_run() {
+                return Some(run);
             }
 
             let op = self.ops.next()?;
@@ -466,21 +473,6 @@ where
                 }
             }
         }
-    }
-}
-
-impl<Ops> Iterator for TextObjectStream<'_, Ops>
-where
-    Ops: Iterator<Item = Operator>,
-{
-    type Item = (Point<DefaultUser>, String);
-
-    /// The start position of the next shown string and its text, decoded by
-    /// [`PDFString::decode`]'s best-effort heuristics (UTF-16BE behind a BOM, Latin-1
-    /// otherwise): actual decoding requires the font's encoding. Use
-    /// [`next_raw`](Self::next_raw) for the bytes.
-    fn next(&mut self) -> Option<Self::Item> {
-        self.next_raw().map(|(pos, s)| (pos, s.decode()))
     }
 }
 
@@ -505,19 +497,19 @@ mod tests {
         TextObjects::new(operators(input).into_iter())
     }
 
-    /// A shown string, with the font in force when it was yielded.
-    type Run = (String, Option<Font>);
+    /// A shown string, decoded, with the font in force when it was yielded.
+    type Shown = (String, Option<Font>);
 
     /// Every text object of a content stream, as the runs it yields, each with the font in
     /// force when it was yielded.
-    fn runs(input: &[u8]) -> Result<Vec<Vec<Run>>> {
+    fn runs(input: &[u8]) -> Result<Vec<Vec<Shown>>> {
         let mut objects = objects(input);
         let mut out = Vec::new();
 
         while let Some(mut stream) = objects.next_object()? {
             let mut runs = Vec::new();
-            while let Some((_, text)) = stream.next() {
-                runs.push((text, stream.text_object().parameters.font.clone()));
+            while let Some(Run { text, .. }) = stream.next() {
+                runs.push((text.decode(), stream.text_object().parameters.font.clone()));
             }
             out.push(runs);
         }
@@ -532,7 +524,7 @@ mod tests {
         }
     }
 
-    fn run(text: &str, name: &str, size: f32) -> Run {
+    fn run(text: &str, name: &str, size: f32) -> Shown {
         (text.to_string(), Some(font(name, size)))
     }
 
@@ -601,7 +593,11 @@ mod tests {
         let mut objects = objects(b"BT 0 10 Td ET BT /F1 12 Tf (a) Tj ET");
         let mut stream = objects.next_object().unwrap().unwrap();
 
-        assert_eq!(stream.next(), Some((Point::new(0.0, 0.0), "a".to_string())));
+        let Run { position, text } = stream.next().unwrap();
+        assert_eq!(
+            (position, text.decode()),
+            (Point::new(0.0, 0.0), "a".to_string())
+        );
         assert!(stream.next().is_none());
     }
 
@@ -615,7 +611,7 @@ mod tests {
         let mut objects = objects(b"BT /F1 12 Tf (a) Tj");
 
         let stream = objects.next_object().unwrap().unwrap();
-        let texts: Vec<String> = stream.map(|(_, text)| text).collect();
+        let texts: Vec<String> = stream.map(|Run { text, .. }| text.decode()).collect();
         assert_eq!(texts, ["a"]);
 
         assert!(matches!(
@@ -639,7 +635,8 @@ mod tests {
         drop(objects.next_object().unwrap().unwrap());
         let mut stream = objects.next_object().unwrap().unwrap();
 
-        assert_eq!(stream.next().unwrap().1, "c");
+        let Run { text, .. } = stream.next().unwrap();
+        assert_eq!(text.decode(), "c");
         assert_eq!(stream.text_object().parameters.font, Some(font("F2", 8.0)));
     }
 
@@ -652,23 +649,26 @@ mod tests {
     }
 
     #[test]
-    fn next_raw_keeps_the_bytes_that_decoding_conflates() {
+    fn runs_keep_the_bytes_that_decoding_conflates() {
         let input = b"BT /F1 12 Tf <FEFF0041> Tj (A) Tj ET";
 
         let mut objects = objects(input);
         let mut stream = objects.next_object().unwrap().unwrap();
         assert_eq!(
-            stream.next_raw(),
-            Some((
-                Point::new(0.0, 0.0),
-                PDFString(vec![0xFE, 0xFF, 0x00, 0x41])
-            ))
+            stream.next(),
+            Some(Run {
+                position: Point::new(0.0, 0.0),
+                text: PDFString(vec![0xFE, 0xFF, 0x00, 0x41]),
+            })
         );
         assert_eq!(
-            stream.next_raw(),
-            Some((Point::new(0.0, 0.0), PDFString(b"A".to_vec())))
+            stream.next(),
+            Some(Run {
+                position: Point::new(0.0, 0.0),
+                text: PDFString(b"A".to_vec()),
+            })
         );
-        assert!(stream.next_raw().is_none());
+        assert!(stream.next().is_none());
 
         let texts: Vec<String> = runs(input)
             .unwrap()
@@ -685,7 +685,8 @@ mod tests {
         // advance of `(A)` is not counted.
         let mut objects = objects(b"BT /F1 10 Tf 200 Tz [(A) -500 (B)] TJ ET");
         let stream = objects.next_object().unwrap().unwrap();
-        let positions: Vec<Point<DefaultUser>> = stream.map(|(pos, _)| pos).collect();
+        let positions: Vec<Point<DefaultUser>> =
+            stream.map(|Run { position, .. }| position).collect();
         assert_eq!(positions, [Point::new(0.0, 0.0), Point::new(10.0, 0.0)]);
     }
 
@@ -694,14 +695,16 @@ mod tests {
         let mut objects = objects(b"BT /F1 12 Tf 0 -14 TD (a) Tj T* (b) Tj ET");
         let mut stream = objects.next_object().unwrap().unwrap();
 
+        let Run { position, text } = stream.next().unwrap();
         assert_eq!(
-            stream.next(),
-            Some((Point::new(0.0, -14.0), "a".to_string()))
+            (position, text.decode()),
+            (Point::new(0.0, -14.0), "a".to_string())
         );
         assert_eq!(stream.text_object().parameters.leading, 14.0);
+        let Run { position, text } = stream.next().unwrap();
         assert_eq!(
-            stream.next(),
-            Some((Point::new(0.0, -28.0), "b".to_string()))
+            (position, text.decode()),
+            (Point::new(0.0, -28.0), "b".to_string())
         );
     }
 
@@ -710,9 +713,10 @@ mod tests {
         let mut objects = objects(b"BT /F1 12 Tf 14 TL 3 1 (a) \" ET");
         let mut stream = objects.next_object().unwrap().unwrap();
 
+        let Run { position, text } = stream.next().unwrap();
         assert_eq!(
-            stream.next(),
-            Some((Point::new(0.0, -14.0), "a".to_string()))
+            (position, text.decode()),
+            (Point::new(0.0, -14.0), "a".to_string())
         );
         assert_eq!(stream.text_object().parameters.word_spacing, 3.0);
         assert_eq!(stream.text_object().parameters.character_spacing, 1.0);
@@ -740,7 +744,7 @@ mod graphics_state_tests {
         let mut positions = Vec::new();
 
         while let Some(stream) = objects.next_object().unwrap() {
-            positions.extend(stream.map(|(position, _)| position));
+            positions.extend(stream.map(|Run { position, .. }| position));
         }
 
         positions
