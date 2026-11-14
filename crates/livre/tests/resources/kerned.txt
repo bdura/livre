@@ -1,0 +1,51 @@
+# Expected runs of kerned.pdf: `x y end_x end_y text`, one run per line,
+# whitespace separated, the text last between parentheses so that a run
+# showing a space survives trailing-whitespace trimming.
+#
+# After each glyph (ISO 32000-2, 9.4.4):
+#   tx = (w0 * Tfs + Tc + Tw if code 32) * Th, w0 = width / 1000
+# Between strings of a TJ array, the number n moves by -n / 1000 * Tfs * Th.
+# The run ends after its last glyph, before any TJ number that follows.
+#
+# Helvetica widths used: l 222, e 556, s 500, space 278, p 556, a 556,
+# t 278, b 556, n 556, r 333, o 556, w 722, A 667, B 667, C 722.
+# Tfs = 12 throughout, Ts = 0 throughout.
+#
+# Tc, Tw and Tz are text state, part of the graphics state: set in line two
+# and three, they carry over to the following text objects.
+#
+# Line 1, Tc 0, Tw 0, Th 1, Tlm = Tm at (72, 700):
+#   l   72      + 2.664                    = 74.664
+#   3:  74.664  - 0.036                    = 74.628
+#   e   74.628  + 6.672                    = 81.300
+#   -2: 81.300  + 0.024                    = 81.324
+#   s   81.324  + 6                        = 87.324
+#   ' ' 87.324  + 3.336 (Tw 0)             = 90.660
+#   p   90.660  + 6.672                    = 97.332
+#   5:  97.332  - 0.060                    = 97.272
+#   at  97.272  + 6.672 + 3.336            = 107.280
+#   -10: 107.280 + 0.120                   = 107.400
+#   es  107.400 + 6.672 + 6                = 120.072
+# Line 2, 1 Tc 2 Tw, Th 1, at (72, 680):
+#   a b 72 + (6.672 + 1) + (3.336 + 1 + 2) + (6.672 + 1) = 93.680
+# Line 3, Tc 1, Tw 2 carried over, 50 Tz so Th 0.5, at (72, 660):
+#   narrow: widths 556 + 556 + 333 + 333 + 556 + 722 = 3056
+#   72 + (36.672 + 6 * 1) * 0.5 = 93.336
+# Line 4, Tc 1, Tw 2, Th 0.5 carried over, at (72, 640):
+#   A    72     + (8.004 + 1) * 0.5        = 76.502
+#   -500: 76.502 + 500 / 1000 * 12 * 0.5   = 79.502
+#   B    79.502 + (8.004 + 1) * 0.5        = 84.004
+#   0 -12 Td moves Tlm, not Tm, to (72, 628):
+#   C    72     + (8.664 + 1) * 0.5        = 76.832
+72.000 700 74.664 700 (l)
+74.628 700 81.300 700 (e)
+81.324 700 87.324 700 (s)
+87.324 700 90.660 700 ( )
+90.660 700 97.332 700 (p)
+97.272 700 107.280 700 (at)
+107.400 700 120.072 700 (es)
+72.000 680 93.680 680 (a b)
+72.000 660 93.336 660 (narrow)
+72.000 640 76.502 640 (A)
+79.502 640 84.004 640 (B)
+72.000 628 76.832 628 (C)

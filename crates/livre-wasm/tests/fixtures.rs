@@ -17,6 +17,11 @@ const FONT_BEFORE_BT: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../livre/tests/resources/font-before-bt.pdf"
 ));
+/// Helvetica with explicit widths: a kerned `TJ`, `Tc`, `Tw` and `Tz`, and a `Td` after a `TJ`.
+const KERNED: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../livre/tests/resources/kerned.pdf"
+));
 
 /// The checks every fixture passes: a clean parse of `page_count` pages with a media box
 /// each, and at least one shown string on the first page.
@@ -84,6 +89,13 @@ fn font_before_bt_pdf_parses_without_errors() {
         .map(|run| run.text.as_str())
         .collect();
     assert_eq!(texts, ["first", "second", "big", "small again"]);
+}
+
+#[test]
+fn kerned_pdf_parses_without_errors() {
+    let analysis = analyze(KERNED);
+    assert_clean(&analysis, 1);
+    assert_eq!(analysis.pages[0].text_objects.len(), 4);
 }
 
 #[test]
