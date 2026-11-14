@@ -21,6 +21,6 @@ mod state;
 
 pub use error::ContentError;
 pub use state::{
-    DefaultUser, Displacement, Font, Matrix, Point, RenderingMode, Run, Text, TextObject,
+    DefaultUser, Displacement, Font, Glyph, Matrix, Point, RenderingMode, Run, Text, TextObject,
     TextObjectStream, TextObjects, TextStateParameters, User,
 };

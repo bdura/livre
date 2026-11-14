@@ -11,7 +11,7 @@ mod text;
 
 pub(crate) use graphics::GraphicsState;
 pub use matrix::Matrix;
-pub use space::{DefaultUser, Displacement, Point, Text, User};
+pub use space::{DefaultUser, Displacement, Glyph, Point, Text, User};
 pub use text::{
     Font, RenderingMode, Run, TextObject, TextObjectStream, TextObjects, TextStateParameters,
 };

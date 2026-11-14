@@ -165,8 +165,8 @@ impl Extract<'_> for RenderingMode {
 /// A shown string, as yielded by a [`TextObjectStream`].
 #[derive(Debug, Clone, PartialEq)]
 pub struct Run {
-    /// The start of the shown string in default user space: the translation of the text
-    /// matrix, mapped through the CTM in force at `BT`.
+    /// The start of the shown string in default user space: the point `(0, rise)` of text
+    /// space, mapped through the text matrix and the CTM in force at `BT`.
     pub position: Point<DefaultUser>,
     /// The string's bytes, undecoded: their meaning depends on the font's encoding.
     /// [`PDFString::decode`] is a best-effort heuristic (UTF-16BE behind a BOM, Latin-1
@@ -178,8 +178,14 @@ pub struct Run {
 ///
 /// Its shown strings are read through the [`TextObjectStream`] that owns it.
 pub struct TextObject<'a> {
-    /// Text matrix. Governs the transformation of text space to user space.
+    /// Text matrix, `Tm`. Governs the transformation of text space to user space. Showing
+    /// operators and `TJ` offsets advance it; line moves reset it to the
+    /// [line matrix](Self::line_matrix).
     pub matrix: Matrix<Text, User>,
+    /// Text line matrix, `Tlm`: the text matrix at the start of the current line. `Td`,
+    /// `TD` and `T*` move from it rather than from the text matrix, so the advance along a
+    /// line does not leak into the next one (ISO 32000-2, 9.4.2).
+    pub line_matrix: Matrix<Text, User>,
     /// The current transformation matrix in force at `BT`. Governs the transformation of
     /// user space to default user space. Constant for the whole text object, since `cm`,
     /// `q` and `Q` are not allowed inside one.
@@ -201,6 +207,7 @@ impl<'a> TextObject<'a> {
     fn begin(ctm: Matrix<User, DefaultUser>, parameters: &'a mut TextStateParameters) -> Self {
         Self {
             matrix: Matrix::coincident(),
+            line_matrix: Matrix::coincident(),
             ctm,
             parameters,
             text_buffer: None,
@@ -215,11 +222,18 @@ impl<'a> TextObject<'a> {
         self.matrix.then(self.ctm)
     }
 
-    /// Translate the text matrix by `offset`, expressed in text space (`Td`).
+    /// Start a new line at `offset` from the start of the current one, expressed in text
+    /// space (`Td`): translate the line matrix, and reset the text matrix to it.
     pub fn move_by(&mut self, offset: Displacement<Text>) {
-        self.matrix.translate(offset);
+        self.line_matrix.translate(offset);
+        self.matrix = self.line_matrix;
     }
-    /// Translate the text matrix down by the leading, to the start of the next line (`T*`).
+    /// Set both the text matrix and the line matrix (`Tm`).
+    pub fn set_matrix(&mut self, matrix: Matrix<Text, User>) {
+        self.matrix = matrix;
+        self.line_matrix = matrix;
+    }
+    /// Start a new line, down by the leading from the start of the current one (`T*`).
     pub fn move_to_next_line(&mut self) {
         self.move_by(Displacement::new(0.0, -self.parameters.leading));
     }
@@ -259,8 +273,10 @@ impl<'a> TextObject<'a> {
         }
 
         let text = self.text_buffer.take()?;
+        // ISO 32000-2, 9.3.7: the rise shifts the baseline in text space.
+        let origin: Point<Text> = Point::new(0.0, self.parameters.rise);
         Some(Run {
-            position: self.ctm.apply(self.matrix.translation()),
+            position: self.transformation().apply(origin),
             text,
         })
     }
@@ -271,6 +287,7 @@ impl<'a> TextObject<'a> {
 /// known to show text.
 struct Started {
     matrix: Matrix<Text, User>,
+    line_matrix: Matrix<Text, User>,
     text_buffer: Option<PDFString>,
     buffer: Option<VecDeque<TextArrayElement>>,
 }
@@ -343,12 +360,14 @@ where
                     self.open = true;
                     if let Some(Started {
                         matrix,
+                        line_matrix,
                         text_buffer,
                         buffer,
                     }) = self.start()?
                     {
                         let text_object = TextObject {
                             matrix,
+                            line_matrix,
                             text_buffer,
                             buffer,
                             ..TextObject::begin(
@@ -402,12 +421,14 @@ where
 
                     let TextObject {
                         matrix,
+                        line_matrix,
                         text_buffer,
                         buffer,
                         ..
                     } = text_object;
                     return Ok(Some(Started {
                         matrix,
+                        line_matrix,
                         text_buffer,
                         buffer,
                     }));
@@ -817,6 +838,55 @@ Q";
         let positions = positions(SKIA_LINE);
         assert_eq!(positions.len(), 1);
         assert_close(positions[0], (132.4946, 695.1359));
+    }
+
+    #[test]
+    fn td_after_tj_starts_from_the_line_matrix() {
+        // Before the line matrix, `Td` moved from the `TJ`-shifted text matrix and `(C)`
+        // was reported at (5, -12).
+        let positions = positions(b"BT /F1 10 Tf [(A) -500 (B)] TJ 0 -12 Td (C) Tj ET");
+        assert_eq!(positions[2], Point::new(0.0, -12.0));
+    }
+
+    #[test]
+    fn td_after_tm_starts_from_the_set_matrix() {
+        let positions = positions(b"BT /F1 10 Tf 1 0 0 1 10 10 Tm 5 0 Td (a) Tj ET");
+        assert_eq!(positions, vec![Point::new(15.0, 10.0)]);
+    }
+
+    #[test]
+    fn td_after_tm_ignores_the_tj_offsets_between_them() {
+        let positions =
+            positions(b"BT /F1 10 Tf 1 0 0 1 10 10 Tm [(a) -500 (b)] TJ 5 0 Td (c) Tj ET");
+        assert_eq!(positions[2], Point::new(15.0, 10.0));
+    }
+
+    #[test]
+    fn t_star_starts_from_the_line_matrix() {
+        // `TD` sets the leading to 14; the `TJ` offset moves the text matrix by 5 but not
+        // the line matrix, which `T*` moves from.
+        let positions =
+            positions(b"BT /F1 10 Tf 1 0 0 1 10 100 Tm 0 -14 TD [(a) -500 (b)] TJ T* (c) Tj ET");
+        assert_eq!(
+            positions,
+            vec![
+                Point::new(10.0, 86.0),
+                Point::new(15.0, 86.0),
+                Point::new(10.0, 72.0)
+            ]
+        );
+    }
+
+    #[test]
+    fn rise_offsets_the_reported_position() {
+        let positions = positions(b"BT /F1 10 Tf 3 Ts (a) Tj ET");
+        assert_eq!(positions, vec![Point::new(0.0, 3.0)]);
+    }
+
+    #[test]
+    fn rise_is_in_text_space() {
+        let positions = positions(b"BT /F1 10 Tf 2 0 0 2 0 0 Tm 3 Ts (a) Tj ET");
+        assert_eq!(positions, vec![Point::new(0.0, 6.0)]);
     }
 
     #[test]

@@ -64,8 +64,8 @@ impl TextPositioningOperation for MoveByOffsetAndSetLeading {
 
 /// `Tm` operator.
 ///
-/// Replace the text matrix outright: the six operands `[a b c d e f]` map text space to user
-/// space.
+/// Replace the text matrix and the line matrix outright: the six operands `[a b c d e f]`
+/// map text space to user space.
 ///
 /// ```raw
 /// 1 0 0 -1 370.70721 .47981739 Tm
@@ -75,7 +75,7 @@ pub struct SetTextMatrix(Matrix<Text, User>);
 
 impl TextPositioningOperation for SetTextMatrix {
     fn apply(self, text_object: &mut TextObject) {
-        text_object.matrix = self.0;
+        text_object.set_matrix(self.0);
     }
 }
 
