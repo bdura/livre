@@ -16,11 +16,15 @@
 //! yields each text object that shows text, and skips any other type of operator.
 
 mod error;
+mod font;
 pub mod operators;
 mod state;
 
 pub use error::ContentError;
+pub use font::{
+    Code, Codes, CompositeFont, Font, FontDescriptor, GlyphWidth, SimpleFont, Type3Font, Widths,
+};
 pub use state::{
-    DefaultUser, Displacement, Font, Glyph, Matrix, Point, RenderingMode, Run, Text, TextObject,
+    DefaultUser, Displacement, Glyph, Matrix, Point, RenderingMode, Run, Text, TextObject,
     TextObjectStream, TextObjects, TextStateParameters, User,
 };
