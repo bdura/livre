@@ -35,6 +35,8 @@ pub struct Matrix<From, To> {
     pub e: f32,
     /// Vertical translation, in units of `To`.
     pub f: f32,
+    // `fn` so a matrix owns neither space: its auto traits and drop check stay
+    // independent of the markers.
     spaces: PhantomData<fn(From) -> To>,
 }
 

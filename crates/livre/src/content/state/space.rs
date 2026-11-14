@@ -31,6 +31,8 @@ pub struct Point<S> {
     pub x: f32,
     /// Vertical coordinate, in units of `S`.
     pub y: f32,
+    // `fn` so the value owns no `S`: its auto traits and drop check stay independent of
+    // the marker.
     space: PhantomData<fn() -> S>,
 }
 
@@ -54,6 +56,8 @@ pub struct Displacement<S> {
     pub dx: f32,
     /// Vertical component, in units of `S`.
     pub dy: f32,
+    // `fn` so the value owns no `S`: its auto traits and drop check stay independent of
+    // the marker.
     space: PhantomData<fn() -> S>,
 }
 
