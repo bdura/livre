@@ -28,7 +28,7 @@ pub struct User;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DefaultUser;
 
-/// A location in the coordinate space `S`, such as a run position in [`DefaultUser`] space.
+/// A location in the coordinate space `S`, such as the start of a run in [`DefaultUser`] space.
 ///
 /// Its coordinates are in the units of `S`. Only a [`Matrix`](super::Matrix) whose source
 /// space is `S` maps it into another space.

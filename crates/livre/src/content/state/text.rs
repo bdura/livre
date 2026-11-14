@@ -178,9 +178,9 @@ impl Extract<'_> for RenderingMode {
 pub struct Run {
     /// The start of the shown string in default user space: the point `(0, rise)` of text
     /// space, mapped through the text matrix and the CTM in force at `BT`.
-    pub position: Point<DefaultUser>,
+    pub start: Point<DefaultUser>,
     /// The end of the shown string in default user space: the same point as
-    /// [`position`](Self::position), after the text matrix has advanced past every glyph.
+    /// [`start`](Self::start), after the text matrix has advanced past every glyph.
     pub end: Point<DefaultUser>,
     /// The string's bytes, undecoded: their meaning depends on the font's encoding.
     /// [`PDFString::decode`] is a best-effort heuristic (UTF-16BE behind a BOM, Latin-1
@@ -234,7 +234,7 @@ impl<'a, 'f> TextObject<'a, 'f> {
     }
 
     /// The matrix mapping text space to default user space: `Tm × CTM`. Its translation is
-    /// the current position at zero rise: [`Run::position`] maps `(0, rise)` through it.
+    /// the current position at zero rise: [`Run::start`] maps `(0, rise)` through it.
     /// Its other components carry the orientation and scale of the text, before the font
     /// size is applied.
     pub fn transformation(&self) -> Matrix<Text, DefaultUser> {
@@ -282,7 +282,7 @@ impl<'a, 'f> TextObject<'a, 'f> {
     /// the glyph width through the font's glyph-to-text matrix and `Tw` applies to the
     /// one-byte code 32 only. With no font selected, nothing advances.
     pub fn show(&mut self, string: &PDFString) -> Run {
-        let position = self.origin();
+        let start = self.origin();
 
         if let Some(SelectedFont {
             font,
@@ -312,7 +312,7 @@ impl<'a, 'f> TextObject<'a, 'f> {
         }
 
         Run {
-            position,
+            start,
             end: self.origin(),
             text: string.clone(),
         }
@@ -369,8 +369,8 @@ struct Started {
 /// // `fonts` comes from `Page::fonts`.
 /// let mut objects = TextObjects::new(&mut operators, &fonts);
 /// while let Some(stream) = objects.next_object()? {
-///     for Run { position, text, .. } in stream {
-/// #       assert_eq!((position.x, position.y, text.decode()), (72.0, 700.0, "Hello".into()));
+///     for Run { start, text, .. } in stream {
+/// #       assert_eq!((start.x, start.y, text.decode()), (72.0, 700.0, "Hello".into()));
 ///         /* ... */
 ///     }
 /// }
@@ -792,9 +792,9 @@ mod tests {
         let mut objects = objects(b"BT 0 10 Td ET BT /F1 12 Tf (a) Tj ET");
         let mut stream = objects.next_object().unwrap().unwrap();
 
-        let Run { position, text, .. } = stream.next().unwrap();
+        let Run { start, text, .. } = stream.next().unwrap();
         assert_eq!(
-            (position, text.decode()),
+            (start, text.decode()),
             (Point::new(0.0, 0.0), "a".to_string())
         );
         assert!(stream.next().is_none());
@@ -859,7 +859,7 @@ mod tests {
         assert_eq!(
             stream.next(),
             Some(Run {
-                position: Point::new(0.0, 0.0),
+                start: Point::new(0.0, 0.0),
                 end: Point::new(0.0, 0.0),
                 text: PDFString(vec![0xFE, 0xFF, 0x00, 0x41]),
             })
@@ -867,7 +867,7 @@ mod tests {
         assert_eq!(
             stream.next(),
             Some(Run {
-                position: Point::new(0.0, 0.0),
+                start: Point::new(0.0, 0.0),
                 end: Point::new(0.0, 0.0),
                 text: PDFString(b"A".to_vec()),
             })
@@ -889,8 +889,7 @@ mod tests {
         // only the offset moves `(B)`.
         let mut objects = objects(b"BT /F1 10 Tf 200 Tz [(A) -500 (B)] TJ ET");
         let stream = objects.next_object().unwrap().unwrap();
-        let positions: Vec<Point<DefaultUser>> =
-            stream.map(|Run { position, .. }| position).collect();
+        let positions: Vec<Point<DefaultUser>> = stream.map(|Run { start, .. }| start).collect();
         assert_eq!(positions, [Point::new(0.0, 0.0), Point::new(10.0, 0.0)]);
     }
 
@@ -899,15 +898,15 @@ mod tests {
         let mut objects = objects(b"BT /F1 12 Tf 0 -14 TD (a) Tj T* (b) Tj ET");
         let mut stream = objects.next_object().unwrap().unwrap();
 
-        let Run { position, text, .. } = stream.next().unwrap();
+        let Run { start, text, .. } = stream.next().unwrap();
         assert_eq!(
-            (position, text.decode()),
+            (start, text.decode()),
             (Point::new(0.0, -14.0), "a".to_string())
         );
         assert_eq!(stream.text_object().parameters.leading, 14.0);
-        let Run { position, text, .. } = stream.next().unwrap();
+        let Run { start, text, .. } = stream.next().unwrap();
         assert_eq!(
-            (position, text.decode()),
+            (start, text.decode()),
             (Point::new(0.0, -28.0), "b".to_string())
         );
     }
@@ -917,9 +916,9 @@ mod tests {
         let mut objects = objects(b"BT /F1 12 Tf 14 TL 3 1 (a) \" ET");
         let mut stream = objects.next_object().unwrap().unwrap();
 
-        let Run { position, text, .. } = stream.next().unwrap();
+        let Run { start, text, .. } = stream.next().unwrap();
         assert_eq!(
-            (position, text.decode()),
+            (start, text.decode()),
             (Point::new(0.0, -14.0), "a".to_string())
         );
         assert_eq!(stream.text_object().parameters.word_spacing, 3.0);
@@ -943,13 +942,13 @@ mod graphics_state_tests {
         TextObjects::new(ops.into_iter(), &super::tests::PAGE_FONTS)
     }
 
-    /// Every run position of a content stream.
+    /// Every run start of a content stream.
     fn positions(input: &[u8]) -> Vec<Point<DefaultUser>> {
         let mut objects = objects(input);
         let mut positions = Vec::new();
 
         while let Some(stream) = objects.next_object().unwrap() {
-            positions.extend(stream.map(|Run { position, .. }| position));
+            positions.extend(stream.map(|Run { start, .. }| start));
         }
 
         positions
@@ -1142,7 +1141,7 @@ mod advance_tests {
     fn width_advances_by_the_font_size() {
         // 667/1000 · 10.
         let run = run(b"BT /F1 10 Tf (A) Tj ET");
-        assert_close(run.position, (0.0, 0.0));
+        assert_close(run.start, (0.0, 0.0));
         assert_close(run.end, (6.67, 0.0));
     }
 
@@ -1152,7 +1151,7 @@ mod advance_tests {
         // 11.67 + 6.67 = 18.34.
         let runs = runs(b"BT /F1 10 Tf [(A) -500 (B)] TJ ET");
         assert_close(runs[0].end, (6.67, 0.0));
-        assert_close(runs[1].position, (11.67, 0.0));
+        assert_close(runs[1].start, (11.67, 0.0));
         assert_close(runs[1].end, (18.34, 0.0));
     }
 
@@ -1205,7 +1204,7 @@ mod advance_tests {
     fn composite_fonts_advance_by_the_character_spacing_only() {
         // Two two-byte codes, zero wide: 2 · 1 Tc.
         let run = run(b"BT /F2 10 Tf 1 Tc 3 0 Td (\\000A\\000B) Tj ET");
-        assert_close(run.position, (3.0, 0.0));
+        assert_close(run.start, (3.0, 0.0));
         assert_close(run.end, (3.0 + 2.0, 0.0));
         assert!(logs_contain(
             "is composite: its glyphs are given zero width"
@@ -1216,7 +1215,7 @@ mod advance_tests {
     fn rise_offsets_start_and_end_but_not_the_advance() {
         // Both at y = 3; x as without the rise, 667/1000 · 10.
         let run = run(b"BT /F1 10 Tf 3 Ts (A) Tj ET");
-        assert_close(run.position, (0.0, 3.0));
+        assert_close(run.start, (0.0, 3.0));
         assert_close(run.end, (6.67, 3.0));
     }
 
@@ -1224,9 +1223,9 @@ mod advance_tests {
     fn advance_carries_to_the_next_string() {
         // `'` moves to the next line; `Tj` after a `Tj` starts at the end of the first.
         let runs = runs(b"BT /F1 10 Tf 12 TL (A) Tj (B) Tj (A) ' ET");
-        assert_close(runs[1].position, (6.67, 0.0));
+        assert_close(runs[1].start, (6.67, 0.0));
         assert_close(runs[1].end, (13.34, 0.0));
-        assert_close(runs[2].position, (0.0, -12.0));
+        assert_close(runs[2].start, (0.0, -12.0));
         assert_close(runs[2].end, (6.67, -12.0));
     }
 }

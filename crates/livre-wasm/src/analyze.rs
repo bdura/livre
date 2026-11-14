@@ -144,8 +144,8 @@ fn extract_text_objects(
                 None => (String::new(), None, None, 0.0),
             };
             runs.push(Run {
-                x: run.position.x,
-                y: run.position.y,
+                x: run.start.x,
+                y: run.start.y,
                 end_x: run.end.x,
                 end_y: run.end.y,
                 font,

@@ -12,7 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `livre::VERSION`: the crate version, as published
 - Font dictionaries, `livre::content::Font`: simple fonts (`Type1`, `MMType1`, `TrueType`) with their `/Widths` and descriptor's `/MissingWidth`, `Type3` fonts with their `/FontMatrix`, and `Type0` fonts as a placeholder whose glyphs have zero width. `Font::codes` splits a shown string into character codes
 - `Fonts`, a page's font resources by name with every reference resolved, and `Page::fonts` to build it
-- `Run::end`: where the shown string ends, once the text matrix has advanced past each of its glyphs
 
 ### Fixed
 
@@ -30,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Raise the minimum supported Rust version to 1.85 (required by trybuild's dependencies)
 - Replace the free function `parse_text_object` with `TextObjects`, which owns a content stream's operators and graphics state and lends out its text objects one at a time (it is not an `Iterator`): `while let Some(stream) = objects.next_object()? { … }`. `GraphicsState` is no longer public
-- Text object streams yield `Run { position, text }`: the position as a `Point<DefaultUser>`, the shown string as its raw `PDFString` (`text.decode()` for the text)
+- Text object streams yield `Run { start, end, text }`: where the shown string starts and ends, each a `Point<DefaultUser>`, and the string as its raw `PDFString` (`text.decode()` for the text)
 - Type matrices and points by coordinate space: `Matrix<From, To>` and `Point<Space>` over the `Text`, `User` and `DefaultUser` markers, so composing mismatched matrices, or applying a matrix to a point of another space, does not compile
 - `TextObject::move_to(x, y)` becomes `move_by(offset)`, taking a `Displacement<Text>`: the move is relative to the start of the current line, as `Td` is. The new `set_matrix` sets both the text and the line matrix, as `Tm` does
 - `ContentError::NoFontSelected`, when text is shown with no font selected, replaces `UnexpectedTextShowingOperator`; a text operator outside `BT`/`ET` is skipped with a warning

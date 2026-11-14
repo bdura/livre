@@ -60,7 +60,7 @@ The system is designed as a layered architecture:
    `Tf` outside `BT` or in an earlier text object still applies; `Tf` selects a font from
    `Fonts` as a `SelectedFont`. Each text object it hands out keeps a text matrix and a
    line matrix (`Td`, `TD`, `T*` move from the start of the line) and yields `Run {
-   position, end, text }`: showing a string advances the text matrix past each glyph by
+   start, end, text }`: showing a string advances the text matrix past each glyph by
    its width, `Tc`, `Tw` and `Tz` (ISO 32000-2, 9.4.4), and `end` is where that leaves
    it. Positions are in default user space, the rise `Ts` included. Matrices and points
    are typed by coordinate space (`Glyph`, `Text`, `User`, `DefaultUser`). This is the
