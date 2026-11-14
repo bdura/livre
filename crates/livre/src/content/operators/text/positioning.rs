@@ -1,10 +1,8 @@
 use enum_dispatch::enum_dispatch;
 
-use winnow::{combinator::trace, BStr, ModalResult, Parser};
-
 use crate::{
     content::state::{Displacement, Matrix, Text, TextObject, User},
-    extraction::{extract, Extract},
+    extraction::Extract,
 };
 
 use super::TextPositioningOperation;
@@ -72,21 +70,8 @@ impl TextPositioningOperation for MoveByOffsetAndSetLeading {
 /// ```raw
 /// 1 0 0 -1 370.70721 .47981739 Tm
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Extract)]
 pub struct SetTextMatrix(Matrix<Text, User>);
-
-// Assembled from six numbers rather than by extracting a `Matrix`: only `Matrix<User, User>`
-// is extractable, for `cm`, so the `Text` to `User` space pair is asserted here, where the
-// operator gives the numbers that meaning.
-impl Extract<'_> for SetTextMatrix {
-    fn extract(input: &mut &BStr) -> ModalResult<Self> {
-        trace(
-            "livre-set-text-matrix",
-            extract.map(|(a, b, c, d, e, f)| Self(Matrix::new(a, b, c, d, e, f))),
-        )
-        .parse_next(input)
-    }
-}
 
 impl TextPositioningOperation for SetTextMatrix {
     fn apply(self, text_object: &mut TextObject) {

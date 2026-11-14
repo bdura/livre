@@ -4,7 +4,7 @@ use std::{fmt, marker::PhantomData};
 
 use winnow::{combinator::trace, BStr, ModalResult, Parser};
 
-use super::space::{Displacement, Point, User};
+use super::space::{Displacement, Point};
 use crate::extraction::{extract, Extract};
 
 /// A transformation matrix from the space `From` to the space `To`, written `[a b c d e f]`
@@ -38,10 +38,12 @@ pub struct Matrix<From, To> {
     spaces: PhantomData<fn(From) -> To>,
 }
 
-/// `cm`'s operand: six numbers, concatenated to the CTM in user space. The `Tm` operator
-/// assembles its text matrix from six numbers itself, so this is the only extractable
-/// matrix.
-impl Extract<'_> for Matrix<User, User> {
+/// Six numbers `a b c d e f`, as [`Matrix::new`] takes them.
+///
+/// The operands say nothing about spaces: the declared type asserts them, as with
+/// [`Matrix::new`]. Extract into a field whose type names both spaces, never into a binding
+/// left to inference, which would pick whatever spaces make the surrounding code compile.
+impl<From, To> Extract<'_> for Matrix<From, To> {
     fn extract(input: &mut &BStr) -> ModalResult<Self> {
         trace(
             "livre-matrix",
@@ -158,6 +160,7 @@ impl<From, To> fmt::Debug for Matrix<From, To> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::content::state::User;
 
     type UserMatrix = Matrix<User, User>;
 
