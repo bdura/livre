@@ -35,7 +35,7 @@ export function drawLivreLayer(svg: SVGSVGElement, page: Page, viewport: PageVie
     const box = new Bounds();
     let maxSize = 0;
     object.runs.forEach((run, runIndex) => {
-      // Baseline from start to end, then the same edge one font size up in user space.
+      // The height goes straight up in user space, not across the baseline: boxes fit unrotated text only.
       const corners: Corners = [
         viewport.convertToViewportPoint(run.x, run.y),
         viewport.convertToViewportPoint(run.end_x, run.end_y),

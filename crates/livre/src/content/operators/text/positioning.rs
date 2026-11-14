@@ -17,7 +17,7 @@ pub enum TextPositioningOperator {
     MoveByOffset(MoveByOffset),
     /// The `TD` operator. Move to the start of the next line, and set the leading parameter.
     MoveByOffsetAndSetLeading(MoveByOffsetAndSetLeading),
-    /// The `Tm` operator. Set the text matrix.
+    /// The `Tm` operator. Set the text matrix and the line matrix.
     SetTextMatrix(SetTextMatrix),
     /// The `T*` operator. Move to the start of the next line.
     MoveToNextLine(MoveToNextLine),

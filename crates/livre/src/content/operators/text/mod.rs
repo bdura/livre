@@ -44,11 +44,12 @@ pub trait TextStateOperation: Sized {
     fn apply<'f>(self, parameters: &mut TextStateParameters<'f>, fonts: &'f Fonts) -> Result<()>;
 }
 
-/// Defines operations that move the text matrix of a [`TextObject`]. `TD` also sets the
-/// leading, through the text object's parameters.
+/// Defines operations that move the text matrix and the line matrix of a [`TextObject`].
+/// `TD` also sets the leading, through the text object's parameters.
 #[enum_dispatch]
 pub trait TextPositioningOperation: Sized {
-    /// Update the text object's text matrix. `TD` also sets the leading in its parameters.
+    /// Update the text object's matrices: `Td`, `TD` and `T*` move the line matrix and reset
+    /// the text matrix to it, `Tm` sets both. `TD` also sets the leading in its parameters.
     fn apply(self, text_object: &mut TextObject);
 }
 

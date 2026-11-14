@@ -16,7 +16,7 @@ on a PDF of your choosing and draws what it extracted over a pdf.js render of th
 next to pdf.js's own text layer. Files stay in your browser: nothing is uploaded.
 The overlay draws each string from where it starts to where it ends, as livre reads them
 from simple fonts' widths. Composite fonts (`Type0`, common in Word exports) are not read yet:
-their strings advance by the character and word spacing only.
+their strings advance by the character spacing only.
 See [`demo/README.md`](demo/README.md) to run it locally.
 
 ## Obtaining the PDF specification

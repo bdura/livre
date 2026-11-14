@@ -184,6 +184,9 @@ pub struct InheritablePageProperties {
 }
 
 impl InheritablePageProperties {
+    /// Fill every property this node leaves unset from `parent_props`, the merged
+    /// properties of its parent `/Pages` node: `/Resources`, `/MediaBox`, `/CropBox` and
+    /// `/Rotate` are inheritable (ISO 32000-2, 7.7.3.4). Properties set here are kept.
     pub fn merge_with_parent(&mut self, parent_props: &InheritablePageProperties) {
         if let Some(resources) = &parent_props.resources {
             self.resources.get_or_insert_with(|| resources.clone());

@@ -500,7 +500,7 @@ function showInspector(): void {
       const item = document.createElement("li");
       item.dataset.object = String(index);
 
-      // Runs are joined as shown: telling a gap from a space between them is left to the eye.
+      // Runs are joined as shown: no gap threshold decides yet where a space falls between them.
       const text = object.runs.length ? JSON.stringify(object.runs.map((run) => run.text).join("")) : "(no runs)";
       const count = `${object.runs.length} run${object.runs.length === 1 ? "" : "s"}`;
       const row = listRow(String(index + 1), text, count);

@@ -34,7 +34,8 @@ use crate::{
     extraction::{Extract, Name, PDFString},
 };
 
-/// A font size, `Tfs`: the scale from the font's text space unit to the text matrix's.
+/// A font size, `Tfs`: the factor applied to a glyph's width once the font has mapped it
+/// to text space (ISO 32000-2, 9.4.4).
 ///
 /// A newtype so that a size is never passed where a width or a spacing is expected.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
@@ -233,8 +234,9 @@ impl<'a, 'f> TextObject<'a, 'f> {
     }
 
     /// The matrix mapping text space to default user space: `Tm × CTM`. Its translation is
-    /// the position the iterator yields; its other components carry the orientation and
-    /// scale of the text, before the font size and rise are applied.
+    /// the current position at zero rise: [`Run::position`] maps `(0, rise)` through it.
+    /// Its other components carry the orientation and scale of the text, before the font
+    /// size is applied.
     pub fn transformation(&self) -> Matrix<Text, DefaultUser> {
         self.matrix.then(self.ctm)
     }
@@ -556,8 +558,8 @@ pub struct TextObjectStream<'a, 'f, Ops> {
 }
 
 impl<'a, 'f, Ops> TextObjectStream<'a, 'f, Ops> {
-    /// The text object in its current state: the font, matrix and parameters that applied
-    /// to the last element yielded by the stream.
+    /// The text object in its current state: the font and parameters that applied to the
+    /// last run yielded, and the text matrix advanced past it, at that run's [`Run::end`].
     pub fn text_object(&self) -> &TextObject<'a, 'f> {
         &self.text_object
     }
@@ -1006,8 +1008,8 @@ Q";
 
     #[test]
     fn td_after_tj_starts_from_the_line_matrix() {
-        // Before the line matrix, `Td` moved from the `TJ`-shifted text matrix and `(C)`
-        // was reported at (5, -12).
+        // `Td` moves from the line matrix, which the `TJ` offset of -500 · 10 / 1000 = 5
+        // does not shift: `(C)` is at (0, -12), not (5, -12).
         let positions = positions(b"BT /F1 10 Tf [(A) -500 (B)] TJ 0 -12 Td (C) Tj ET");
         assert_eq!(positions[2], Point::new(0.0, -12.0));
     }
