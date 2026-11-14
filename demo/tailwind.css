@@ -100,6 +100,11 @@
   opacity: 0.8;
 }
 
+/* While the inspector's list is hovered, all but its hovered text object fade. */
+.overlay.focus-object g.livre > :not(.highlight) {
+  opacity: 0.15;
+}
+
 /* The text object hovered in the inspector's list. */
 .overlay g.livre .hull.highlight {
   fill: color-mix(in srgb, var(--color-livre) 12%, transparent);

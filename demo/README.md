@@ -4,7 +4,8 @@ A static page that runs livre, compiled to WebAssembly, on a PDF picked by the
 visitor. pdf.js (loaded from jsdelivr at the version pinned in `app.ts`) renders
 the current page under two overlays: livre's run markers and pdf.js's own text
 items. An inspector beside the page shows the hovered or pinned run, the page's
-text objects and livre's JSON for the page, and an amber strip names each stage
+text objects (each expands into its runs, and hovering one fades the others on
+the page) and livre's JSON for the page, and an amber strip names each stage
 that failed. Nothing is uploaded anywhere.
 
 No framework and no bundler. The scripts are TypeScript: `tsc` compiles each
