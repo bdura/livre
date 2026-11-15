@@ -5,6 +5,7 @@
 //! and `Type3` fonts read one byte per code and carry a [`Widths`] table; `Type0` fonts are a
 //! placeholder that reads two bytes per code and reports zero widths.
 
+pub mod cmap;
 mod code;
 mod composite;
 mod simple;
@@ -18,6 +19,7 @@ use winnow::{
     BStr, ModalResult,
 };
 
+pub use cmap::{CMap, CodespaceRange, ToUnicode, UnicodeText, WritingMode};
 pub use code::{Code, Codes};
 pub use composite::CompositeFont;
 pub use simple::{FontDescriptor, SimpleFont};

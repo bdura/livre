@@ -7,10 +7,14 @@ use crate::extraction::PDFString;
 ///
 /// The length matters: word spacing applies to the one-byte code 32 only, not to a
 /// multi-byte code whose value happens to be 32 (ISO 32000-2, 9.3.3).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+///
+/// Codes order by length, then value, so that one-byte and two-byte codes never interleave
+/// in a sorted CMap table: `<41>` and `<0041>` are distinct codes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Code {
-    value: u32,
+    // Field order matters: the derived `Ord` compares `bytes` first.
     bytes: u8,
+    value: u32,
 }
 
 impl Code {
@@ -28,6 +32,13 @@ impl Code {
             value: value as u32,
             bytes: 2,
         }
+    }
+
+    /// The code read from `bytes` big-endian bytes, as a CMap's codespace defines it.
+    ///
+    /// `bytes` is expected in `1..=4`, the lengths a codespace range allows.
+    pub(crate) const fn new(value: u32, bytes: u8) -> Self {
+        Self { value, bytes }
     }
 
     /// The code's numeric value.
