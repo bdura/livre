@@ -191,6 +191,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "livre-font-data"
+version = "0.1.0"
+dependencies = [
+ "rstest",
+]
+
+[[package]]
 name = "livre-wasm"
 version = "0.0.0"
 dependencies = [
