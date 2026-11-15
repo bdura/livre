@@ -152,7 +152,8 @@ impl Font {
     /// Split a shown string into the font's character codes.
     ///
     /// Simple and `Type3` fonts read one code per byte. Composite fonts read codes of the
-    /// lengths their encoding CMap's codespace defines, as [`Codes::codespace`] describes; a
+    /// lengths their encoding CMap's codespace defines, with the partial-match fallback of
+    /// ISO 32000-2, 9.7.6.3, for a sequence no range contains; a
     /// code cut short by the end of the string is dropped with a warning.
     pub fn codes<'s>(&'s self, string: &'s PDFString) -> Codes<'s> {
         match self {

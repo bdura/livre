@@ -65,9 +65,10 @@ The system is designed as a layered architecture:
    encoding CMap's codespace ranges, map each code to a CID for the descendant
    CIDFont's widths, and decode through `/ToUnicode` only. A font's `WritingMode`,
    horizontal or vertical, owns the advance arithmetic of 9.4.4: `show` and `TJ`
-   go through it, so a vertical font's glyphs advance down the page. Matrices and points are typed by coordinate space
-   (`Glyph`, `Text`, `User`, `DefaultUser`). This is the highest-level layer for
-   extracting human-readable content.
+   go through it, so a vertical font's glyphs advance down the page. Matrices
+   and points are typed by coordinate space (`Glyph`, `Text`, `User`,
+   `DefaultUser`). This is the highest-level layer for extracting
+   human-readable content.
 
 The library deliberately does **not** render PDFs, edit PDFs, or handle encryption.
 It focuses solely on reading and extracting data from existing PDF files in a

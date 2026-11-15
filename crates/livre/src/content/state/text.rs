@@ -299,7 +299,8 @@ impl<'a, 'f> TextObject<'a, 'f> {
     /// [`Character`] per code.
     ///
     /// The selected font splits the string into codes. Each code advances the text matrix
-    /// by [`WritingMode::advance`] in the font's writing mode, from the code's
+    /// by the displacement of ISO 32000-2, 9.4.4, along its font's
+    /// [writing mode](Font::writing_mode), from the code's
     /// [glyph displacement](Font::glyph_displacement); `Tw` applies to the one-byte code 32
     /// only. With no font selected, nothing advances and the run has no
     /// characters.

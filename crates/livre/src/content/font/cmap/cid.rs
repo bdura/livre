@@ -49,11 +49,13 @@ pub enum EncodingCMap {
     /// `Identity-H` or `Identity-V`: two-byte codes, CID equal to code.
     Identity(WritingMode),
     /// An embedded CMap stream.
-    ///
-    /// With `use_identity`, from `/Identity-H usecmap` or `/Identity-V usecmap`, a two-byte
-    /// code the CMap does not map is its own CID, and the codespace includes every two-byte
-    /// code.
-    Embedded { cmap: CMap<Cid>, use_identity: bool },
+    Embedded {
+        /// The stream's codespace ranges and `cidchar` and `cidrange` mappings.
+        cmap: CMap<Cid>,
+        /// Set by `/Identity-H usecmap` or `/Identity-V usecmap`: a two-byte code the CMap
+        /// does not map is its own CID, and the codespace includes every two-byte code.
+        use_identity: bool,
+    },
 }
 
 impl EncodingCMap {
