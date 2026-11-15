@@ -129,7 +129,7 @@ impl StandardFont {
     }
 
     /// The PostScript name, as the AFM's `FontName`; also the stem of its
-    /// files in `data/afm/`.
+    /// files in `data/afm/` and `tables/afm/`.
     pub const fn name(self) -> &'static str {
         match self {
             Self::Courier => "Courier",
@@ -153,20 +153,20 @@ impl StandardFont {
     const fn table(self) -> Table<'static> {
         // `include_bytes!` takes a literal, hence one line per font.
         Table::new(match self {
-            Self::Courier => include_bytes!("../data/afm/Courier.bin"),
-            Self::CourierBold => include_bytes!("../data/afm/Courier-Bold.bin"),
-            Self::CourierOblique => include_bytes!("../data/afm/Courier-Oblique.bin"),
-            Self::CourierBoldOblique => include_bytes!("../data/afm/Courier-BoldOblique.bin"),
-            Self::Helvetica => include_bytes!("../data/afm/Helvetica.bin"),
-            Self::HelveticaBold => include_bytes!("../data/afm/Helvetica-Bold.bin"),
-            Self::HelveticaOblique => include_bytes!("../data/afm/Helvetica-Oblique.bin"),
-            Self::HelveticaBoldOblique => include_bytes!("../data/afm/Helvetica-BoldOblique.bin"),
-            Self::TimesRoman => include_bytes!("../data/afm/Times-Roman.bin"),
-            Self::TimesBold => include_bytes!("../data/afm/Times-Bold.bin"),
-            Self::TimesItalic => include_bytes!("../data/afm/Times-Italic.bin"),
-            Self::TimesBoldItalic => include_bytes!("../data/afm/Times-BoldItalic.bin"),
-            Self::Symbol => include_bytes!("../data/afm/Symbol.bin"),
-            Self::ZapfDingbats => include_bytes!("../data/afm/ZapfDingbats.bin"),
+            Self::Courier => include_bytes!("../tables/afm/Courier.bin"),
+            Self::CourierBold => include_bytes!("../tables/afm/Courier-Bold.bin"),
+            Self::CourierOblique => include_bytes!("../tables/afm/Courier-Oblique.bin"),
+            Self::CourierBoldOblique => include_bytes!("../tables/afm/Courier-BoldOblique.bin"),
+            Self::Helvetica => include_bytes!("../tables/afm/Helvetica.bin"),
+            Self::HelveticaBold => include_bytes!("../tables/afm/Helvetica-Bold.bin"),
+            Self::HelveticaOblique => include_bytes!("../tables/afm/Helvetica-Oblique.bin"),
+            Self::HelveticaBoldOblique => include_bytes!("../tables/afm/Helvetica-BoldOblique.bin"),
+            Self::TimesRoman => include_bytes!("../tables/afm/Times-Roman.bin"),
+            Self::TimesBold => include_bytes!("../tables/afm/Times-Bold.bin"),
+            Self::TimesItalic => include_bytes!("../tables/afm/Times-Italic.bin"),
+            Self::TimesBoldItalic => include_bytes!("../tables/afm/Times-BoldItalic.bin"),
+            Self::Symbol => include_bytes!("../tables/afm/Symbol.bin"),
+            Self::ZapfDingbats => include_bytes!("../tables/afm/ZapfDingbats.bin"),
         })
     }
 }

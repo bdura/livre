@@ -14,14 +14,14 @@ repository.workspace = true
 license-file = "LICENSE"
 keywords = ["pdf", "font", "afm", "glyph"]
 
-# The notice must travel with the AFM files, and the sources ship beside the
+# The notice must travel with the AFM files, and the sources ship with the
 # lookup tables derived from them.
 include = [
     "/src/**/*.rs",
     "/data/agl/*.txt",
-    "/data/agl/*.bin",
+    "/tables/agl/*.bin",
     "/data/afm/*.afm",
-    "/data/afm/*.bin",
+    "/tables/afm/*.bin",
     "/data/afm/NOTICE",
     "/LICENSE",
     "/README.md",

@@ -1,4 +1,4 @@
-//! The sorted string table every blob in `data/` is stored as, read in place.
+//! The sorted string table every blob in `tables/` is stored as, read in place.
 //!
 //! Layout, all integers little-endian:
 //!

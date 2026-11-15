@@ -1,4 +1,4 @@
-//! The writers that derive the blobs in `data/` from the vendored sources,
+//! The writers that derive the blobs in `tables/` from the vendored sources
 //! and the tests that keep the committed blobs in step with them.
 //!
 //! Run the tests with `LIVRE_FONT_DATA_UPDATE` set to rewrite the blobs.
@@ -85,7 +85,7 @@ pub(crate) fn assert_fresh(path: &str, bytes: Vec<u8>) {
 fn glyph_list_blob_is_fresh() {
     let source = include_str!("../data/agl/glyphlist.txt");
     assert_fresh(
-        "data/agl/glyphlist.bin",
+        "tables/agl/glyphlist.bin",
         write_table(&parse_glyph_list(source)),
     );
 }
@@ -136,10 +136,13 @@ pub(crate) fn parse_afm(text: &str) -> Vec<(Vec<u8>, Vec<u8>)> {
 #[test]
 fn afm_blobs_are_fresh() {
     for font in crate::StandardFont::ALL {
-        let stem = format!("data/afm/{}", font.name());
-        let afm = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("{stem}.afm"));
+        let name = font.name();
+        let afm = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("data/afm/{name}.afm"));
         let source = std::fs::read_to_string(&afm)
             .unwrap_or_else(|e| panic!("cannot read {}: {e}", afm.display()));
-        assert_fresh(&format!("{stem}.bin"), write_table(&parse_afm(&source)));
+        assert_fresh(
+            &format!("tables/afm/{name}.bin"),
+            write_table(&parse_afm(&source)),
+        );
     }
 }

@@ -7,8 +7,8 @@ Font data for [Livre](https://github.com/bdura/livre), a type-safe PDF parser:
 - the metrics of the fourteen standard Type 1 fonts (the "Core 14"), which a PDF
   may use without embedding them.
 
-The upstream files are vendored unmodified under `data/`. The `.bin` files
-beside them are compact lookup tables derived from those files and committed,
+The upstream files are vendored unmodified under `data/`. The `.bin` files in
+`tables/` are compact lookup tables derived from those files and committed,
 so the crate has no build script and no dependencies.
 
 ## Provenance
@@ -40,7 +40,7 @@ regenerate with the freshness tests alone (the lookup tests were compiled agains
 the empty file), then run the tests plainly.
 
 ```sh
-touch data/afm/ <Font >.bin
+touch tables/afm/<Font>.bin
 LIVRE_FONT_DATA_UPDATE=1 cargo test -p livre-font-data _fresh
 cargo test -p livre-font-data
 ```

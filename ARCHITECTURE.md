@@ -226,12 +226,13 @@ fails when the committed files drift from what it produces.
 │   ├── glyph_list.rs     # Glyph name to Unicode text
 │   ├── standard_font.rs  # StandardFont: alias resolution and widths
 │   └── generate.rs       # cfg(test): builds the blobs, checks they are fresh
-├── data/                 # Vendored AGL and AFM files, and the .bin blobs built from them
+├── data/                 # Vendored AGL and AFM files, unmodified
+├── tables/               # The .bin blobs built from data/ by the tests
 └── LICENSE               # MIT, plus Adobe's notices
 ```
 
 Not used by `livre` yet. The vendored files are compiled by the crate's own
-tests into `.bin` blobs, which are committed and embedded with
+tests into `.bin` blobs under `tables/`, which are committed and embedded with
 `include_bytes!`, so the crate needs no build script. The tests fail when a
 committed blob no longer matches its source.
 

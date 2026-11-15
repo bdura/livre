@@ -6,7 +6,7 @@
 
 use crate::table::Table;
 
-static GLYPH_LIST: Table<'static> = Table::new(include_bytes!("../data/agl/glyphlist.bin"));
+static GLYPH_LIST: Table<'static> = Table::new(include_bytes!("../tables/agl/glyphlist.bin"));
 
 /// The text a glyph name stands for, by the Adobe Glyph List. The list
 /// only: the `uniXXXX` forms, suffixes and ligature components of the AGL
