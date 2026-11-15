@@ -7,6 +7,12 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.1.0](https://github.com/bdura/livre/releases/tag/livre-font-data-v0.1.0) - 2026-11-15
+
+### Added
+
+- font data ([#67](https://github.com/bdura/livre/pull/67))
+
 ### Added
 
 - The `livre-font-data` crate, vendoring the Adobe Glyph List and the Core 14 AFM

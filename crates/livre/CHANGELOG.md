@@ -7,6 +7,26 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.6.0](https://github.com/bdura/livre/compare/livre-v0.5.0...livre-v0.6.0) - 2026-11-15
+
+### Added
+
+- simple font decoding ([#68](https://github.com/bdura/livre/pull/68))
+- *(content)* advance runs through simple-font widths ([#66](https://github.com/bdura/livre/pull/66))
+- *(content)* keep text state in the graphics state ([#65](https://github.com/bdura/livre/pull/65))
+- WASM demo ([#61](https://github.com/bdura/livre/pull/61))
+
+### Fixed
+
+- comments handling ([#69](https://github.com/bdura/livre/pull/69))
+- *(content)* track the CTM through cm, q and Q so run positions land in page space ([#62](https://github.com/bdura/livre/pull/62))
+- flate predictors ([#60](https://github.com/bdura/livre/pull/60))
+- *(document)* let newer xref sections take precedence and stop on /Prev cycles ([#59](https://github.com/bdura/livre/pull/59))
+
+### Other
+
+- use a crates/ layout ([#58](https://github.com/bdura/livre/pull/58))
+
 ### Added
 
 - `livre::VERSION`: the crate version, as published
