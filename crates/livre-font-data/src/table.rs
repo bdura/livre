@@ -27,12 +27,13 @@
 //! rather than a panic or undefined behaviour, at the cost of a few bytes and
 //! comparisons per lookup.
 //!
-//! The writer is `generate::write_table`, compiled for tests only.
+//! The writer, `write_table`, is compiled for tests only: the blobs are
+//! generated and committed, never built at run time.
 
 use std::cmp::Ordering;
 
 /// Size in bytes of the record count and of each index entry.
-pub(crate) const WORD: usize = 4;
+const WORD: usize = 4;
 
 /// A sorted key-value table read in place from its blob.
 #[derive(Clone, Copy)]
@@ -104,10 +105,40 @@ impl<'a> Table<'a> {
     }
 }
 
+/// Lay `entries` out in the layout above, the inverse of [`Table::get`].
+///
+/// Panics if two keys are equal or a key or value is longer than 255 bytes.
+#[cfg(test)]
+pub(crate) fn write_table(entries: &[(Vec<u8>, Vec<u8>)]) -> Vec<u8> {
+    let mut sorted: Vec<_> = entries.iter().collect();
+    sorted.sort_by(|a, b| a.0.cmp(&b.0));
+    for pair in sorted.windows(2) {
+        assert_ne!(pair[0].0, pair[1].0, "duplicate key");
+    }
+
+    let count = u32::try_from(sorted.len()).expect("too many records");
+    let mut index = Vec::with_capacity(WORD * (sorted.len() + 1));
+    index.extend_from_slice(&count.to_le_bytes());
+    let mut records = Vec::new();
+    let records_start = WORD * (sorted.len() + 1);
+
+    for (key, value) in sorted {
+        let offset = u32::try_from(records_start + records.len()).expect("blob too large");
+        index.extend_from_slice(&offset.to_le_bytes());
+        for field in [key, value] {
+            let len = u8::try_from(field.len()).expect("field longer than 255 bytes");
+            records.push(len);
+            records.extend_from_slice(field);
+        }
+    }
+
+    index.extend_from_slice(&records);
+    index
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::generate::write_table;
     use rstest::rstest;
 
     fn entries() -> Vec<(Vec<u8>, Vec<u8>)> {

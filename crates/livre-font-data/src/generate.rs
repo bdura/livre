@@ -1,44 +1,14 @@
-//! The writers that derive the blobs in `tables/` from the vendored sources
+//! The parsers that derive the blobs in `tables/` from the vendored sources
 //! and the tests that keep the committed blobs in step with them.
 //!
 //! Run the tests with `LIVRE_FONT_DATA_UPDATE` set to rewrite the blobs.
 
 use std::path::Path;
 
-use crate::table::WORD;
+use crate::table::write_table;
 
 /// The environment variable that makes [`assert_fresh`] rewrite blobs.
 const UPDATE: &str = "LIVRE_FONT_DATA_UPDATE";
-
-/// Lay `entries` out as a sorted string table (see `table.rs`).
-///
-/// Panics if two keys are equal or a key or value is longer than 255 bytes.
-pub(crate) fn write_table(entries: &[(Vec<u8>, Vec<u8>)]) -> Vec<u8> {
-    let mut sorted: Vec<_> = entries.iter().collect();
-    sorted.sort_by(|a, b| a.0.cmp(&b.0));
-    for pair in sorted.windows(2) {
-        assert_ne!(pair[0].0, pair[1].0, "duplicate key");
-    }
-
-    let count = u32::try_from(sorted.len()).expect("too many records");
-    let mut index = Vec::with_capacity(WORD * (sorted.len() + 1));
-    index.extend_from_slice(&count.to_le_bytes());
-    let mut records = Vec::new();
-    let records_start = WORD * (sorted.len() + 1);
-
-    for (key, value) in sorted {
-        let offset = u32::try_from(records_start + records.len()).expect("blob too large");
-        index.extend_from_slice(&offset.to_le_bytes());
-        for field in [key, value] {
-            let len = u8::try_from(field.len()).expect("field longer than 255 bytes");
-            records.push(len);
-            records.extend_from_slice(field);
-        }
-    }
-
-    index.extend_from_slice(&records);
-    index
-}
 
 /// The entries of the Adobe Glyph List: each glyph name and the UTF-8 text
 /// of its code points.

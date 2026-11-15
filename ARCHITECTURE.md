@@ -222,10 +222,10 @@ fails when the committed files drift from what it produces.
 
 ```text
 ├── src/
-│   ├── table.rs          # The blob format, read in place
+│   ├── table.rs          # The blob format: read in place, written by the tests
 │   ├── glyph_list.rs     # Glyph name to Unicode text
 │   ├── standard_font.rs  # StandardFont: alias resolution and widths
-│   └── generate.rs       # cfg(test): builds the blobs, checks they are fresh
+│   └── generate.rs       # cfg(test): parses the sources, checks the blobs are fresh
 ├── data/                 # Vendored AGL and AFM files, unmodified
 ├── tables/               # The .bin blobs built from data/ by the tests
 └── LICENSE               # MIT, plus Adobe's notices
