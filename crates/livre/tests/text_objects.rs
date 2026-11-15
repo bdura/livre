@@ -54,7 +54,7 @@ fn runs(path: &str) -> Vec<Run> {
 #[case("tests/resources/text-xref-stream.pdf")]
 fn test_content(#[case] path: &str) {
     for Run { start, text, .. } in runs(path) {
-        println!("- {:?} {:?}", start, text.decode());
+        println!("- {:?} {:?}", start, text);
     }
 }
 
@@ -154,7 +154,7 @@ fn font_runs(path: &str) -> Vec<(usize, GoldenRun)> {
                         y: start.y,
                         font: String::from_utf8_lossy(&font.name.0).into_owned(),
                         size: font.size.0,
-                        text: text.decode(),
+                        text,
                     },
                 ));
             }
@@ -253,9 +253,10 @@ fn page_without_font_resources_parses() {
     assert!(objects.next_object().unwrap().is_none());
 }
 
-/// A run as `kerned.txt` lists it: start, end and decoded text.
+/// A run as a golden sidecar (`kerned.txt`, `encodings.txt`) lists it: start, end and
+/// decoded text.
 #[derive(Debug)]
-struct KernedRun {
+struct SidecarRun {
     x: f32,
     y: f32,
     end_x: f32,
@@ -264,8 +265,8 @@ struct KernedRun {
 }
 
 /// Parses `x y end_x end_y (text)`, one run per line, skipping blank and `#` lines. The
-/// parentheses around the text keep a space-only run intact.
-fn read_kerned(path: &str) -> Vec<KernedRun> {
+/// parentheses around the text keep a space-only run intact; the text is UTF-8.
+fn read_sidecar(path: &str) -> Vec<SidecarRun> {
     std::fs::read_to_string(path)
         .unwrap()
         .lines()
@@ -279,7 +280,7 @@ fn read_kerned(path: &str) -> Vec<KernedRun> {
                 .strip_prefix('(')
                 .and_then(|text| text.strip_suffix(')'))
                 .unwrap_or_else(|| panic!("text not in parentheses: {line:?}"));
-            KernedRun {
+            SidecarRun {
                 x,
                 y,
                 end_x,
@@ -290,18 +291,15 @@ fn read_kerned(path: &str) -> Vec<KernedRun> {
         .collect()
 }
 
-/// `kerned.pdf` exercises every term of the advance on Helvetica widths: `TJ` numbers,
-/// `Tc`, `Tw` on the space, `Tz`, and a `Td` after a `TJ` that moves from the line matrix
-/// rather than from where the text ended (line four, `(C)` at `(72, 628)`).
-#[test]
-fn kerned_runs_start_and_end_where_expected() {
-    let expected = read_kerned("tests/resources/kerned.txt");
-    let actual = runs("tests/resources/kerned.pdf");
+fn close(a: f32, b: f32) -> bool {
+    (a - b).abs() < 1e-2
+}
 
-    assert_eq!(expected.len(), 12);
+/// Asserts that `actual` has the start, end and text of every run of the sidecar at `path`,
+/// positions to `1e-2`.
+fn assert_matches_sidecar(actual: &[Run], path: &str) {
+    let expected = read_sidecar(path);
     assert_eq!(actual.len(), expected.len(), "runs: {actual:?}");
-
-    let close = |a: f32, b: f32| (a - b).abs() < 1e-2;
 
     for (i, (run, golden)) in actual.iter().zip(&expected).enumerate() {
         assert!(
@@ -322,6 +320,105 @@ fn kerned_runs_start_and_end_where_expected() {
             run.end.x,
             run.end.y
         );
-        assert_eq!(run.text.decode(), golden.text, "run {i}");
+        assert_eq!(run.text, golden.text, "run {i}");
+    }
+}
+
+/// `kerned.pdf` exercises every term of the advance on Helvetica widths: `TJ` numbers,
+/// `Tc`, `Tw` on the space, `Tz`, and a `Td` after a `TJ` that moves from the line matrix
+/// rather than from where the text ended (line four, `(C)` at `(72, 628)`).
+#[test]
+fn kerned_runs_start_and_end_where_expected() {
+    assert_eq!(read_sidecar("tests/resources/kerned.txt").len(), 12);
+    assert_matches_sidecar(
+        &runs("tests/resources/kerned.pdf"),
+        "tests/resources/kerned.txt",
+    );
+}
+
+/// `encodings.pdf` has one font per decoding route: Helvetica on `StandardEncoding` with AFM
+/// widths, `/Differences` over a `/Widths` table, a `/ToUnicode` over `WinAnsiEncoding`, and
+/// the built-in Symbol table. `encodings.txt` shows the arithmetic.
+#[test]
+fn encodings_runs_decode_and_advance_as_expected() {
+    let actual = runs("tests/resources/encodings.pdf");
+    assert_eq!(read_sidecar("tests/resources/encodings.txt").len(), 4);
+    assert_matches_sidecar(&actual, "tests/resources/encodings.txt");
+
+    // The `/Differences` run: `fi` through the glyph list, `Adieresis`, `uni2014` through
+    // the AGL rule, and code 4, unmapped and outside `/FirstChar..LastChar`, with no text
+    // and no width.
+    let expected = [
+        (1, 72.0, 78.0, Some("\u{FB01}")),
+        (2, 78.0, 86.004, Some("Ä")),
+        (3, 86.004, 98.004, Some("—")),
+        (4, 98.004, 98.004, None),
+    ];
+    let characters = &actual[1].characters;
+    assert_eq!(characters.len(), expected.len(), "{characters:?}");
+
+    for (character, (code, start_x, end_x, text)) in characters.iter().zip(expected) {
+        assert_eq!(character.code.value(), code);
+        assert_eq!(character.code.byte_count(), 1);
+        assert!(
+            close(character.start.x, start_x) && close(character.start.y, 680.0),
+            "code {code}: expected start ({start_x}, 680), got {:?}",
+            character.start
+        );
+        assert!(
+            close(character.end.x, end_x) && close(character.end.y, 680.0),
+            "code {code}: expected end ({end_x}, 680), got {:?}",
+            character.end
+        );
+        assert_eq!(character.text.as_deref(), text, "code {code}");
+    }
+}
+
+/// `letter.pdf` uses `WinAnsiEncoding` TrueType fonts for its header: the first text
+/// objects show a single space each, and text object 42 (`/F3`, Times New Roman Bold) is
+/// the first to show words, split into runs by its `TJ` offsets. Text object 60 has an
+/// accented capital, `0xC9` in WinAnsi.
+#[test]
+fn letter_header_decodes_to_words() {
+    let runs = font_runs("tests/resources/letter.pdf");
+
+    for (object, run) in &runs[..3] {
+        assert_eq!(run.text, " ", "text object {object}");
+    }
+
+    let text_of = |index: usize| -> String {
+        runs.iter()
+            .filter(|(object, _)| *object == index)
+            .map(|(_, run)| run.text.as_str())
+            .collect()
+    };
+
+    assert_eq!(text_of(42), "Groupe Hospitalier Henri Mondor");
+    assert_eq!(text_of(60), "SANTÉ PUBLIQUE");
+}
+
+/// `text.pdf` shows every string in `Type0` fonts with two-byte codes, which livre does
+/// not decode yet: every run is replacement characters only, one per code. Decoding
+/// composite fonts turns this around.
+#[rstest]
+#[case("tests/resources/text.pdf")]
+#[case("tests/resources/text-xref-stream.pdf")]
+fn composite_runs_are_replacement_characters(#[case] path: &str) {
+    let runs = runs(path);
+    assert!(!runs.is_empty());
+
+    for (i, run) in runs.iter().enumerate() {
+        assert!(
+            run.text.chars().all(|c| c == '\u{FFFD}'),
+            "run {i}: {:?}",
+            run.text
+        );
+        assert_eq!(run.characters.len(), run.text.chars().count(), "run {i}");
+        assert!(
+            run.characters
+                .iter()
+                .all(|character| character.code.byte_count() == 2 && character.text.is_none()),
+            "run {i}"
+        );
     }
 }

@@ -85,10 +85,28 @@ pub struct Run {
     pub base_font: Option<String>,
     /// Font size from `Tf`, in text space units: the scale of the text matrix is not applied.
     pub size: f32,
-    /// Best-effort decoding of `bytes`: UTF-16BE behind a BOM, Latin-1 otherwise.
+    /// The decoded text, through the font's `/ToUnicode` or encoding: the characters'
+    /// texts concatenated, U+FFFD in place of each code with no text.
     pub text: String,
-    /// The raw string bytes, as lowercase hex.
+    /// The string's codes as lowercase hex, each written at its byte length: two digits for
+    /// a one-byte code, four for a two-byte one.
     pub bytes: String,
+    /// One per character code, in string order.
+    pub characters: Vec<Character>,
+}
+
+/// One character code of a shown string, and the glyph it places.
+#[derive(Debug, Clone, PartialEq, Serialize, Tsify)]
+#[tsify(missing_as_null)]
+pub struct Character {
+    /// The code's numeric value.
+    pub code: u32,
+    /// Where the glyph starts, on the baseline, in default user space.
+    pub start: Point,
+    /// Where the glyph ends: its start advanced by its width and the spacing after it.
+    pub end: Point,
+    /// What the code stands for; `None` when neither `/ToUnicode` nor the encoding maps it.
+    pub text: Option<String>,
 }
 
 /// The kind of font a run is shown in.

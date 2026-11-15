@@ -2,7 +2,8 @@
 //
 // livre knows where each shown string starts and ends, from the font widths, and at what
 // font size. So each run is a box from its start to its end, one font size tall, with a
-// dot at its baseline origin. Each text object also gets a hull around its runs' boxes,
+// dot at its baseline origin and a tick at each character's start, to compare glyph by
+// glyph with the pdf.js render. Each text object also gets a hull around its runs' boxes,
 // shown only while the inspector highlights it: Word exports split a line into many small
 // text objects, whose hulls would otherwise cover the page in overlapping frames.
 // The box height is the font size, not the glyphs' real extent: compare widths and
@@ -44,7 +45,12 @@ export function drawLivreLayer(svg: SVGSVGElement, page: Page, viewport: PageVie
         viewport.convertToViewportPoint(run.start.x, run.start.y + run.size),
       ];
       for (const corner of corners) box.add(...corner);
-      layer.append(runMarker(corners, objectIndex, runIndex));
+      // A quarter of the font size marks each start without hiding the glyphs; straight up, like the box's height.
+      const ticks = run.characters.map(({ start }): [Point, Point] => [
+        viewport.convertToViewportPoint(start.x, start.y),
+        viewport.convertToViewportPoint(start.x, start.y + run.size / 4),
+      ]);
+      layer.append(runMarker(corners, ticks, objectIndex, runIndex));
     });
     // Behind the markers, so it never takes their pointer events.
     layer.prepend(
@@ -63,8 +69,13 @@ export function drawLivreLayer(svg: SVGSVGElement, page: Page, viewport: PageVie
   return layer;
 }
 
-/** A run's box through `corners`, and its origin dot. */
-function runMarker(corners: Corners, objectIndex: number, runIndex: number): SVGGElement {
+/** A run's box through `corners`, its origin dot, and a tick from each pair of `ticks`. */
+function runMarker(
+  corners: Corners,
+  ticks: [Point, Point][],
+  objectIndex: number,
+  runIndex: number,
+): SVGGElement {
   const [[bx, by], , , [tx, ty]] = corners;
   const group = element("g", { class: "run", "data-object": objectIndex, "data-run": runIndex });
   group.append(
@@ -72,6 +83,7 @@ function runMarker(corners: Corners, objectIndex: number, runIndex: number): SVG
     // An invisible, wider stroke on the start edge, so a run that does not advance (a
     // composite font) can still be hovered without pixel precision.
     element("line", { class: "hit", x1: bx, y1: by, x2: tx, y2: ty }),
+    ...ticks.map(([[x1, y1], [x2, y2]]) => element("line", { class: "tick", x1, y1, x2, y2 })),
     element("circle", { cx: bx, cy: by, r: 2 }),
   );
   return group;

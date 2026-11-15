@@ -20,7 +20,7 @@ use winnow::{
 use crate::{
     content::{
         error::{ContentError, Result},
-        font::{Font, Fonts},
+        font::{Code, Font, Fonts},
         operators::{
             graphics::GraphicsStateOperation,
             text::{TextArrayElement, TextOperator, TextShowingOperation, TextStateOperation},
@@ -173,6 +173,26 @@ impl Extract<'_> for RenderingMode {
     }
 }
 
+/// One character code of a shown string: the glyph it selected, where that glyph starts and
+/// ends in default user space, and the text it stands for.
+///
+/// Named after the specification's word for what a code stands for (ISO 32000-2, 9.2.2);
+/// [`Glyph`](super::space::Glyph) is the glyph space marker.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Character {
+    /// The code the font read from the string.
+    pub code: Code,
+    /// The text position before the glyph: the point `(0, rise)` of text space, mapped
+    /// through the text matrix and the CTM in force at `BT`.
+    pub start: Point<DefaultUser>,
+    /// The same point once the text matrix has advanced past the glyph, character and word
+    /// spacing included.
+    pub end: Point<DefaultUser>,
+    /// What the code stands for, through the font's `/ToUnicode` or encoding. `None` when
+    /// neither maps the code.
+    pub text: Option<Box<str>>,
+}
+
 /// A shown string, as yielded by a [`TextObjectStream`].
 #[derive(Debug, Clone, PartialEq)]
 pub struct Run {
@@ -182,10 +202,10 @@ pub struct Run {
     /// The end of the shown string in default user space: the same point as
     /// [`start`](Self::start), after the text matrix has advanced past every glyph.
     pub end: Point<DefaultUser>,
-    /// The string's bytes, undecoded: their meaning depends on the font's encoding.
-    /// [`PDFString::decode`] is a best-effort heuristic (UTF-16BE behind a BOM, Latin-1
-    /// otherwise) until fonts are modelled.
-    pub text: PDFString,
+    /// One per character code, in string order.
+    pub characters: Vec<Character>,
+    /// The characters' texts concatenated, U+FFFD in place of each code with no text.
+    pub text: String,
 }
 
 /// A text object: the state the text operators act on between `BT` and `ET`.
@@ -275,14 +295,18 @@ impl<'a, 'f> TextObject<'a, 'f> {
     }
 
     /// Show `string`: advance the text matrix past each of its glyphs and return the run,
-    /// from the text position before the first glyph to the one after the last.
+    /// from the text position before the first glyph to the one after the last, with a
+    /// [`Character`] per code.
     ///
     /// The selected font splits the string into codes. Each code advances the text matrix
     /// horizontally by `tx = (w0 · Tfs + Tc + Tw) · Th` (ISO 32000-2, 9.4.4), where `w0` is
     /// the glyph width through the font's glyph-to-text matrix and `Tw` applies to the
-    /// one-byte code 32 only. With no font selected, nothing advances.
+    /// one-byte code 32 only. With no font selected, nothing advances and the run has no
+    /// characters.
     pub fn show(&mut self, string: &PDFString) -> Run {
         let start = self.origin();
+        let mut characters = Vec::new();
+        let mut text = String::new();
 
         if let Some(SelectedFont {
             font,
@@ -300,6 +324,7 @@ impl<'a, 'f> TextObject<'a, 'f> {
             let scaling = horizontal_scaling / 100.0;
 
             for code in font.codes(string) {
+                let start = self.origin();
                 let w0 = glyph_to_text.apply_width(font.width(code));
                 let spacing = if code.word_spacing_applies() {
                     character_spacing + word_spacing
@@ -308,13 +333,29 @@ impl<'a, 'f> TextObject<'a, 'f> {
                 };
                 let tx = (w0.dx * size + spacing) * scaling;
                 self.matrix.translate(Displacement::new(tx, 0.0));
+
+                let decoded = font.decode(code);
+                match &decoded {
+                    Some(decoded) => text.push_str(decoded),
+                    None => {
+                        tracing::debug!("No text for code {code:?}: U+FFFD in its place");
+                        text.push(char::REPLACEMENT_CHARACTER);
+                    }
+                }
+                characters.push(Character {
+                    code,
+                    start,
+                    end: self.origin(),
+                    text: decoded.map(Into::into),
+                });
             }
         }
 
         Run {
             start,
             end: self.origin(),
-            text: string.clone(),
+            characters,
+            text,
         }
     }
 
@@ -371,7 +412,7 @@ struct Started {
 /// let mut objects = TextObjects::new(&mut operators, &fonts);
 /// while let Some(stream) = objects.next_object()? {
 ///     for Run { start, text, .. } in stream {
-/// #       assert_eq!((start.x, start.y, text.decode()), (72.0, 700.0, "Hello".into()));
+/// #       assert_eq!((start.x, start.y, text.as_str()), (72.0, 700.0, "Hello"));
 ///         /* ... */
 ///     }
 /// }
@@ -543,8 +584,9 @@ where
 /// A [`TextObject`] and the operators that apply to it, up to its `ET`.
 ///
 /// Iterates over the object's shown strings as [`Run`]s: each carries its start position in
-/// default user space and its undecoded bytes. The font and other text state parameters in
-/// force for the run just yielded are read from [`text_object`](Self::text_object).
+/// default user space, its characters and its decoded text. The font and other text state
+/// parameters in force for the run just yielded are read from
+/// [`text_object`](Self::text_object).
 ///
 /// Borrows the [`TextObjects`] it comes from: its operators, and the graphics state's text
 /// state through the text object. A `Tf` naming an unknown font ends the stream; the
@@ -614,7 +656,7 @@ mod tests {
     use crate::content::font::tests::{fonts, HELVETICA};
 
     /// Parse a content stream into its operators.
-    fn operators(input: &[u8]) -> Vec<Operator> {
+    pub(super) fn operators(input: &[u8]) -> Vec<Operator> {
         let mut stream = BStr::new(input);
         let mut it =
             winnow::combinator::iterator(&mut stream, preceded(multispace0, Operator::extract));
@@ -659,7 +701,7 @@ mod tests {
         while let Some(mut stream) = objects.next_object()? {
             let mut runs = Vec::new();
             while let Some(Run { text, .. }) = stream.next() {
-                runs.push((text.decode(), selected(stream.text_object().parameters)));
+                runs.push((text, selected(stream.text_object().parameters)));
             }
             out.push(runs);
         }
@@ -708,7 +750,7 @@ mod tests {
         let mut objects = objects_with(b"BT /F1 12 Tf (a) Tj /F9 10 Tf (b) Tj ET", &fonts);
 
         let stream = objects.next_object().unwrap().unwrap();
-        let texts: Vec<String> = stream.map(|Run { text, .. }| text.decode()).collect();
+        let texts: Vec<String> = stream.map(|Run { text, .. }| text).collect();
         assert_eq!(texts, ["a"]);
 
         assert!(matches!(
@@ -794,10 +836,7 @@ mod tests {
         let mut stream = objects.next_object().unwrap().unwrap();
 
         let Run { start, text, .. } = stream.next().unwrap();
-        assert_eq!(
-            (start, text.decode()),
-            (Point::new(0.0, 0.0), "a".to_string())
-        );
+        assert_eq!((start, text), (Point::new(0.0, 0.0), "a".to_string()));
         assert!(stream.next().is_none());
     }
 
@@ -811,7 +850,7 @@ mod tests {
         let mut objects = objects(b"BT /F1 12 Tf (a) Tj");
 
         let stream = objects.next_object().unwrap().unwrap();
-        let texts: Vec<String> = stream.map(|Run { text, .. }| text.decode()).collect();
+        let texts: Vec<String> = stream.map(|Run { text, .. }| text).collect();
         assert_eq!(texts, ["a"]);
 
         assert!(matches!(
@@ -836,7 +875,7 @@ mod tests {
         let mut stream = objects.next_object().unwrap().unwrap();
 
         let Run { text, .. } = stream.next().unwrap();
-        assert_eq!(text.decode(), "c");
+        assert_eq!(text, "c");
         assert_eq!(
             selected(stream.text_object().parameters),
             Some(font("F2", 8.0))
@@ -849,39 +888,6 @@ mod tests {
             runs(b"BT /F1 12 Tf (a) Tj /F2 10 Tf (b) Tj ET").unwrap(),
             [vec![run("a", "F1", 12.0), run("b", "F2", 10.0)]]
         );
-    }
-
-    #[test]
-    fn runs_keep_the_bytes_that_decoding_conflates() {
-        let input = b"BT /F1 12 Tf <FEFF0041> Tj (A) Tj ET";
-
-        let mut objects = objects(input);
-        let mut stream = objects.next_object().unwrap().unwrap();
-        assert_eq!(
-            stream.next(),
-            Some(Run {
-                start: Point::new(0.0, 0.0),
-                end: Point::new(0.0, 0.0),
-                text: PDFString(vec![0xFE, 0xFF, 0x00, 0x41]),
-            })
-        );
-        assert_eq!(
-            stream.next(),
-            Some(Run {
-                start: Point::new(0.0, 0.0),
-                end: Point::new(0.0, 0.0),
-                text: PDFString(b"A".to_vec()),
-            })
-        );
-        assert!(stream.next().is_none());
-
-        let texts: Vec<String> = runs(input)
-            .unwrap()
-            .concat()
-            .into_iter()
-            .map(|(text, _)| text)
-            .collect();
-        assert_eq!(texts, ["A", "A"]);
     }
 
     #[test]
@@ -900,16 +906,10 @@ mod tests {
         let mut stream = objects.next_object().unwrap().unwrap();
 
         let Run { start, text, .. } = stream.next().unwrap();
-        assert_eq!(
-            (start, text.decode()),
-            (Point::new(0.0, -14.0), "a".to_string())
-        );
+        assert_eq!((start, text), (Point::new(0.0, -14.0), "a".to_string()));
         assert_eq!(stream.text_object().parameters.leading, 14.0);
         let Run { start, text, .. } = stream.next().unwrap();
-        assert_eq!(
-            (start, text.decode()),
-            (Point::new(0.0, -28.0), "b".to_string())
-        );
+        assert_eq!((start, text), (Point::new(0.0, -28.0), "b".to_string()));
     }
 
     #[test]
@@ -918,10 +918,7 @@ mod tests {
         let mut stream = objects.next_object().unwrap().unwrap();
 
         let Run { start, text, .. } = stream.next().unwrap();
-        assert_eq!(
-            (start, text.decode()),
-            (Point::new(0.0, -14.0), "a".to_string())
-        );
+        assert_eq!((start, text), (Point::new(0.0, -14.0), "a".to_string()));
         assert_eq!(stream.text_object().parameters.word_spacing, 3.0);
         assert_eq!(stream.text_object().parameters.character_spacing, 1.0);
     }
@@ -1228,5 +1225,109 @@ mod advance_tests {
         assert_close(runs[1].end, (13.34, 0.0));
         assert_close(runs[2].start, (0.0, -12.0));
         assert_close(runs[2].end, (6.67, -12.0));
+    }
+}
+
+#[cfg(test)]
+mod character_tests {
+    use super::*;
+    use crate::content::font::tests::fonts;
+
+    /// `F1` is Helvetica from code 65 to 66 with `/Widths`: `A` and `B` are 667. Its codes
+    /// decode through `StandardEncoding`.
+    static FONTS: std::sync::LazyLock<Fonts> = std::sync::LazyLock::new(|| {
+        fonts(&[(
+            "F1",
+            b"<</Type/Font/Subtype/Type1/BaseFont/Helvetica/FirstChar 65/LastChar 66/Widths[667 667]>>",
+        )])
+    });
+
+    /// Every run of a content stream, selecting from [`FONTS`].
+    fn runs(input: &[u8]) -> Vec<Run> {
+        let mut objects = TextObjects::new(super::tests::operators(input).into_iter(), &FONTS);
+        let mut runs = Vec::new();
+        while let Some(stream) = objects.next_object().unwrap() {
+            runs.extend(stream);
+        }
+        runs
+    }
+
+    /// The single run of a content stream.
+    fn run(input: &[u8]) -> Run {
+        let runs = runs(input);
+        assert_eq!(runs.len(), 1, "{runs:?}");
+        runs.into_iter().next().unwrap()
+    }
+
+    fn assert_close(Point { x, y, .. }: Point<DefaultUser>, (ex, ey): (f32, f32)) {
+        assert!(
+            (x - ex).abs() < 1e-4 && (y - ey).abs() < 1e-4,
+            "expected ({ex}, {ey}), got ({x}, {y})"
+        );
+    }
+
+    #[test]
+    fn each_code_is_a_character_from_its_start_to_its_end() {
+        // 667/1000 · 12 = 8.004 per glyph.
+        let run = run(b"/F1 12 Tf BT 72 700 Td (AB) Tj ET");
+
+        let [a, b] = &run.characters[..] else {
+            panic!("expected two characters, got {:?}", run.characters);
+        };
+        assert_eq!((a.code, b.code), (Code::one_byte(65), Code::one_byte(66)));
+        assert_close(a.start, (72.0, 700.0));
+        assert_close(a.end, (80.004, 700.0));
+        assert_eq!(a.end, b.start);
+        assert_close(b.end, (88.008, 700.0));
+        assert_eq!(
+            (a.text.as_deref(), b.text.as_deref()),
+            (Some("A"), Some("B"))
+        );
+        assert_eq!(run.text, "AB");
+        assert_eq!(run.start, a.start);
+        assert_eq!(run.end, b.end);
+    }
+
+    #[test]
+    fn character_end_includes_the_character_spacing() {
+        // 8.004 + 1 per glyph.
+        let run = run(b"/F1 12 Tf BT 72 700 Td 1 Tc (AB) Tj ET");
+        assert_close(run.characters[0].end, (81.004, 700.0));
+        assert_close(run.characters[1].start, (81.004, 700.0));
+        assert_close(run.characters[1].end, (90.008, 700.0));
+    }
+
+    #[test]
+    fn a_code_with_no_text_is_a_replacement_character() {
+        // `StandardEncoding` leaves 0xFE, 0xFF and 0x00 undefined.
+        let run = run(b"/F1 12 Tf BT <FEFF0041> Tj ET");
+        assert_eq!(run.characters.len(), 4);
+        assert_eq!(run.characters[0].text, None);
+        assert_eq!(run.characters[3].text.as_deref(), Some("A"));
+        assert_eq!(run.text, "\u{FFFD}\u{FFFD}\u{FFFD}A");
+    }
+
+    #[test]
+    fn tj_offset_moves_the_next_run_first_character() {
+        // `A` ends at 8.004; the offset adds 500/1000 · 12 = 6.
+        let runs = runs(b"/F1 12 Tf BT [(A) -500 (B)] TJ ET");
+        assert_close(runs[1].characters[0].start, (14.004, 0.0));
+        assert_close(runs[1].characters[0].end, (22.008, 0.0));
+    }
+
+    #[test]
+    fn character_starts_carry_the_rise() {
+        let run = run(b"/F1 12 Tf BT 5 Ts (AB) Tj ET");
+        assert_close(run.characters[0].start, (0.0, 5.0));
+        assert_close(run.characters[1].start, (8.004, 5.0));
+        assert_close(run.characters[1].end, (16.008, 5.0));
+    }
+
+    #[test]
+    fn character_positions_are_in_default_user_space() {
+        let run = run(b"q 2 0 0 2 0 0 cm /F1 12 Tf BT 10 20 Td (AB) Tj ET Q");
+        assert_close(run.characters[0].start, (20.0, 40.0));
+        assert_close(run.characters[0].end, (36.008, 40.0));
+        assert_close(run.characters[1].end, (52.016, 40.0));
     }
 }

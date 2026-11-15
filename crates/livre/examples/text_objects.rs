@@ -40,7 +40,7 @@ fn main() {
             while let Some(mut stream) = objects.next_object().unwrap() {
                 println!("NEW TEXT OBJECT");
                 for Run { start, text, .. } in &mut stream {
-                    println!("- {:?} {:?}", start, text.decode());
+                    println!("- {:?} {:?}", start, text);
                 }
                 println!("END TEXT OBJECT");
                 println!();

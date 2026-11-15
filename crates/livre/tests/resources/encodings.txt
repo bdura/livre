@@ -1,0 +1,34 @@
+# Expected runs of encodings.pdf: `x y end_x end_y (text)`, one run per line,
+# the text in UTF-8 between parentheses, as in kerned.txt.
+#
+# One font per decoding route, Tfs = 12, Tc = Tw = 0, Th = 1, Ts = 0:
+#   tx = w0 * 12, w0 = width / 1000
+#
+# Line 1, /F1: Helvetica, no /Widths, no /Encoding. StandardEncoding base,
+# widths from the Helvetica AFM: H 722, e 556, l 222, l 222, o 556 = 2278.
+#   72 + 2278 * 12 / 1000 = 72 + 27.336 = 99.336
+#
+# Line 2, /F2: Helvetica, /Widths [500 667 1000] from /FirstChar 1, and
+# /Differences [1 /fi /Adieresis /uni2014] over StandardEncoding.
+# Code 4 has no /Differences entry, no StandardEncoding entry, and lies
+# outside /FirstChar..LastChar: no text (U+FFFD) and width 0 (missing).
+#   500 + 667 + 1000 + 0 = 2167, 72 + 26.004 = 98.004
+# Its four characters, `start_x start_y end_x end_y text`:
+#   72.000 680 78.000 680 (U+FB01 LATIN SMALL LIGATURE FI: the glyph list maps fi)
+#   78.000 680 86.004 680 (U+00C4 Adieresis)
+#   86.004 680 98.004 680 (U+2014 EM DASH: uni2014 by the AGL uniXXXX rule)
+#   98.004 680 98.004 680 (no text)
+#
+# Line 3, /F3: Helvetica, /Widths [667 667 722 722 667 611] from /FirstChar 65,
+# WinAnsiEncoding, and a /ToUnicode that wins where it maps:
+#   A -> a (bfchar), B C -> b c (stepped bfrange), D -> d and E -> ff (array
+#   bfrange), F unmapped by the CMap -> F through WinAnsiEncoding.
+#   667 + 667 + 722 + 722 + 667 + 611 = 4056, 72 + 48.672 = 120.672
+#
+# Line 4, /F4: Symbol, no /Widths, no /Encoding. The built-in Symbol table,
+# widths from the Symbol AFM: alpha 631, beta 549, gamma 411 = 1591.
+#   72 + 19.092 = 91.092
+72.000 700 99.336 700 (Hello)
+72.000 680 98.004 680 (ﬁÄ—�)
+72.000 660 120.672 660 (abcdffF)
+72.000 640 91.092 640 (αβγ)

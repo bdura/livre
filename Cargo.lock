@@ -172,6 +172,7 @@ dependencies = [
  "flate2",
  "indoc",
  "livre-derive",
+ "livre-font-data",
  "paste",
  "rstest",
  "thiserror",

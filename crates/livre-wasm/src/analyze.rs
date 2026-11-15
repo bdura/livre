@@ -1,5 +1,5 @@
 use livre::{
-    content::{operators::Operator, Font, Fonts, TextObjects},
+    content::{operators::Operator, Code, DefaultUser, Font, Fonts, TextObjects},
     extraction::Extract,
     structure::Page as LivrePage,
     InMemoryDocument,
@@ -11,7 +11,9 @@ use winnow::{
     BStr,
 };
 
-use crate::dto::{Analysis, FontKind, Page, Point, Rect, Run, Stage, StageError, TextObject};
+use crate::dto::{
+    Analysis, Character, FontKind, Page, Point, Rect, Run, Stage, StageError, TextObject,
+};
 
 /// US Letter, the fallback for a page tree without the (required) `MediaBox`.
 const LETTER: Rect = Rect {
@@ -144,20 +146,24 @@ fn extract_text_objects(
                 None => (String::new(), None, None, 0.0),
             };
             runs.push(Run {
-                start: Point {
-                    x: run.start.x,
-                    y: run.start.y,
-                },
-                end: Point {
-                    x: run.end.x,
-                    y: run.end.y,
-                },
+                start: point(run.start),
+                end: point(run.end),
                 font,
                 font_kind,
                 base_font,
                 size,
-                text: run.text.decode(),
-                bytes: run.text.0.iter().map(|b| format!("{b:02x}")).collect(),
+                bytes: run.characters.iter().map(|c| hex(c.code)).collect(),
+                characters: run
+                    .characters
+                    .iter()
+                    .map(|c| Character {
+                        code: c.code.value(),
+                        start: point(c.start),
+                        end: point(c.end),
+                        text: c.text.as_deref().map(String::from),
+                    })
+                    .collect(),
+                text: run.text,
             });
         }
         text_objects.push(TextObject { runs });
@@ -181,4 +187,20 @@ fn extract_text_objects(
     }
 
     None
+}
+
+fn point(point: livre::content::Point<DefaultUser>) -> Point {
+    Point {
+        x: point.x,
+        y: point.y,
+    }
+}
+
+/// `code` as lowercase hex, two digits per byte it was read from.
+fn hex(code: Code) -> String {
+    format!(
+        "{:0width$x}",
+        code.value(),
+        width = 2 * code.byte_count() as usize
+    )
 }

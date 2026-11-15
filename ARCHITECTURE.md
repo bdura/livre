@@ -55,13 +55,16 @@ The system is designed as a layered architecture:
 4. **Content layer** (`content/`): Parsing of page content streams into text runs.
    `TextObjects` walks a page's operators against its fonts, resolved beforehand
    by `Page::fonts`, and owns its graphics state: the CTM and the text state
-   parameters (font, spacing, leading...), saved and restored together by
-   `q`/`Q`, so a `Tf` outside `BT` or in an earlier text object still applies.
-   Each text object it hands out yields `Run { start, end, text }`, where `end`
-   is `start` advanced past the shown glyphs, both in default user space.
-   Matrices and points are typed by coordinate space (`Glyph`, `Text`, `User`,
-   `DefaultUser`). This is the highest-level layer for extracting human-readable
-   content; decoding shown bytes to text is not done yet.
+   parameters (font, spacing, leading...), saved and restored together by `q`/`Q`,
+   so a `Tf` outside `BT` or in an earlier text object still applies. Each text
+   object it hands out yields `Run { start, end, characters, text }`, where
+   `end` is `start` advanced past the shown glyphs, both in default user space,
+   and each `Character` is one code with its own start, end and decoded text.
+   Simple and `Type3` fonts decode codes through `/ToUnicode`, then their encoding
+   and the Adobe Glyph List; composite (`Type0`) fonts decode nothing yet,
+   so their runs are U+FFFD. Matrices and points are typed by coordinate space
+   (`Glyph`, `Text`, `User`, `DefaultUser`). This is the highest-level layer for
+   extracting human-readable content.
 
 The library deliberately does **not** render PDFs, edit PDFs, or handle encryption.
 It focuses solely on reading and extracting data from existing PDF files in a
@@ -158,11 +161,21 @@ and the root manifest only lists the members and their shared package metadata.
 │   └── content/               # Page content parsing
 │       ├── mod.rs             # Module exports
 │       ├── error.rs           # Content parsing errors
-│       ├── font/              # Font dictionaries, as far as positioning text needs
+│       ├── font/              # Font dictionaries, as far as positioning and decoding text needs
 │       │   ├── mod.rs         # Font, dispatching on /Subtype, and Fonts
 │       │   ├── code.rs        # Splitting a shown string into character codes
 │       │   ├── widths.rs      # Glyph widths
-│       │   ├── simple.rs      # Type1, MMType1, TrueType
+│       │   ├── cmap/          # CMap<D>: codespace, bfchar and bfrange, lookup
+│       │   │   ├── mod.rs     # CMap, CodespaceRange, lookup
+│       │   │   ├── parse.rs   # PostScript tokens and the begin/end sections
+│       │   │   └── unicode.rs # UnicodeText, ToUnicode = CMap<UnicodeText>
+│       │   ├── encoding/      # Code to glyph name, for simple and Type3 fonts
+│       │   │   ├── mod.rs     # Encoding, Flags, the base table rule
+│       │   │   ├── tables.rs  # The Annex D tables: Standard, WinAnsi, MacRoman, MacExpert, Symbol, ZapfDingbats
+│       │   │   ├── glyph_name.rs # GlyphName and the AGL rules (uniXXXX, uXXXX, suffixes, ligatures)
+│       │   │   └── differences.rs # /Encoding as a name or a dictionary, /Differences
+│       │   ├── decoder.rs     # Decoder: /ToUnicode first, then the encoding
+│       │   ├── simple.rs      # Type1, MMType1, TrueType; standard 14 widths when /Widths is absent
 │       │   ├── type3.rs       # Type3
 │       │   └── composite.rs   # Type0, a placeholder
 │       ├── operators/         # Content stream operators
@@ -231,10 +244,11 @@ fails when the committed files drift from what it produces.
 └── LICENSE               # MIT, plus Adobe's notices
 ```
 
-Not used by `livre` yet. The vendored files are compiled by the crate's own
-tests into `.bin` blobs under `tables/`, which are committed and embedded with
-`include_bytes!`, so the crate needs no build script. The tests fail when a
-committed blob no longer matches its source.
+`livre` depends on it for glyph name lookup when decoding and for the standard
+14 widths of fonts without `/Widths`. The vendored files are compiled by the
+crate's own tests into `.bin` blobs under `tables/`, which are committed
+and embedded with `include_bytes!`, so the crate needs no build script.
+The tests fail when a committed blob no longer matches its source.
 
 ### `crates/livre-wasm/`
 
@@ -252,7 +266,7 @@ committed blob no longer matches its source.
 ```text
 ├── index.html            # The page: header controls, error strips, canvas and overlay svg, inspector
 ├── app.ts                # Loads the wasm and pdf.js, renders, navigates, reports errors, drives the inspector
-├── overlay-livre.ts      # livre's layer: run boxes from start to end, text object hulls on highlight
+├── overlay-livre.ts      # livre's layer: run boxes from start to end, a tick at each character's start, text object hulls on highlight
 ├── overlay-pdfjs.ts      # Ground truth: pdf.js text items as boxes
 ├── svg.ts                # The overlays' SVG element helper
 ├── pdfjs.d.ts            # Hand-written types for the slice of pdf.js the page uses
@@ -294,7 +308,10 @@ streams and resources. Its fonts are resolved eagerly, so the content layer need
 no document.
 
 **`Font`** (content/font/mod.rs): A font dictionary, reduced to what positioning
-text needs: splitting strings into codes and glyph widths.
+and decoding text needs: splitting strings into codes, glyph widths,
+and `Font::decode`, the text a code stands for. Simple and `Type3` fonts carry a
+`Decoder`, which owns the precedence of ISO 32000-2 9.10.2: `/ToUnicode`, then the
+glyph name their `Encoding` gives the code, through `livre-font-data`'s glyph list.
 
 **`TextObjects`** (content/state/text.rs): The entry point for text extraction.
 It wraps a page's operator iterator and owns the graphics state for the whole
@@ -318,13 +335,16 @@ Showing text with no font selected is `NoFontSelected`.
 - **Add a new font subtype**: Add a variant to `content::font::Font`, backed by
   its own module in `content/font/`, and handle it in each of `Font`'s matches.
   The text advance only goes through `Font`, so it needs no change.
+- **Add a predefined encoding**: Add its 256-entry glyph name table to
+  `content/font/encoding/tables.rs`, extend the table test there that resolves
+  every name, and map its `/Encoding` name (or the `/BaseFont` that implies it)
+  in the base table rule of `content/font/encoding/mod.rs`.
 - **Add a new stream filter**: Implement the `Filtering` trait for your filter
   type in `filtering.rs`.
 - **Create a custom builder**: Implement the `Builder` trait for your type to
   provide a custom reference resolution strategy.
-- **Update the font data**: Replace the file under
-  `crates/livre-font-data/data/`, then follow the crate's README to rebuild
-  the blobs.
+- **Update the font data**: Replace the file under `crates/livre-font-data/data/`,
+  then follow the crate's README to rebuild the blobs.
 
 ## Cross-cutting concerns
 

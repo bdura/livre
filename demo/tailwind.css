@@ -88,6 +88,12 @@
   stroke-width: 8;
 }
 
+/* One per character start: positions to check by eye, not targets. */
+.overlay g.livre .run line.tick {
+  stroke-width: 1;
+  pointer-events: none;
+}
+
 .overlay g.livre .run circle {
   fill: currentColor;
   stroke: none;

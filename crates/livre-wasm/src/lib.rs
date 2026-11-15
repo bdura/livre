@@ -7,7 +7,9 @@ mod analyze;
 pub mod dto;
 
 pub use analyze::analyze;
-pub use dto::{Analysis, FontKind, Page, Point, Rect, Run, Stage, StageError, TextObject};
+pub use dto::{
+    Analysis, Character, FontKind, Page, Point, Rect, Run, Stage, StageError, TextObject,
+};
 
 #[cfg(target_arch = "wasm32")]
 use {tsify::Ts, wasm_bindgen::prelude::*};

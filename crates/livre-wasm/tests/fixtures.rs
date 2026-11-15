@@ -1,5 +1,5 @@
 use livre_wasm::{
-    analyze, Analysis, FontKind, Page, Point, Rect, Run, Stage, StageError, TextObject,
+    analyze, Analysis, Character, FontKind, Page, Point, Rect, Run, Stage, StageError, TextObject,
 };
 
 const TEXT: &[u8] = include_bytes!(concat!(
@@ -28,6 +28,12 @@ const KERNED: &[u8] = include_bytes!(concat!(
 const KERNED_RUNS: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../livre/tests/resources/kerned.txt"
+));
+/// One font per decoding route: standard encoding with AFM widths, `/Differences`,
+/// `/ToUnicode` over `WinAnsiEncoding`, and the built-in Symbol table.
+const ENCODINGS: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../livre/tests/resources/encodings.pdf"
 ));
 
 /// The checks every fixture passes: a clean parse of `page_count` pages with a media box
@@ -72,7 +78,16 @@ fn text_pdf_parses_without_errors() {
 
 #[test]
 fn letter_pdf_parses_without_errors() {
-    assert_clean(&analyze(LETTER), 1);
+    let analysis = analyze(LETTER);
+    assert_clean(&analysis, 1);
+
+    // Text object 42 is the first to show words, in a `WinAnsiEncoding` TrueType font.
+    let words: String = analysis.pages[0].text_objects[42]
+        .runs
+        .iter()
+        .map(|run| run.text.as_str())
+        .collect();
+    assert_eq!(words, "Groupe Hospitalier Henri Mondor");
 }
 
 #[test]
@@ -103,6 +118,22 @@ fn kerned_pdf_parses_without_errors() {
     let analysis = analyze(KERNED);
     assert_clean(&analysis, 1);
     assert_eq!(analysis.pages[0].text_objects.len(), 4);
+}
+
+#[test]
+fn encodings_pdf_parses_without_errors() {
+    let analysis = analyze(ENCODINGS);
+    assert_clean(&analysis, 1);
+    assert_eq!(analysis.pages[0].text_objects.len(), 4);
+
+    let runs = first_page_runs(&analysis);
+    let texts: Vec<&str> = runs.iter().map(|run| run.text.as_str()).collect();
+    assert_eq!(texts, ["Hello", "\u{FB01}Ä—\u{FFFD}", "abcdffF", "αβγ"]);
+
+    let differences = runs[1];
+    assert_eq!(differences.characters.len(), 4);
+    assert_eq!(differences.bytes, "01020304");
+    assert_eq!(differences.characters[3].text, None);
 }
 
 /// The first text object of `kerned.pdf` is one kerned `TJ` line: its runs advance along
@@ -201,6 +232,12 @@ fn run_fields_round_trip_through_json() {
                     size: 12.0,
                     text: "A".into(),
                     bytes: "41".into(),
+                    characters: vec![Character {
+                        code: 65,
+                        start: Point { x: 1.0, y: 2.0 },
+                        end: Point { x: 3.0, y: 2.0 },
+                        text: Some("A".into()),
+                    }],
                 }],
             }],
             error: Some(StageError {
@@ -222,6 +259,8 @@ fn run_fields_round_trip_through_json() {
         "text_objects",
         "runs",
         "bytes",
+        "characters",
+        "code",
         "start",
         "end",
         "xmin",
