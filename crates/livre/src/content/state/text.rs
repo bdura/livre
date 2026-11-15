@@ -321,8 +321,9 @@ impl<'a, 'f> TextObject<'a, 'f> {
     /// The next run buffered by the last showing operator, if any. Consumes the `TJ`
     /// offsets met before it, moving the text matrix.
     fn next_run(&mut self) -> Option<Run> {
+        let buffer = self.buffer.as_mut()?;
         loop {
-            match self.buffer.as_mut()?.pop_front()? {
+            match buffer.pop_front()? {
                 TextArrayElement::Text(text) => return Some(self.show(&text)),
                 TextArrayElement::Offset(offset) => {
                     // ISO 32000-2, 9.4.4: tx = -n/1000 · Tfs · Th, the offset being in
