@@ -1,0 +1,178 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R /F2 11 0 R >> >> /Contents 5 0 R >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F3 15 0 R >> >> /Contents 6 0 R >>
+endobj
+5 0 obj
+<< /Length 138 >>
+stream
+BT /F1 12 Tf 72 700 Td <000100020003000400050006> Tj ET
+BT /F2 12 Tf 72 680 Td <41814041> Tj ET
+BT /F2 12 Tf 2 Tw 72 660 Td <412041> Tj ET
+endstream
+endobj
+6 0 obj
+<< /Length 86 >>
+stream
+BT /F3 12 Tf 300 700 Td <00010002> Tj ET
+BT /F3 12 Tf 1 Tc 300 600 Td <00020002> Tj ET
+endstream
+endobj
+7 0 obj
+<< /Type /Font /Subtype /Type0 /BaseFont /LivreHorizontal /Encoding /Identity-H /DescendantFonts [8 0 R] /ToUnicode 10 0 R >>
+endobj
+8 0 obj
+<< /Type /Font /Subtype /CIDFontType2 /BaseFont /LivreHorizontal /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor 9 0 R /DW 500 /W [1 [722 667] 3 5 600] >>
+endobj
+9 0 obj
+<< /Type /FontDescriptor /FontName /LivreHorizontal /Flags 4 /FontBBox [0 -200 1000 900] /ItalicAngle 0 /Ascent 900 /Descent -200 /CapHeight 700 /StemV 80 >>
+endobj
+10 0 obj
+<< /Length 385 >>
+stream
+/CIDInit /ProcSet findresource begin
+12 dict begin
+begincmap
+/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def
+/CMapName /LivreHorizontal-UCS def
+/CMapType 2 def
+1 begincodespacerange
+<0000> <FFFF>
+endcodespacerange
+1 beginbfchar
+<0001> <0041>
+endbfchar
+1 beginbfrange
+<0002> <0005> <0042>
+endbfrange
+endcmap
+CMapName currentdict /CMap defineresource pop
+end
+end
+endstream
+endobj
+11 0 obj
+<< /Type /Font /Subtype /Type0 /BaseFont /LivreMixed /Encoding 12 0 R /DescendantFonts [13 0 R] /ToUnicode 14 0 R >>
+endobj
+12 0 obj
+<< /Type /CMap /CMapName /Mixed /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /WMode 0 /Length 326 >>
+stream
+%!PS-Adobe-3.0 Resource-CMap
+/CIDInit /ProcSet findresource begin
+12 dict begin
+begincmap
+/CMapName /Mixed def
+/WMode 0 def
+2 begincodespacerange
+<00> <80>
+<8140> <FFFF>
+endcodespacerange
+1 begincidrange
+<20> <7E> 1
+endcidrange
+1 begincidchar
+<8140> 200
+endcidchar
+endcmap
+CMapName currentdict /CMap defineresource pop
+end
+end
+endstream
+endobj
+13 0 obj
+<< /Type /Font /Subtype /CIDFontType2 /BaseFont /LivreMixed /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor 18 0 R /DW 1000 /W [34 [667] 200 [1000]] >>
+endobj
+14 0 obj
+<< /Length 367 >>
+stream
+/CIDInit /ProcSet findresource begin
+12 dict begin
+begincmap
+/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def
+/CMapName /LivreMixed-UCS def
+/CMapType 2 def
+2 begincodespacerange
+<00> <80>
+<8140> <FFFF>
+endcodespacerange
+3 beginbfchar
+<20> <0020>
+<41> <0041>
+<8140> <3042>
+endbfchar
+endcmap
+CMapName currentdict /CMap defineresource pop
+end
+end
+endstream
+endobj
+15 0 obj
+<< /Type /Font /Subtype /Type0 /BaseFont /LivreVertical /Encoding /Identity-V /DescendantFonts [16 0 R] /ToUnicode 17 0 R >>
+endobj
+16 0 obj
+<< /Type /Font /Subtype /CIDFontType2 /BaseFont /LivreVertical /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor 19 0 R /W2 [1 [-500 250 880]] >>
+endobj
+17 0 obj
+<< /Length 350 >>
+stream
+/CIDInit /ProcSet findresource begin
+12 dict begin
+begincmap
+/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def
+/CMapName /LivreVertical-UCS def
+/CMapType 2 def
+1 begincodespacerange
+<0000> <FFFF>
+endcodespacerange
+2 beginbfchar
+<0001> <0058>
+<0002> <0059>
+endbfchar
+endcmap
+CMapName currentdict /CMap defineresource pop
+end
+end
+endstream
+endobj
+18 0 obj
+<< /Type /FontDescriptor /FontName /LivreMixed /Flags 4 /FontBBox [0 -200 1000 900] /ItalicAngle 0 /Ascent 900 /Descent -200 /CapHeight 700 /StemV 80 >>
+endobj
+19 0 obj
+<< /Type /FontDescriptor /FontName /LivreVertical /Flags 4 /FontBBox [0 -200 1000 900] /ItalicAngle 0 /Ascent 900 /Descent -200 /CapHeight 700 /StemV 80 >>
+endobj
+xref
+0 20
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000127 00000 n 
+0000000264 00000 n 
+0000000391 00000 n 
+0000000580 00000 n 
+0000000716 00000 n 
+0000000857 00000 n 
+0000001069 00000 n 
+0000001242 00000 n 
+0000001679 00000 n 
+0000001812 00000 n 
+0000002302 00000 n 
+0000002512 00000 n 
+0000002931 00000 n 
+0000003072 00000 n 
+0000003274 00000 n 
+0000003676 00000 n 
+0000003845 00000 n 
+trailer
+<< /Size 20 /Root 1 0 R >>
+startxref
+4017
+%%EOF

@@ -35,6 +35,12 @@ const ENCODINGS: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../livre/tests/resources/encodings.pdf"
 ));
+/// Three `Type0` fonts: `Identity-H` with `/W`, an embedded CMap mixing one- and two-byte
+/// codes, and `Identity-V` with `/W2` on a second page.
+const COMPOSITE: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../livre/tests/resources/composite.pdf"
+));
 
 /// The checks every fixture passes: a clean parse of `page_count` pages with a media box
 /// each, and at least one shown string on the first page.
@@ -134,6 +140,14 @@ fn encodings_pdf_parses_without_errors() {
     assert_eq!(differences.characters.len(), 4);
     assert_eq!(differences.bytes, "01020304");
     assert_eq!(differences.characters[3].text, None);
+}
+
+#[test]
+fn composite_pdf_parses_without_errors() {
+    let analysis = analyze(COMPOSITE);
+    assert_clean(&analysis, 2);
+    assert_eq!(analysis.pages[0].text_objects.len(), 3);
+    assert_eq!(analysis.pages[1].text_objects.len(), 2);
 }
 
 /// The first text object of `kerned.pdf` is one kerned `TJ` line: its runs advance along
