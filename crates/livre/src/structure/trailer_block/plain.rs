@@ -4,14 +4,14 @@
 use std::{fmt::Debug, str::FromStr};
 
 use winnow::{
-    ascii::{line_ending, multispace0, multispace1},
+    ascii::line_ending,
     combinator::{alt, delimited, iterator, repeat, separated_pair, terminated, trace},
     error::ContextError,
     token::take_while,
     BStr, ModalParser, ModalResult, Parser,
 };
 
-use crate::extraction::{extract, Extract, ReferenceId};
+use crate::extraction::{extract, multicomment0, multicomment1, Extract, ReferenceId};
 
 use super::{RefLocation, XRefTrailerBlock};
 
@@ -89,9 +89,9 @@ fn xref_subsection(input: &mut &BStr) -> ModalResult<Vec<(ReferenceId, usize)>> 
 
 /// Extract the full cross-reference table.
 pub fn xref(input: &mut &BStr) -> ModalResult<Vec<(ReferenceId, RefLocation)>> {
-    (b"xref", multispace1).parse_next(input)?;
+    (b"xref", multicomment1).parse_next(input)?;
 
-    let mut it = iterator(&mut *input, terminated(xref_subsection, multispace0));
+    let mut it = iterator(&mut *input, terminated(xref_subsection, multicomment0));
     let res = it
         .flatten()
         .map(|(r, loc)| (r, RefLocation::Plain(loc)))
@@ -105,7 +105,7 @@ pub fn block(input: &mut &BStr) -> ModalResult<XRefTrailerBlock> {
     trace("livre-xref-plain", move |i: &mut &BStr| {
         let xrefs = xref(i)?;
 
-        (multispace0, b"trailer", multispace1).parse_next(i)?;
+        (multicomment0, b"trailer", multicomment1).parse_next(i)?;
         let trailer = extract(i)?;
 
         Ok(XRefTrailerBlock { trailer, xrefs })
@@ -186,5 +186,24 @@ mod tests {
     fn xref_extraction(#[case] input: &[u8], #[case] expected: Vec<(ReferenceId, RefLocation)>) {
         let res = xref(&mut input.as_ref()).unwrap();
         assert_eq!(expected, res)
+    }
+
+    #[test]
+    fn block_with_comments() {
+        let input = indoc! {b"
+            xref % table
+            0 1
+            0000000000 65535 f 
+            % next subsection
+            3 1
+            0000000300 00000 n\r
+            % end of table
+            trailer % dictionary
+            <</Size 4/Root 1 0 R>>
+        "};
+
+        let XRefTrailerBlock { trailer, xrefs } = block(&mut BStr::new(input)).unwrap();
+        assert_eq!(trailer.size, 4);
+        assert_eq!(xrefs, vec![((3, 0).into(), RefLocation::Plain(300))]);
     }
 }
