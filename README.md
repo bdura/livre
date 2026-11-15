@@ -36,4 +36,6 @@ to get your version.
 - [ ] (`v0.6.0`) Parser for fonts definition - starting with "simple fonts".
   This step will allow iterating over characters and their actual position.
   - [x] Glyph widths of simple fonts, so each shown string has a start and an end
-  - [ ] Decoding character codes to text, and composite (`Type0`) fonts
+  - [x] Decoding character codes of simple fonts to text, with each
+    character's position
+  - [ ] Composite (`Type0`) fonts

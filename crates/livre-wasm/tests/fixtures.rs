@@ -78,7 +78,16 @@ fn text_pdf_parses_without_errors() {
 
 #[test]
 fn letter_pdf_parses_without_errors() {
-    assert_clean(&analyze(LETTER), 1);
+    let analysis = analyze(LETTER);
+    assert_clean(&analysis, 1);
+
+    // Text object 42 is the first to show words, in a `WinAnsiEncoding` TrueType font.
+    let words: String = analysis.pages[0].text_objects[42]
+        .runs
+        .iter()
+        .map(|run| run.text.as_str())
+        .collect();
+    assert_eq!(words, "Groupe Hospitalier Henri Mondor");
 }
 
 #[test]
@@ -116,6 +125,15 @@ fn encodings_pdf_parses_without_errors() {
     let analysis = analyze(ENCODINGS);
     assert_clean(&analysis, 1);
     assert_eq!(analysis.pages[0].text_objects.len(), 4);
+
+    let runs = first_page_runs(&analysis);
+    let texts: Vec<&str> = runs.iter().map(|run| run.text.as_str()).collect();
+    assert_eq!(texts, ["Hello", "\u{FB01}Ä—\u{FFFD}", "abcdffF", "αβγ"]);
+
+    let differences = runs[1];
+    assert_eq!(differences.characters.len(), 4);
+    assert_eq!(differences.bytes, "01020304");
+    assert_eq!(differences.characters[3].text, None);
 }
 
 /// The first text object of `kerned.pdf` is one kerned `TJ` line: its runs advance along
