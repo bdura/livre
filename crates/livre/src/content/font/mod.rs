@@ -8,6 +8,7 @@
 pub mod cmap;
 mod code;
 mod composite;
+pub mod encoding;
 mod simple;
 mod type3;
 mod widths;
@@ -22,6 +23,7 @@ use winnow::{
 pub use cmap::{CMap, CodespaceRange, ToUnicode, UnicodeText, WritingMode};
 pub use code::{Code, Codes};
 pub use composite::CompositeFont;
+pub use encoding::{Encoding, Flags, GlyphName};
 pub use simple::{FontDescriptor, SimpleFont};
 pub use type3::Type3Font;
 pub use widths::{GlyphWidth, Widths};

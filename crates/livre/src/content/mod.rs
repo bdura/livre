@@ -22,8 +22,8 @@ mod state;
 
 pub use error::ContentError;
 pub use font::{
-    CMap, Code, Codes, CodespaceRange, CompositeFont, Font, FontDescriptor, Fonts, GlyphWidth,
-    SimpleFont, ToUnicode, Type3Font, UnicodeText, Widths, WritingMode,
+    CMap, Code, Codes, CodespaceRange, CompositeFont, Encoding, Flags, Font, FontDescriptor, Fonts,
+    GlyphName, GlyphWidth, SimpleFont, ToUnicode, Type3Font, UnicodeText, Widths, WritingMode,
 };
 pub use state::{
     DefaultUser, Displacement, FontSize, Glyph, Matrix, Point, RenderingMode, Run, SelectedFont,

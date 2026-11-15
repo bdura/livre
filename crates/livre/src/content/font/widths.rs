@@ -8,7 +8,7 @@ use crate::{
     follow_refs::{BuildFromRawDict, Builder},
 };
 
-use super::Code;
+use super::{encoding::Flags, Code};
 
 /// A glyph's horizontal displacement, in [`Glyph`](crate::content::Glyph) space units:
 /// thousandths of text space for `Type1` and `TrueType`, `/FontMatrix` units for `Type3`.
@@ -112,12 +112,16 @@ impl BuildFromRawDict for Widths {
     }
 }
 
-/// The font descriptor (ISO 32000-2, 9.8), reduced to the keys the advance needs.
+/// The font descriptor (ISO 32000-2, 9.8), reduced to the keys the advance and the encoding
+/// need.
 #[derive(Debug, Clone, PartialEq, BuildFromRawDict)]
 pub struct FontDescriptor {
     /// The width of codes absent from `/Widths`, in glyph space units. Defaults to 0.
     #[livre(default)]
     pub missing_width: f32,
+    /// `/Flags`, which tell a symbolic font from a Latin one. Defaults to none set.
+    #[livre(default)]
+    pub flags: Flags,
 }
 
 #[cfg(test)]
