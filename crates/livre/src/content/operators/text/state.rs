@@ -4,7 +4,7 @@ use crate::{
     content::{
         error::{ContentError, Result},
         state::{FontSize, RenderingMode, SelectedFont, TextStateParameters},
-        Font, Fonts,
+        Fonts,
     },
     extraction::{Extract, Name},
 };
@@ -89,9 +89,6 @@ pub struct SetFontAndFontSize(pub(crate) Name, pub(crate) f32);
 impl TextStateOperation for SetFontAndFontSize {
     /// Select the font named by the operator in `fonts`.
     ///
-    /// A composite (`Type0`) font is selected with a warning: its widths are not read, so its
-    /// glyphs advance by the character spacing only.
-    ///
     /// # Errors
     ///
     /// [`ContentError::UnknownFont`] if `fonts` has no font under that name.
@@ -100,12 +97,6 @@ impl TextStateOperation for SetFontAndFontSize {
         let font = fonts
             .get(&name)
             .ok_or_else(|| ContentError::UnknownFont(name.clone()))?;
-        if let Font::Composite(composite) = font {
-            tracing::warn!(
-                "Font {name:?} ({:?}) is composite: its glyphs are given zero width",
-                composite.base_font
-            );
-        }
         parameters.set_font(SelectedFont {
             name,
             font,

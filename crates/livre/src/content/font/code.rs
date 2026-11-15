@@ -1,6 +1,6 @@
 //! Character codes: the units a font splits a shown string into (ISO 32000-2, 9.4.3).
 
-use super::cmap::{CodespaceRange, IDENTITY_CODESPACE};
+use super::cmap::CodespaceRange;
 use super::Font;
 use crate::extraction::PDFString;
 
@@ -151,12 +151,12 @@ impl Iterator for Codes<'_> {
 impl Font {
     /// Split a shown string into the font's character codes.
     ///
-    /// Simple and `Type3` fonts read one code per byte. Composite fonts read two bytes per
-    /// code, the `Identity-H` codespace whatever their `/Encoding`; a trailing byte too short
-    /// for a code is dropped with a warning.
-    pub fn codes<'s>(&self, string: &'s PDFString) -> Codes<'s> {
+    /// Simple and `Type3` fonts read one code per byte. Composite fonts read codes of the
+    /// lengths their encoding CMap's codespace defines, as [`Codes::codespace`] describes; a
+    /// code cut short by the end of the string is dropped with a warning.
+    pub fn codes<'s>(&'s self, string: &'s PDFString) -> Codes<'s> {
         match self {
-            Font::Composite(_) => Codes::codespace(&string.0, &IDENTITY_CODESPACE),
+            Font::Composite(font) => Codes::codespace(&string.0, font.encoding.codespace()),
             _ => Codes::one_byte(&string.0),
         }
     }

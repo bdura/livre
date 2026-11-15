@@ -9,7 +9,6 @@ mod cid;
 mod parse;
 mod unicode;
 
-pub(crate) use cid::IDENTITY_CODESPACE;
 pub use cid::{Cid, EncodingCMap};
 pub(crate) use parse::{Destination, Operand};
 pub use unicode::{ToUnicode, UnicodeText};

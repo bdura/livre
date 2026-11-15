@@ -1093,13 +1093,18 @@ mod advance_tests {
         .into_bytes()
     }
 
-    /// `F1` is [`helvetica`]; `F2` the `Type0` placeholder; `F3` a `Type3` font whose `a` is
+    /// `F1` is [`helvetica`]; `F2` an `Identity-H` `Type0` font whose `A`
+    /// (CID 65) is 500 wide and every other CID zero; `F3` a `Type3` font whose `a` is
     /// 50 units of a 1/100 glyph space; `F4` a font whose only width is `a`'s, with a
     /// `/MissingWidth` of 250.
     static FONTS: std::sync::LazyLock<Fonts> = std::sync::LazyLock::new(|| {
         fonts(&[
             ("F1", &helvetica()),
-            ("F2", b"<</Type/Font/Subtype/Type0/BaseFont/Calibri/Encoding/Identity-H>>"),
+            (
+                "F2",
+                b"<</Type/Font/Subtype/Type0/BaseFont/Calibri/Encoding/Identity-H\
+                  /DescendantFonts[<</Type/Font/Subtype/CIDFontType2/BaseFont/Calibri/DW 0/W[65[500]]>>]>>",
+            ),
             (
                 "F3",
                 b"<</Type/Font/Subtype/Type3/FontMatrix[0.01 0 0 0.01 0 0]/FirstChar 97/LastChar 97/Widths[50]>>",
@@ -1176,7 +1181,7 @@ mod advance_tests {
     #[test]
     fn word_spacing_skips_two_byte_codes() {
         // `A ` is the two-byte code 0x4120 and the odd `B` is dropped; `<0020>` is the
-        // two-byte code 32. Both are zero wide, and `Tw` applies to neither: 0.
+        // two-byte code 32. Both take `/DW` 0, and `Tw` applies to neither: 0.
         let runs = runs(b"BT /F2 10 Tf 2 Tw (A B) Tj <0020> Tj ET");
         assert_close(runs[0].end, (0.0, 0.0));
         assert_close(runs[1].end, (0.0, 0.0));
@@ -1205,14 +1210,20 @@ mod advance_tests {
 
     #[test]
     #[tracing_test::traced_test]
-    fn composite_fonts_advance_by_the_character_spacing_only() {
-        // Two two-byte codes, zero wide: 2 · 1 Tc.
+    fn composite_fonts_advance_by_their_cid_widths() {
+        // `A` is 500/1000 · 10, `B` past `/W` gets `/DW` 0; plus 1 Tc each.
         let run = run(b"BT /F2 10 Tf 1 Tc 3 0 Td (\\000A\\000B) Tj ET");
         assert_close(run.start, (3.0, 0.0));
-        assert_close(run.end, (3.0 + 2.0, 0.0));
-        assert!(logs_contain(
-            "is composite: its glyphs are given zero width"
-        ));
+        assert_close(run.end, (3.0 + 5.0 + 1.0 + 1.0, 0.0));
+        // `FONTS` may be built in this test, so the `Type3` font's own warning can show.
+        logs_assert(|lines: &[&str]| {
+            match lines.iter().find(|line| {
+                line.contains(" WARN ") && !line.contains("livre::content::font::type3")
+            }) {
+                Some(line) => Err(format!("unexpected warning: {line}")),
+                None => Ok(()),
+            }
+        });
     }
 
     #[test]

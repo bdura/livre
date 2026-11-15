@@ -393,27 +393,23 @@ fn letter_header_decodes_to_words() {
     assert_eq!(text_of(60), "SANTÉ PUBLIQUE");
 }
 
-/// `text.pdf` shows every string in `Type0` fonts with two-byte codes, which livre does
-/// not decode yet: every run is replacement characters only, one per code. Decoding
-/// composite fonts turns this around.
+/// `text.pdf` shows every string in an `Identity-H` `Type0` font with a `/ToUnicode`: every
+/// code is two bytes and decodes, starting with "Longtemps,".
 #[rstest]
 #[case("tests/resources/text.pdf")]
 #[case("tests/resources/text-xref-stream.pdf")]
-fn composite_runs_are_replacement_characters(#[case] path: &str) {
+fn composite_runs_decode_through_to_unicode(#[case] path: &str) {
     let runs = runs(path);
     assert!(!runs.is_empty());
 
+    let start: String = runs.iter().take(10).map(|run| run.text.as_str()).collect();
+    assert_eq!(start, "Longtemps,");
     for (i, run) in runs.iter().enumerate() {
-        assert!(
-            run.text.chars().all(|c| c == '\u{FFFD}'),
-            "run {i}: {:?}",
-            run.text
-        );
-        assert_eq!(run.characters.len(), run.text.chars().count(), "run {i}");
+        assert!(!run.text.contains('\u{FFFD}'), "run {i}: {:?}", run.text);
         assert!(
             run.characters
                 .iter()
-                .all(|character| character.code.byte_count() == 2 && character.text.is_none()),
+                .all(|character| character.code.byte_count() == 2 && character.text.is_some()),
             "run {i}"
         );
     }
