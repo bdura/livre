@@ -103,7 +103,7 @@ and the root manifest only lists the members and their shared package metadata.
 ├── crates/
 │   ├── livre/                 # The library, with its examples, tests and changelog
 │   ├── livre-derive/          # Proc-macro crate for the derive macros
-│   ├── livre-font-data/       # Adobe Glyph List and Core 14 metrics, as committed lookup blobs
+│   ├── livre-font-data/       # Glyph names and standard-font widths, as committed lookup tables
 │   └── livre-wasm/            # Unpublished wasm glue behind the browser demo
 ├── demo/                      # Static page of the browser demo (TypeScript, no bundler)
 └── nix/                       # Flake checks (crane), toolchains, generated fixtures, demo site
@@ -222,32 +222,18 @@ fails when the committed files drift from what it produces.
 
 ```text
 ├── src/
-│   ├── lib.rs            # Crate docs and the three entry points
-│   ├── table.rs          # Table: the blob reader, binary search in place
-│   ├── glyph_list.rs     # glyph_list::text: glyph name to Unicode text (AGL)
-│   ├── standard_font.rs  # StandardFont: from_base_font (aliases), width, name
-│   └── generate.rs       # cfg(test): blob writer, AGL and AFM parsers, freshness tests
-├── data/
-│   ├── agl/              # glyphlist.txt (vendored) and glyphlist.bin (generated)
-│   └── afm/              # 14 Core 14 <Font>.afm (vendored), NOTICE, <Font>.bin (generated)
-├── LICENSE               # MIT for the code, the AGL licence, Adobe's Core 14 notice
-├── README.md             # Provenance (upstream commits) and regeneration
-└── CHANGELOG.md
+│   ├── table.rs          # The blob format, read in place
+│   ├── glyph_list.rs     # Glyph name to Unicode text
+│   ├── standard_font.rs  # StandardFont: alias resolution and widths
+│   └── generate.rs       # cfg(test): builds the blobs, checks they are fresh
+├── data/                 # Vendored AGL and AFM files, and the .bin blobs built from them
+└── LICENSE               # MIT, plus Adobe's notices
 ```
 
-Data, not logic: the crate holds the Adobe Glyph List and the widths of the
-fourteen standard fonts, which decoding shown text and sizing glyphs of fonts
-without `/Widths` need; `livre` does not depend on it yet. It has no
-dependencies, no build script and no `unsafe`. The upstream files are vendored
-unmodified; each is compiled by the crate's tests into a `.bin` blob that is committed and embedded with
-`include_bytes!`. Every blob has one format, a sorted string table: a `u32` LE
-record count, a `u32` LE offset per record in ascending key order, then the
-records as `u8` key length, key, `u8` value length, value. Lookups
-binary-search the offsets and compare keys in place; a malformed blob reads as
-an empty table rather than panicking. AGL values are UTF-8 text, AFM values a
-`u16` LE width. The freshness tests (`*_fresh` in `generate.rs`) regenerate
-every blob from its source and fail when the committed bytes differ, naming the
-command that rewrites them.
+Not used by `livre` yet. The vendored files are compiled by the crate's own
+tests into `.bin` blobs, which are committed and embedded with
+`include_bytes!`, so the crate needs no build script. The tests fail when a
+committed blob no longer matches its source.
 
 ### `crates/livre-wasm/`
 
@@ -335,12 +321,9 @@ Showing text with no font selected is `NoFontSelected`.
   type in `filtering.rs`.
 - **Create a custom builder**: Implement the `Builder` trait for your type to
   provide a custom reference resolution strategy.
-- **Update the vendored data**: Replace the file under
-  `crates/livre-font-data/data/` and update the provenance table in the
-  crate's README, run `LIVRE_FONT_DATA_UPDATE=1 cargo test -p livre-font-data`
-  to rewrite the blobs, and commit the source and the `.bin` together. A new
-  blob needs creating empty first, then a `_fresh`-filtered run under the
-  variable; see the crate's README.
+- **Update the font data**: Replace the file under
+  `crates/livre-font-data/data/`, then follow the crate's README to rebuild
+  the blobs.
 
 ## Cross-cutting concerns
 
