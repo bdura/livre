@@ -1,10 +1,12 @@
 use std::{fs::File, io::Read};
 
-use livre::{content::operators::Operator, extraction::Extract, InMemoryDocument};
+use livre::{
+    content::operators::Operator,
+    extraction::{multicomment0, Extract},
+    InMemoryDocument,
+};
 use winnow::{
-    ascii::multispace0,
     combinator::{iterator, preceded},
-    error::ContextError,
     BStr, Parser,
 };
 
@@ -31,7 +33,7 @@ fn main() {
 
             let mut it = iterator(
                 &mut stream,
-                preceded(multispace0, Operator::extract.with_taken()),
+                preceded(multicomment0, Operator::extract.with_taken()),
             );
 
             for (operator, slice) in &mut it {
@@ -40,7 +42,7 @@ fn main() {
 
             it.finish().unwrap();
 
-            multispace0::<&BStr, ContextError>(&mut stream).unwrap();
+            multicomment0(&mut stream).unwrap();
 
             if !stream.is_empty() {
                 println!();

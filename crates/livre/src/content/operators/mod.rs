@@ -29,7 +29,6 @@ use text::{
 };
 
 use winnow::{
-    ascii::multispace0,
     combinator::{fail, peek, preceded, repeat, trace},
     dispatch,
     error::ErrMode,
@@ -37,7 +36,9 @@ use winnow::{
     BStr, ModalResult, Parser,
 };
 
-use crate::extraction::{take_till_delimiter, Angles, Brackets, Extract, Name, Parentheses};
+use crate::extraction::{
+    multicomment0, take_till_delimiter, Angles, Brackets, Extract, Name, Parentheses,
+};
 
 /// Content stream operator.
 ///
@@ -118,12 +119,12 @@ where
 fn parse_operator(input: &mut &BStr) -> ModalResult<Operator> {
     let mut cursor = *input;
 
-    repeat(0.., preceded(multispace0, recognize_operand))
+    repeat(0.., preceded(multicomment0, recognize_operand))
         .map(|()| ())
         .parse_next(input)?;
 
     let op = preceded(
-        multispace0,
+        multicomment0,
         take_till_delimiter(1..=3).map_err(ErrMode::Backtrack),
     )
     .parse_next(input)?;
@@ -257,6 +258,7 @@ mod tests {
     #[case(b"0.12 Tc", op!(0.12 Tc))]
     #[case(b"1.0 Tw", op!(1.0 Tw))]
     #[case(b"T*", MoveToNextLine)]
+    #[case(b"1.0 % spacing\nTw", op!(1.0 Tw))]
     fn units<O>(#[case] input: &[u8], #[case] expected: O)
     where
         O: Into<Operator>,
@@ -264,5 +266,26 @@ mod tests {
         let result = extract(&mut input.as_ref()).unwrap();
         let expected: Operator = expected.into();
         assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn comments_between_operators() {
+        let mut input = BStr::new(b"% header\nBT % open\n1 Tc\n72 % x\n700 Td ET % close\n");
+        let mut it =
+            winnow::combinator::iterator(&mut input, preceded(multicomment0, Operator::extract));
+        let operators: Vec<Operator> = (&mut it).collect();
+        it.finish().unwrap();
+        multicomment0(&mut input).unwrap();
+
+        assert_eq!(
+            operators,
+            vec![
+                op!(BT).into(),
+                op!(1.0 Tc).into(),
+                Operator::extract(&mut BStr::new(b"72 700 Td")).unwrap(),
+                op!(ET).into(),
+            ]
+        );
+        assert!(input.is_empty());
     }
 }

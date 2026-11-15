@@ -2,14 +2,12 @@ use std::{fs::File, io::Read};
 
 use livre::{
     content::{operators::Operator, DefaultUser, Point, Run, TextObjects},
-    extraction::Extract,
+    extraction::{multicomment0, Extract},
     InMemoryDocument,
 };
 use rstest::rstest;
 use winnow::{
-    ascii::multispace0,
     combinator::{eof, iterator, preceded},
-    error::ContextError,
     BStr, Parser,
 };
 
@@ -30,7 +28,7 @@ fn runs(path: &str) -> Vec<Run> {
         let content = page.build_content(&doc).unwrap();
         let mut stream = BStr::new(&content);
 
-        let mut it = iterator(&mut stream, preceded(multispace0, Operator::extract));
+        let mut it = iterator(&mut stream, preceded(multicomment0, Operator::extract));
         let fonts = page.fonts(&doc).unwrap();
         let mut objects = TextObjects::new(&mut it, &fonts);
 
@@ -40,9 +38,7 @@ fn runs(path: &str) -> Vec<Run> {
 
         it.finish().unwrap();
 
-        (multispace0::<&BStr, ContextError>, eof)
-            .parse_next(&mut stream)
-            .unwrap();
+        (multicomment0, eof).parse_next(&mut stream).unwrap();
     }
 
     runs
@@ -134,7 +130,7 @@ fn font_runs(path: &str) -> Vec<(usize, GoldenRun)> {
         let content = page.build_content(&doc).unwrap();
         let mut stream = BStr::new(&content);
 
-        let mut it = iterator(&mut stream, preceded(multispace0, Operator::extract));
+        let mut it = iterator(&mut stream, preceded(multicomment0, Operator::extract));
         let fonts = page.fonts(&doc).unwrap();
         let mut objects = TextObjects::new(&mut it, &fonts);
 
@@ -247,7 +243,7 @@ fn page_without_font_resources_parses() {
     let fonts = page.fonts(&doc).unwrap();
     let content = page.build_content(&doc).unwrap();
     let mut input = BStr::new(&content);
-    let mut it = iterator(&mut input, preceded(multispace0, Operator::extract));
+    let mut it = iterator(&mut input, preceded(multicomment0, Operator::extract));
     let mut objects = TextObjects::new(&mut it, &fonts);
 
     assert!(objects.next_object().unwrap().is_none());

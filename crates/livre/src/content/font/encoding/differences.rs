@@ -2,14 +2,13 @@
 //! `/BaseEncoding` and `/Differences` (ISO 32000-2, 9.6.5).
 
 use winnow::{
-    ascii::multispace0,
     combinator::{alt, iterator, opt, preceded, trace},
     BStr, ModalResult, Parser,
 };
 
 use super::GlyphName;
 use crate::{
-    extraction::{extract, Extract, Name, Reference},
+    extraction::{extract, multicomment0, Extract, Name, Reference},
     follow_refs::{Build, BuildFromRawDict, Builder},
 };
 
@@ -113,7 +112,7 @@ impl Extract<'_> for Differences {
             let mut items = iterator(
                 input,
                 preceded(
-                    multispace0,
+                    multicomment0,
                     alt((extract.map(Item::Code), extract.map(Item::Name))),
                 ),
             );
@@ -125,7 +124,7 @@ impl Extract<'_> for Differences {
                 .collect(),
             );
             items.finish()?;
-            (multispace0, b']').parse_next(input)?;
+            (multicomment0, b']').parse_next(input)?;
             Ok(differences)
         })
         .parse_next(input)
@@ -196,6 +195,14 @@ mod tests {
                 (129, "Aring"),
             ])
         );
+    }
+
+    #[test]
+    fn comments_between_items_are_skipped() {
+        let Differences(names) =
+            extract(&mut b"[39 % quote\n/quotesingle%\n]".as_slice().as_ref()).unwrap();
+
+        assert_eq!(names, codes(&[(39, "quotesingle")]));
     }
 
     #[test]

@@ -402,12 +402,12 @@ struct Started {
 /// Not an [`Iterator`], since each item borrows it:
 ///
 /// ```
-/// # use livre::{content::{operators::Operator, Fonts, Run, TextObjects}, extraction::{extract, Extract, Name}};
-/// # use winnow::{ascii::multispace0, combinator::{iterator, preceded}, BStr};
+/// # use livre::{content::{operators::Operator, Fonts, Run, TextObjects}, extraction::{extract, multicomment0, Extract, Name}};
+/// # use winnow::{combinator::{iterator, preceded}, BStr};
 /// # let font = extract(&mut BStr::new(b"<</Type/Font/Subtype/Type1/BaseFont/Helvetica/FirstChar 32/LastChar 32/Widths[278]>>")).unwrap();
 /// # let fonts: Fonts = [(Name::from("F1"), font)].into_iter().collect();
 /// # let mut content = BStr::new(b"/F1 12 Tf BT 72 700 Td (Hello) Tj ET");
-/// # let mut operators = iterator(&mut content, preceded(multispace0, Operator::extract));
+/// # let mut operators = iterator(&mut content, preceded(multicomment0, Operator::extract));
 /// // `fonts` comes from `Page::fonts`.
 /// let mut objects = TextObjects::new(&mut operators, &fonts);
 /// while let Some(stream) = objects.next_object()? {
@@ -648,7 +648,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use winnow::{ascii::multispace0, combinator::preceded, BStr};
+    use winnow::{combinator::preceded, BStr};
+
+    use crate::extraction::multicomment0;
 
     use std::sync::LazyLock;
 
@@ -659,7 +661,7 @@ mod tests {
     pub(super) fn operators(input: &[u8]) -> Vec<Operator> {
         let mut stream = BStr::new(input);
         let mut it =
-            winnow::combinator::iterator(&mut stream, preceded(multispace0, Operator::extract));
+            winnow::combinator::iterator(&mut stream, preceded(multicomment0, Operator::extract));
         let ops: Vec<Operator> = (&mut it).collect();
         it.finish().unwrap();
         ops
@@ -926,7 +928,9 @@ mod tests {
 
 #[cfg(test)]
 mod graphics_state_tests {
-    use winnow::{ascii::multispace0, combinator::preceded, BStr};
+    use winnow::{combinator::preceded, BStr};
+
+    use crate::extraction::multicomment0;
 
     use super::*;
 
@@ -934,7 +938,7 @@ mod graphics_state_tests {
     fn objects(input: &[u8]) -> TextObjects<'static, std::vec::IntoIter<Operator>> {
         let mut stream = BStr::new(input);
         let mut it =
-            winnow::combinator::iterator(&mut stream, preceded(multispace0, Operator::extract));
+            winnow::combinator::iterator(&mut stream, preceded(multicomment0, Operator::extract));
         let ops: Vec<Operator> = (&mut it).collect();
         it.finish().unwrap();
         TextObjects::new(ops.into_iter(), &super::tests::PAGE_FONTS)
@@ -1069,7 +1073,9 @@ Q";
 
 #[cfg(test)]
 mod advance_tests {
-    use winnow::{ascii::multispace0, combinator::preceded, BStr};
+    use winnow::{combinator::preceded, BStr};
+
+    use crate::extraction::multicomment0;
 
     use super::*;
     use crate::content::font::tests::fonts;
@@ -1109,7 +1115,7 @@ mod advance_tests {
     fn runs(input: &[u8]) -> Vec<Run> {
         let mut stream = BStr::new(input);
         let mut it =
-            winnow::combinator::iterator(&mut stream, preceded(multispace0, Operator::extract));
+            winnow::combinator::iterator(&mut stream, preceded(multicomment0, Operator::extract));
         let ops: Vec<Operator> = (&mut it).collect();
         it.finish().unwrap();
 

@@ -1,11 +1,13 @@
 use std::{fs::File, io::Read};
 
-use livre::{content::operators::Operator, extraction::Extract, InMemoryDocument};
+use livre::{
+    content::operators::Operator,
+    extraction::{multicomment0, Extract},
+    InMemoryDocument,
+};
 use rstest::rstest;
 use winnow::{
-    ascii::multispace0,
     combinator::{eof, iterator, preceded},
-    error::ContextError,
     BStr, Parser,
 };
 
@@ -29,7 +31,7 @@ fn test_content(#[case] path: &str) {
 
         let mut stream = BStr::new(&content);
 
-        let mut it = iterator(&mut stream, preceded(multispace0, Operator::extract));
+        let mut it = iterator(&mut stream, preceded(multicomment0, Operator::extract));
 
         for operator in &mut it {
             println!("{:?}", operator);
@@ -37,8 +39,6 @@ fn test_content(#[case] path: &str) {
 
         it.finish().unwrap();
 
-        (multispace0::<&BStr, ContextError>, eof)
-            .parse_next(&mut stream)
-            .unwrap();
+        (multicomment0, eof).parse_next(&mut stream).unwrap();
     }
 }
