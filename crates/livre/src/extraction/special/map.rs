@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use winnow::{
-    ascii::multispace0,
     combinator::{iterator, peek, separated_pair, terminated, trace},
     dispatch,
     error::{ContextError, ErrMode},
@@ -11,7 +10,7 @@ use winnow::{
 
 use crate::{
     extraction::{
-        extract,
+        extract, multicomment0,
         utilities::{Angles, Brackets, DoubleAngles, Parentheses},
         Extract, FromRawDict,
     },
@@ -51,8 +50,8 @@ where
     trace(
         "livre-key-value",
         terminated(
-            separated_pair(Name::extract, multispace0, T::extract),
-            multispace0,
+            separated_pair(Name::extract, multicomment0, T::extract),
+            multicomment0,
         ),
     )
     .parse_next(input)
@@ -124,10 +123,11 @@ impl<'de> Extract<'de> for RawValue<'de> {
             b'<' => Angles::recognize,
             // Catch-all for values that start with bytes other than the dispatch arms above:
             // numbers (e.g. `42`, `-3.14`), booleans (`true`, `false`), and indirect references
-            // (`1 0 R`). These all end at the next `/` (the start of the next key) or at `>>`.
+            // (`1 0 R`). These all end at the next `/` (the start of the next key), at a `%`
+            // comment, or at the end of the dictionary.
             // TODO: replace this with per-type dispatch once all value kinds are covered, so that
             // truly invalid input is rejected rather than silently consumed.
-            _ => take_till(0.., b'/').map(remove_trailing_spaces),
+            _ => take_till(0.., (b'/', b'%')).map(remove_trailing_spaces),
         }
         .map(Self::from)
         .parse_next(input)
@@ -172,7 +172,7 @@ impl<'de> Extract<'de> for RawDict<'de> {
             let DoubleAngles(mut inside) = extract(i)?;
 
             // Remove leading spaces
-            multispace0(&mut inside)?;
+            multicomment0(&mut inside)?;
 
             // `parse_key_value` includes trailing spaces
             let mut it = iterator(&mut inside, parse_key_value);
@@ -277,5 +277,23 @@ mod tests {
         );
 
         assert_eq!(expected.pop(&b"inexistant".into()), None);
+    }
+
+    #[test]
+    fn raw_dict_with_comments() {
+        let expected: RawDict = vec![
+            ("Key1", b"true".as_slice()),
+            ("Key2", b"false".as_slice()),
+            ("Key3", b"42".as_slice()),
+            ("Key4", b"1 0 R".as_slice()),
+        ]
+        .into_iter()
+        .collect();
+
+        let input: &[u8] =
+            b"<< % leading\n/Key1 % before\ntrue/Key2 false% after\n/Key3 42 % see /Key2\n/Key4 1 0 R%\n>>";
+        let result = RawDict::extract(&mut input.as_ref()).unwrap();
+
+        assert_eq!(result, expected);
     }
 }

@@ -1,13 +1,11 @@
 use livre::{
     content::{operators::Operator, Code, DefaultUser, Font, Fonts, TextObjects},
-    extraction::Extract,
+    extraction::{multicomment0, Extract},
     structure::Page as LivrePage,
     InMemoryDocument,
 };
 use winnow::{
-    ascii::multispace0,
     combinator::{iterator, preceded},
-    error::ContextError,
     BStr,
 };
 
@@ -114,7 +112,7 @@ fn extract_text_objects(
     text_objects: &mut Vec<TextObject>,
 ) -> Option<StageError> {
     let mut input = BStr::new(content);
-    let mut it = iterator(&mut input, preceded(multispace0, Operator::extract));
+    let mut it = iterator(&mut input, preceded(multicomment0, Operator::extract));
     // One per content stream: a `cm` or a `Tf` at the top of the page applies to every
     // text object below it.
     let mut objects = TextObjects::new(&mut it, fonts);
@@ -175,7 +173,7 @@ fn extract_text_objects(
 
     // An operator livre cannot parse stops the iterator without an error: whatever
     // remains past the trailing whitespace is that operator onwards.
-    if multispace0::<&BStr, ContextError>(&mut input).is_ok() && !input.is_empty() {
+    if multicomment0(&mut input).is_ok() && !input.is_empty() {
         let preview = &input[..LEFTOVER_PREVIEW.min(input.len())];
         return Some(StageError {
             stage: Stage::Operators,

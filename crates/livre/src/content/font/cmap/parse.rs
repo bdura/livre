@@ -374,6 +374,10 @@ mod tests {
         b"[<41> <0042>]",
         Operand::Array(vec![Operand::Hex(vec![0x41]), Operand::Hex(vec![0x00, 0x42])])
     )]
+    #[case(
+        b"[<41> % first\n<42>]",
+        Operand::Array(vec![Operand::Hex(vec![0x41]), Operand::Hex(vec![0x42])])
+    )]
     fn operands(#[case] input: &[u8], #[case] expected: Operand) {
         let mut input: &BStr = input.into();
         assert_eq!(item(&mut input).unwrap(), Item::Operand(expected));

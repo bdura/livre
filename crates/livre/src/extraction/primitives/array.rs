@@ -1,11 +1,10 @@
 use winnow::{
-    ascii::multispace0,
     combinator::{delimited, preceded, repeat, trace},
     error::{ContextError, ErrMode},
     BStr, ModalResult, Parser,
 };
 
-use crate::extraction::Extract;
+use crate::extraction::{multicomment0, Extract};
 
 impl<'de, T, const N: usize> Extract<'de> for [T; N]
 where
@@ -15,8 +14,8 @@ where
         trace("livre-array", move |i: &mut &'de BStr| {
             let vec: Vec<T> = delimited(
                 b'[',
-                repeat(0.., preceded(multispace0, T::extract)),
-                (multispace0, b']'),
+                repeat(0.., preceded(multicomment0, T::extract)),
+                (multicomment0, b']'),
             )
             .parse_next(i)?;
 
@@ -48,6 +47,7 @@ mod tests {
     #[case(b"[true true  false]", [true, true, false])]
     #[case(b"[1 0 -42]", [1.0, 0.0, -42.0])]
     #[case(b"[1 0]", [1, 0])]
+    #[case(b"[1 % one\n 0 %zero\n]", [1, 0])]
     #[case(b"[  1   0  \r\n  ]", [1, 0])]
     #[case(b"[<00><FF>]", [HexadecimalString(vec![0x00]), HexadecimalString(vec![0xff])])]
     fn array<T>(#[case] input: &[u8], #[case] expected: T)

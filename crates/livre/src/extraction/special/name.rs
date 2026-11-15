@@ -40,14 +40,14 @@ impl<'de> Extract<'de> for Name {
     fn recognize(input: &mut &'de BStr) -> ModalResult<&'de [u8]> {
         trace(
             "livre-recognize-name",
-            (b'/', take_till(1.., b"\r\n \t/<>[](")).take(),
+            (b'/', take_till(1.., b"\r\n \t/<>[](%")).take(),
         )
         .parse_next(input)
     }
 
     fn extract(input: &mut &'de BStr) -> ModalResult<Self> {
         trace("livre-name", move |i: &mut &'de BStr| {
-            let content = preceded(b'/', take_till(1.., b"\r\n \t/<>[](")).parse_next(i)?;
+            let content = preceded(b'/', take_till(1.., b"\r\n \t/<>[](%")).parse_next(i)?;
 
             escaped_sequence(take_till(0.., b'#'), b'#'.void(), escape_name)
                 .map(|name| Self(name.to_vec()))
@@ -109,6 +109,7 @@ mod tests {
     #[case(b"/Lime#20Green\n", "Lime Green")]
     #[case(b"/paired#28#29parentheses", "paired()parentheses")]
     #[case(b"/The_Key_of_F#23_Minor", "The_Key_of_F#_Minor")]
+    #[case(b"/Name% comment\n", "Name")]
     #[case(b"/A#42", "AB")]
     fn name(#[case] input: &[u8], #[case] result: &str) {
         let name = Name::extract(&mut input.as_ref()).unwrap();

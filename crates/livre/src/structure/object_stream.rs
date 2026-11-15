@@ -4,14 +4,13 @@ use std::collections::HashMap;
 use std::iter::Iterator;
 
 use winnow::{
-    ascii::multispace0,
     combinator::{iterator, preceded, trace},
     error::{ContextError, ErrMode},
     BStr, ModalResult, Parser,
 };
 
 use crate::{
-    extraction::{extract, Reference, ReferenceId, Stream},
+    extraction::{extract, multicomment0, Reference, ReferenceId, Stream},
     follow_refs::{Build, BuildFromRawDict, Builder, BuilderParser},
 };
 
@@ -106,7 +105,7 @@ impl Build for ObjectStream {
             let content = content.to_vec();
 
             let mut stream_dict = BStr::new(&i);
-            let mut it = iterator(&mut stream_dict, preceded(multispace0, extract));
+            let mut it = iterator(&mut stream_dict, preceded(multicomment0, extract));
 
             let map = it
                 .map(|(object, offset)| (ReferenceId::first(object), offset))
@@ -147,12 +146,13 @@ mod tests {
         let input = indoc! {b"
             <<
                 /Type /ObjStm
-                /Length 30
+                /Length 38
                 /N 3
-                /First 15
+                /First 23
             >>
             stream
-            11 0 12 5 13 8
+            11 0 % first
+            12 5 13 8
             true
             42
             (test)

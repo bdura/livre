@@ -143,7 +143,9 @@ impl TextStateOperation for SetTextRise {
 
 #[cfg(test)]
 mod tests {
-    use winnow::{ascii::multispace0, combinator::preceded, BStr};
+    use winnow::{combinator::preceded, BStr};
+
+    use crate::extraction::multicomment0;
 
     use super::*;
     use crate::content::{
@@ -156,7 +158,7 @@ mod tests {
         let fonts = fonts(&[("F1", HELVETICA)]);
         let mut input = BStr::new(b"/F1 12 Tf 2 Tc".as_slice());
         let mut it =
-            winnow::combinator::iterator(&mut input, preceded(multispace0, Operator::extract));
+            winnow::combinator::iterator(&mut input, preceded(multicomment0, Operator::extract));
         let mut parameters = TextStateParameters::default();
 
         for operator in &mut it {

@@ -1,13 +1,11 @@
 use winnow::{
-    ascii::multispace0,
     combinator::{alt, fail, peek, preceded},
     dispatch,
-    error::ContextError,
     token::any,
     BStr, ModalResult, Parser,
 };
 
-use crate::extraction::{extract, Extract};
+use crate::extraction::{extract, multicomment0, Extract};
 
 use super::{
     map::{Map, RawDict},
@@ -164,7 +162,7 @@ impl Extract<'_> for Object {
             b'n' => b"null".map(|_| Object::Null),
             b't' | b'f' => bool::extract.map(Object::Boolean),
             b'0'..=b'9' => alt((Reference::extract.map(Object::from), number)),
-            b'+' | b'-' => number,
+            b'+' | b'-' | b'.' => number,
             b'(' => LiteralString::extract.map(Object::from),
             b'/' => Name::extract.map(Object::from),
             b'<' => alt((map_or_stream, HexadecimalString::extract.map(Object::from))),
@@ -196,7 +194,7 @@ fn map_or_stream(input: &mut &BStr) -> ModalResult<Object> {
     // delegates to `DoubleAngles::recognize`, which simply scans for the closing `>>`.
     RawDict::recognize(input)?;
 
-    let is_stream = preceded(multispace0::<&BStr, ContextError>, peek(b"stream"))
+    let is_stream = preceded(multicomment0, peek(b"stream"))
         .parse_next(input)
         .is_ok();
 
@@ -239,6 +237,8 @@ mod tests {
     #[case(b"null", ())]
     #[case(b"1", 1i32)]
     #[case(b"1.0", 1.0f32)]
+    #[case(b".5", 0.5f32)]
+    #[case(b"-.5", -0.5f32)]
     #[case(b"[true 1]", vec![Object::Boolean(true), Object::Integer(1)])]
     #[case(b"(test)", "test")]
     #[case(b"/test", Name::from("test"))]
@@ -252,6 +252,17 @@ mod tests {
         vec![("bool", Object::Boolean(true)), ("int", Object::Integer(1))].into_iter().collect::<Object>()
     )]
     #[case(b"0 0 R", Reference::<Object>::from((0, 0)))]
+    #[case(
+        b"<</bool true % a comment\n/int 1>>",
+        vec![("bool", Object::Boolean(true)), ("int", Object::Integer(1))].into_iter().collect::<Object>()
+    )]
+    #[case(
+        b"<</Length 1>>\n% data follows\nstream\n0\nendstream",
+        Stream {
+            content: b"0".into(),
+            structured: (),
+        }
+    )]
     #[case(
         indoc!{b"
             <</Length 1>>stream

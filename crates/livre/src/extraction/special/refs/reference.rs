@@ -7,7 +7,7 @@ use winnow::{
 
 use super::ReferenceId;
 use crate::{
-    extraction::{extract, Extract},
+    extraction::{extract, multicomment1, Extract},
     follow_refs::{Build, Builder, BuilderParser},
 };
 
@@ -49,7 +49,7 @@ impl<T> Extract<'_> for Reference<T> {
     fn extract(input: &mut &BStr) -> ModalResult<Self> {
         trace(
             "livre-reference",
-            terminated(ReferenceId::extract, b" R").map(Self::from),
+            terminated(ReferenceId::extract, (multicomment1, b'R')).map(Self::from),
         )
         .parse_next(input)
     }
@@ -122,6 +122,9 @@ mod tests {
     #[case(b"0 0 R", (0, 0))]
     #[case(b"10 0 R", (10, 0))]
     #[case(b"10 10 R", (10, 10))]
+    #[case(b"1 0  R", (1, 0))]
+    #[case(b"1 0\nR", (1, 0))]
+    #[case(b"1\r\n0 % generation\nR", (1, 0))]
     fn reference(#[case] input: &[u8], #[case] expected: impl Into<Reference<()>>) {
         let result = extract(&mut input.as_ref()).unwrap();
         assert_eq!(expected.into(), result);

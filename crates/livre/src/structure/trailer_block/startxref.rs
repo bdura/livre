@@ -1,12 +1,11 @@
 use std::fmt::Debug;
 
 use winnow::{
-    ascii::multispace1,
     error::{ContextError, ErrMode},
     BStr, ModalResult, Parser,
 };
 
-use crate::extraction::{extract, Extract};
+use crate::extraction::{extract, multicomment1, Extract};
 
 /// Extractor type for the `startxref` tag in a PDF document.
 #[derive(Debug, Clone, Copy)]
@@ -14,7 +13,7 @@ pub struct StartXRef(pub usize);
 
 impl Extract<'_> for StartXRef {
     fn extract(input: &mut &BStr) -> ModalResult<Self> {
-        let (_, _, value) = (b"startxref", multispace1, extract).parse_next(input)?;
+        let (_, _, value) = (b"startxref", multicomment1, extract).parse_next(input)?;
         Ok(Self(value))
     }
 }
@@ -50,6 +49,18 @@ mod tests {
     fn startxref() {
         let input = indoc! {b"
             startxref
+            7
+        "}
+        .as_slice();
+
+        let StartXRef(value) = StartXRef::find(input.as_ref()).unwrap();
+        assert_eq!(value, 7);
+    }
+
+    #[test]
+    fn startxref_with_comment() {
+        let input = indoc! {b"
+            startxref % offset
             7
         "}
         .as_slice();

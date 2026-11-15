@@ -3,13 +3,13 @@ use std::fmt::Debug;
 use paste::paste;
 
 use winnow::{
-    ascii::{multispace0, multispace1},
     combinator::{alt, delimited, preceded, repeat, trace},
     BStr, ModalResult, Parser,
 };
 
 use crate::extraction::{
-    extract, HexadecimalString, Id, LiteralString, MaybeArray, Name, Object, Rectangle,
+    extract, multicomment0, multicomment1, HexadecimalString, Id, LiteralString, MaybeArray, Name,
+    Object, Rectangle,
 };
 
 use super::{Builder, BuilderParser, Built};
@@ -110,9 +110,9 @@ where
                 b'[',
                 repeat(
                     0..,
-                    preceded(multispace0, builder.as_parser().map(|Built(item)| item)),
+                    preceded(multicomment0, builder.as_parser().map(|Built(item)| item)),
                 ),
-                (multispace0, b']'),
+                (multicomment0, b']'),
             ),
         )
         .parse_next(input)
@@ -133,9 +133,9 @@ where
                 b'[',
                 repeat(
                     N,
-                    preceded(multispace0, builder.as_parser().map(|Built(value)| value)),
+                    preceded(multicomment0, builder.as_parser().map(|Built(value)| value)),
                 ),
-                (multispace0, b']'),
+                (multicomment0, b']'),
             ),
         )
         .map(|values: Vec<T>| {
@@ -160,7 +160,7 @@ macro_rules! impl_tuple {
                     trace(concat!("livre-{}-tuple", $len), move |i: &mut &BStr| {
                         let [<$first:lower>] = $first::build(i, builder)?;
                         $(
-                            multispace1(i)?;
+                            multicomment1(i)?;
                             let [<$ty:lower>] = $ty::build(i, builder)?;
                         )*
 

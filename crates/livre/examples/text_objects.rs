@@ -2,13 +2,11 @@ use std::{fs::File, io::Read};
 
 use livre::{
     content::{operators::Operator, Run, TextObjects},
-    extraction::Extract,
+    extraction::{multicomment0, Extract},
     InMemoryDocument,
 };
 use winnow::{
-    ascii::multispace0,
     combinator::{iterator, preceded},
-    error::ContextError,
     BStr,
 };
 
@@ -33,7 +31,7 @@ fn main() {
             let content = page.build_content(&doc).unwrap();
             let mut input = BStr::new(&content);
 
-            let mut it = iterator(&mut input, preceded(multispace0, Operator::extract));
+            let mut it = iterator(&mut input, preceded(multicomment0, Operator::extract));
             let fonts = page.fonts(&doc).unwrap();
             let mut objects = TextObjects::new(&mut it, &fonts);
 
@@ -46,7 +44,7 @@ fn main() {
                 println!();
             }
 
-            multispace0::<&BStr, ContextError>(&mut input).unwrap();
+            multicomment0(&mut input).unwrap();
 
             if !input.is_empty() {
                 println!();

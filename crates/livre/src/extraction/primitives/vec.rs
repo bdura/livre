@@ -1,8 +1,7 @@
-use winnow::ascii::multispace0;
 use winnow::combinator::{delimited, preceded, repeat, trace};
 use winnow::{BStr, ModalResult, Parser};
 
-use super::Extract;
+use crate::extraction::{multicomment0, Extract};
 
 /// From the specification:
 ///
@@ -29,8 +28,8 @@ where
             "livre-vec",
             delimited(
                 b'[',
-                repeat(0.., preceded(multispace0, T::extract)),
-                (multispace0, b']'),
+                repeat(0.., preceded(multicomment0, T::extract)),
+                (multicomment0, b']'),
             ),
         )
         .parse_next(input)
@@ -49,6 +48,7 @@ mod tests {
     #[case(b"[  true true  false  ]", vec![true, true, false])]
     #[case(b"[  1   2 3]", vec![1, 2, 3])]
     #[case(b"[ 1 2 3]", vec![1u8, 2u8, 3u8])]
+    #[case(b"[1 % one\n 2 %two\n]", vec![1, 2])]
     fn vec<T>(#[case] input: &[u8], #[case] expected: T)
     where
         T: for<'a> Extract<'a> + Debug + PartialEq,

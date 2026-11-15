@@ -2,11 +2,10 @@ use std::{fs::File, io::Read};
 
 use livre::{
     content::operators::{text::TextOperator, Operator},
-    extraction::Extract,
+    extraction::{multicomment0, Extract},
     InMemoryDocument,
 };
 use winnow::{
-    ascii::multispace0,
     combinator::{iterator, preceded},
     BStr,
 };
@@ -32,7 +31,7 @@ fn main() {
             let content = page.build_content(&doc).unwrap();
             let mut stream = BStr::new(&content);
 
-            let mut it = iterator(&mut stream, preceded(multispace0, Operator::extract));
+            let mut it = iterator(&mut stream, preceded(multicomment0, Operator::extract));
 
             for operator in &mut it {
                 match operator {
