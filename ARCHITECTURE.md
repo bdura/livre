@@ -237,9 +237,9 @@ fails when the committed files drift from what it produces.
 
 Data, not logic: the crate holds the Adobe Glyph List and the widths of the
 fourteen standard fonts, which decoding shown text and sizing glyphs of fonts
-without `/Widths` need; `livre` does not depend on it yet. It has no dependencies, no build script
-and no `unsafe`. The upstream files are vendored unmodified; each is compiled
-by the crate's tests into a `.bin` blob that is committed and embedded with
+without `/Widths` need; `livre` does not depend on it yet. It has no
+dependencies, no build script and no `unsafe`. The upstream files are vendored
+unmodified; each is compiled by the crate's tests into a `.bin` blob that is committed and embedded with
 `include_bytes!`. Every blob has one format, a sorted string table: a `u32` LE
 record count, a `u32` LE offset per record in ascending key order, then the
 records as `u8` key length, key, `u8` value length, value. Lookups

@@ -7,19 +7,33 @@ use crate::table::Table;
 /// §9.6.2.2), with Adobe's Core 14 metrics.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum StandardFont {
+    /// `Courier`, fixed-pitch.
     Courier,
+    /// `Courier-Bold`.
     CourierBold,
+    /// `Courier-Oblique`.
     CourierOblique,
+    /// `Courier-BoldOblique`.
     CourierBoldOblique,
+    /// `Helvetica`, sans-serif; Arial is an alias.
     Helvetica,
+    /// `Helvetica-Bold`.
     HelveticaBold,
+    /// `Helvetica-Oblique`.
     HelveticaOblique,
+    /// `Helvetica-BoldOblique`.
     HelveticaBoldOblique,
+    /// `Times-Roman`, serif; Times New Roman is an alias.
     TimesRoman,
+    /// `Times-Bold`.
     TimesBold,
+    /// `Times-Italic`.
     TimesItalic,
+    /// `Times-BoldItalic`.
     TimesBoldItalic,
+    /// `Symbol`, Greek letters and mathematical signs in a built-in encoding.
     Symbol,
+    /// `ZapfDingbats`, ornaments in a built-in encoding.
     ZapfDingbats,
 }
 
