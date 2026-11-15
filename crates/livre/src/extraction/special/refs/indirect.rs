@@ -5,7 +5,7 @@ use winnow::{
 };
 
 use crate::{
-    extraction::{extract, multicomment1, Extract},
+    extraction::{extract, multicomment0, multicomment1, Extract},
     follow_refs::{Build, Builder, BuilderParser},
 };
 
@@ -41,7 +41,11 @@ impl<'de, T> Indirect<T> {
             "livre-indirect",
             (
                 ReferenceId::extract,
-                delimited((b" obj", multicomment1), parser, (multicomment1, b"endobj")),
+                delimited(
+                    (multicomment1, b"obj", multicomment0),
+                    parser,
+                    (multicomment0, b"endobj"),
+                ),
             )
                 .map(Self::from),
         )
@@ -74,7 +78,7 @@ where
 mod tests {
     use std::fmt::Debug;
 
-    use crate::follow_refs::BuilderParser;
+    use crate::{extraction::Object, follow_refs::BuilderParser};
 
     use super::*;
     use rstest::rstest;
@@ -86,6 +90,9 @@ mod tests {
     #[case(b"0 0 obj % ten\n10 % then\ntrue\n% done\nendobj", Indirect{id: (0, 0).into(), inner: (10i32, true)})]
     #[case(b"0 0 obj\n[1 % one\n2 %two\n]\nendobj", Indirect{id: (0, 0).into(), inner: vec![1, 2]})]
     #[case(b"0 0 obj\n[1 % one\n2]\nendobj", Indirect{id: (0, 0).into(), inner: [1, 2]})]
+    #[case(b"0 0 obj[1 2]endobj", Indirect{id: (0, 0).into(), inner: vec![1, 2]})]
+    #[case(b"0 0 obj<</A 1>>endobj", Indirect{id: (0, 0).into(), inner: vec![("A", Object::Integer(1))].into_iter().collect::<Object>()})]
+    #[case(b"0\n0\nobj\n10\nendobj", Indirect{id: (0, 0).into(), inner: 10})]
     fn extraction_and_build<'de, T>(#[case] input: &'de [u8], #[case] expected: Indirect<T>)
     where
         T: Extract<'de> + Build + Debug + PartialEq,

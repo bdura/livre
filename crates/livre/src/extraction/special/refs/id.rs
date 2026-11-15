@@ -3,7 +3,7 @@ use winnow::{
     BStr, ModalResult, Parser,
 };
 
-use crate::extraction::{extract, Extract};
+use crate::extraction::{extract, multicomment1, Extract};
 
 /// An ID that uniquely identifies an object and its version.
 ///
@@ -36,7 +36,7 @@ impl Extract<'_> for ReferenceId {
     fn extract(input: &mut &BStr) -> ModalResult<Self> {
         trace(
             "livre-reference-id",
-            separated_pair(extract, b' ', extract).map(ReferenceId::from),
+            separated_pair(extract, multicomment1, extract).map(ReferenceId::from),
         )
         .parse_next(input)
     }
@@ -57,6 +57,8 @@ mod tests {
     #[case(b"0 0", (0, 0))]
     #[case(b"10 0", (10, 0))]
     #[case(b"10 10", (10, 10))]
+    #[case(b"10\n10", (10, 10))]
+    #[case(b"10  % object\n10", (10, 10))]
     fn reference_id(#[case] input: &[u8], #[case] expected: impl Into<ReferenceId>) {
         let result = extract(&mut input.as_ref()).unwrap();
         assert_eq!(expected.into(), result);
