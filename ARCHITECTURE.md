@@ -61,8 +61,11 @@ The system is designed as a layered architecture:
    `end` is `start` advanced past the shown glyphs, both in default user space,
    and each `Character` is one code with its own start, end and decoded text.
    Simple and `Type3` fonts decode codes through `/ToUnicode`, then their encoding
-   and the Adobe Glyph List; composite (`Type0`) fonts decode nothing yet,
-   so their runs are U+FFFD. Matrices and points are typed by coordinate space
+   and the Adobe Glyph List. Composite (`Type0`) fonts split strings by their
+   encoding CMap's codespace ranges, map each code to a CID for the descendant
+   CIDFont's widths, and decode through `/ToUnicode` only. A font's `WritingMode`,
+   horizontal or vertical, owns the advance arithmetic of 9.4.4: `show` and `TJ`
+   go through it, so a vertical font's glyphs advance down the page. Matrices and points are typed by coordinate space
    (`Glyph`, `Text`, `User`, `DefaultUser`). This is the highest-level layer for
    extracting human-readable content.
 
@@ -163,10 +166,12 @@ and the root manifest only lists the members and their shared package metadata.
 │       ├── error.rs           # Content parsing errors
 │       ├── font/              # Font dictionaries, as far as positioning and decoding text needs
 │       │   ├── mod.rs         # Font, dispatching on /Subtype, and Fonts
-│       │   ├── code.rs        # Splitting a shown string into character codes
+│       │   ├── code.rs        # Splitting a shown string into character codes, by codespace ranges
 │       │   ├── widths.rs      # Glyph widths
-│       │   ├── cmap/          # CMap<D>: codespace, bfchar and bfrange, lookup
-│       │   │   ├── mod.rs     # CMap, CodespaceRange, lookup
+│       │   ├── cid.rs         # CidFont: a Type0 descendant, /W, /DW, /W2, /DW2
+│       │   ├── cmap/          # CMap<D>: codespace, bfchar, bfrange, cidchar, cidrange, lookup
+│       │   │   ├── mod.rs     # CMap, CodespaceRange, lookup; WritingMode and its advance arithmetic
+│       │   │   ├── cid.rs     # Cid, EncodingCMap: Identity-H/V or an embedded CMap, usecmap of an identity
 │       │   │   ├── parse.rs   # PostScript tokens and the begin/end sections
 │       │   │   └── unicode.rs # UnicodeText, ToUnicode = CMap<UnicodeText>
 │       │   ├── encoding/      # Code to glyph name, for simple and Type3 fonts
@@ -177,7 +182,7 @@ and the root manifest only lists the members and their shared package metadata.
 │       │   ├── decoder.rs     # Decoder: /ToUnicode first, then the encoding
 │       │   ├── simple.rs      # Type1, MMType1, TrueType; standard 14 widths when /Widths is absent
 │       │   ├── type3.rs       # Type3
-│       │   └── composite.rs   # Type0, a placeholder
+│       │   └── composite.rs   # Type0: encoding CMap, descendant CIDFont, /ToUnicode
 │       ├── operators/         # Content stream operators
 │       │   ├── mod.rs         # Operator enum and parsing
 │       │   ├── graphics.rs    # Special graphics state operators (q, Q, cm)
@@ -312,6 +317,9 @@ and decoding text needs: splitting strings into codes, glyph widths,
 and `Font::decode`, the text a code stands for. Simple and `Type3` fonts carry a
 `Decoder`, which owns the precedence of ISO 32000-2 9.10.2: `/ToUnicode`, then the
 glyph name their `Encoding` gives the code, through `livre-font-data`'s glyph list.
+A composite font maps each code to a CID through its `EncodingCMap` and reads
+its widths from the descendant `CidFont`; `Font::writing_mode` and
+`Font::glyph_displacement` give the axis and size-1 displacement the advance uses.
 
 **`TextObjects`** (content/state/text.rs): The entry point for text extraction.
 It wraps a page's operator iterator and owns the graphics state for the whole
@@ -339,6 +347,11 @@ Showing text with no font selected is `NoFontSelected`.
   `content/font/encoding/tables.rs`, extend the table test there that resolves
   every name, and map its `/Encoding` name (or the `/BaseFont` that implies it)
   in the base table rule of `content/font/encoding/mod.rs`.
+- **Add a predefined CMap**: Vendor its file under `crates/livre-font-data/data/`
+  and compile it to a blob there, as the glyph list and AFM files are (see the
+  crate's README), then map its name in `EncodingCMap`'s predefined-name match in
+  `content/font/cmap/cid.rs`, which today knows only `Identity-H` and `Identity-V`
+  and warns on every other name.
 - **Add a new stream filter**: Implement the `Filtering` trait for your filter
   type in `filtering.rs`.
 - **Create a custom builder**: Implement the `Builder` trait for your type to

@@ -34,9 +34,9 @@ to get your version.
 - [x] (`v0.4.0`) Parser for the general PDF structure, allowing to iterate over
   pages and their content
 - [x] (`v0.5.0`) Parser for pages' content operators & text content
-- [ ] (`v0.6.0`) Parser for fonts definition - starting with "simple fonts".
+- [x] (`v0.6.0`) Parser for fonts definition - starting with "simple fonts".
   This step will allow iterating over characters and their actual position.
   - [x] Glyph widths of simple fonts, so each shown string has a start and an end
   - [x] Decoding character codes of simple fonts to text, with each character's
     position
-  - [ ] Composite (`Type0`) fonts
+  - [x] Composite (`Type0`) fonts, with vertical writing

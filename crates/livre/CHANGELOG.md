@@ -12,8 +12,8 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `livre::VERSION`: the crate version, as published
 - Font dictionaries, `livre::content::Font`: simple fonts (`Type1`, `MMType1`,
   `TrueType`) with their `/Widths` and descriptor's `/MissingWidth`, `Type3`
-  fonts with their `/FontMatrix`, and `Type0` fonts as a placeholder whose glyphs
-  have zero width. `Font::codes` splits a shown string into character codes
+  fonts with their `/FontMatrix`, and `Type0` composite fonts. `Font::codes` splits
+  a shown string into character codes
 - `Fonts`, a page's font resources by name with every reference resolved,
   and `Page::fonts` to build it
 - Decode simple and `Type3` fonts' character codes to text (ISO 32000-2, 9.10.2):
@@ -22,17 +22,28 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   `uXXXX[XX]`, suffixes and ligature components). `Encoding` is the base table
   (`StandardEncoding`, `WinAnsiEncoding`, `MacRomanEncoding`, `MacExpertEncoding`,
   or the built-in Symbol and ZapfDingbats tables) with `/Differences` applied;
-  `Decoder` holds it with the `ToUnicode` map. Composite fonts decode nothing yet,
-  nor do ZapfDingbats glyph names without `/ToUnicode`
+  `Decoder` holds it with the `ToUnicode` map. ZapfDingbats glyph names
+  without `/ToUnicode` decode nothing
 - `CMap<D>`, `ToUnicode` and `UnicodeText`: a `/ToUnicode` CMap's `bfchar`
   and `bfrange` entries, both range forms, and its codespace; `usecmap` is warned
-  and ignored
+  and ignored, except an identity CMap's in an encoding CMap
 - `Character`: one per character code of a shown string, with its code, the
   glyph's start and end in default user space, and its text if the font maps it.
   `Run::characters` lists them in string order
 - Widths of the standard 14 fonts from their AFM metrics, through the
   new `livre-font-data` dependency, for a simple font with no `/Widths`
   (`SimpleWidths::Standard`)
+- Composite fonts (ISO 32000-2, 9.7): `CompositeFont`, a `Type0` font's encoding CMap,
+  descendant and `/ToUnicode`; `CidFont`, the descendant `CIDFontType0` or
+  `CIDFontType2` with its `/W` and `/DW` (`CidWidths`) and `/W2` and `/DW2`
+  (`VerticalMetrics`); `EncodingCMap`, `Identity-H`, `Identity-V` or an embedded CMap
+  stream with `cidchar` and `cidrange` sections, mapping codes to `Cid`s. Another
+  predefined CMap name, such as the Adobe CJK collection's, is warned and read as
+  `Identity-H`
+- Vertical writing: `WritingMode`, from a CMap's `/WMode` or `Identity-V`, given by
+  `Font::writing_mode`. In a vertical font glyphs advance down by their `/W2` or
+  `/DW2` advance, and character spacing, word spacing and `TJ` numbers move along
+  the vertical axis, without horizontal scaling (9.4.4)
 
 ### Fixed
 
@@ -51,6 +62,10 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   word spacing (on single-byte code 32 only) and horizontal scaling, as ISO 32000-2
   9.4.4 specifies: every string of a line was reported at the line's start,
   and `TJ` offsets accumulated from there
+- Composite fonts advance by their descendant's `/W` and `/DW`, split shown strings
+  by their CMap's codespace ranges (codes of mixed lengths, with the partial-match
+  rule of 9.7.6.3) and decode through `/ToUnicode`: they had zero width, two-byte
+  codes and no text. Selecting a `Type0` font with `Tf` no longer warns
 - Track the line matrix: `Td`, `TD` and `T*` move from the start of the current
   line, not from where the last string ended
 - Apply the text rise `Ts` to the reported positions
