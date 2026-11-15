@@ -3,9 +3,11 @@
 //!
 //! A [`Font`] is told apart by its `/Subtype`. Simple fonts (`Type1`, `MMType1`, `TrueType`)
 //! and `Type3` fonts read one byte per code, carry a [`Widths`] table (or, for a standard 14
-//! font without `/Widths`, its metrics) and a [`Decoder`] from codes to text; `Type0` fonts are
-//! a placeholder that reads two bytes per code, reports zero widths and decodes nothing.
+//! font without `/Widths`, its metrics) and a [`Decoder`] from codes to text. `Type0` fonts
+//! split strings by their encoding CMap's codespace, map each code to a CID keying their
+//! descendant's widths, and decode through `/ToUnicode` alone.
 
+pub mod cid;
 pub mod cmap;
 mod code;
 mod composite;
@@ -22,7 +24,8 @@ use winnow::{
     BStr, ModalResult,
 };
 
-pub use cmap::{CMap, CodespaceRange, ToUnicode, UnicodeText, WritingMode};
+pub use cid::{CidFont, CidFontSubtype, CidWidths, VerticalMetric, VerticalMetrics};
+pub use cmap::{CMap, Cid, CodespaceRange, EncodingCMap, ToUnicode, UnicodeText, WritingMode};
 pub use code::{Code, Codes};
 pub use composite::CompositeFont;
 pub use decoder::Decoder;
@@ -32,7 +35,7 @@ pub use type3::Type3Font;
 pub use widths::{GlyphWidth, Widths};
 
 use crate::{
-    content::{Glyph, Matrix, Text},
+    content::{Displacement, Glyph, Matrix, Text},
     extraction::{FromRawDict, Name, RawDict},
     follow_refs::{BuildFromRawDict, Builder},
 };
@@ -44,7 +47,7 @@ pub enum Font {
     Simple(SimpleFont),
     /// `Type3`.
     Type3(Type3Font),
-    /// `Type0`, as a placeholder.
+    /// `Type0`.
     Composite(CompositeFont),
 }
 
@@ -71,8 +74,8 @@ impl FromIterator<(Name, Font)> for Fonts {
     }
 }
 
-/// The text space length of a thousandth: glyph space for `Type1`, `TrueType` and, until
-/// their widths are read, composite fonts (ISO 32000-2, 9.2.4).
+/// The text space length of a thousandth: glyph space for `Type1`, `TrueType` and the CIDFonts
+/// of composite fonts (ISO 32000-2, 9.2.4).
 const THOUSANDTH: Matrix<Glyph, Text> = Matrix::new(0.001, 0.0, 0.0, 0.001, 0.0, 0.0);
 
 impl Font {
@@ -85,22 +88,57 @@ impl Font {
         }
     }
 
-    /// The width of `code`'s glyph. Always zero for a composite font.
+    /// The width of `code`'s glyph, in the font's glyph space.
+    ///
+    /// For a composite font, the width of the CID the encoding maps `code` to, through the
+    /// descendant's `/W` and `/DW`; a code the encoding does not map takes CID 0's
+    /// (ISO 32000-2, 9.7.6.3).
     pub fn width(&self, code: Code) -> GlyphWidth {
         match self {
             Font::Simple(font) => font.width(code),
             Font::Type3(font) => font.widths.width(code),
-            Font::Composite(_) => GlyphWidth(0.0),
+            Font::Composite(font) => font.descendant.widths.width(font.cid(code)),
         }
     }
 
-    /// The text `code` shows, if the font can say: `/ToUnicode` first, then the glyph name
-    /// through the encoding. Always `None` for a composite font until its CMaps are read.
+    /// The text `code` shows, if the font can say. For simple and `Type3` fonts,
+    /// `/ToUnicode` first, then the glyph name through the encoding; for a composite font,
+    /// `/ToUnicode` only.
     pub fn decode(&self, code: Code) -> Option<Cow<'_, str>> {
         match self {
             Font::Simple(font) => font.decoder.text(code),
             Font::Type3(font) => font.decoder.text(code),
-            Font::Composite(_) => None,
+            Font::Composite(font) => font
+                .to_unicode
+                .as_ref()
+                .and_then(|cmap| cmap.get(code))
+                .map(|text| Cow::Owned(text.as_str().to_owned())),
+        }
+    }
+
+    /// The direction glyphs are laid out in: the encoding CMap's for a composite font,
+    /// always horizontal otherwise.
+    pub fn writing_mode(&self) -> WritingMode {
+        match self {
+            Font::Composite(font) => font.encoding.writing_mode(),
+            Font::Simple(_) | Font::Type3(_) => WritingMode::Horizontal,
+        }
+    }
+
+    /// How far `code`'s glyph moves the current point, in text space units for a font size
+    /// of 1, before spacing and scaling (ISO 32000-2, 9.7.4.3).
+    ///
+    /// Horizontally `(w0, 0)`, the width through [`Font::glyph_to_text`]; vertically
+    /// `(0, w1)`, with `w1` the descendant's `/W2` or `/DW2` advance over 1000, negative
+    /// downwards. The position vector displaces the glyph, not the current point, so it plays
+    /// no part here.
+    pub fn glyph_displacement(&self, code: Code) -> Displacement<Text> {
+        match (self, self.writing_mode()) {
+            (Font::Composite(font), WritingMode::Vertical) => {
+                let metric = font.descendant.vertical.metric(font.cid(code));
+                Displacement::new(0.0, metric.advance / 1000.0)
+            }
+            _ => self.glyph_to_text().apply_width(self.width(code)),
         }
     }
 }
@@ -172,6 +210,8 @@ pub(crate) mod tests {
 
     use super::*;
     use crate::{extraction::ReferenceId, follow_refs::Build};
+
+    pub(crate) use super::composite::tests::f3 as composite_f3;
 
     /// The font in the dictionary literal `input`, with no reference to follow.
     pub(crate) fn font(input: &[u8]) -> Font {

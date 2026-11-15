@@ -15,10 +15,10 @@ The [browser demo](https://bdura.github.io/livre/) runs livre, compiled to
 WebAssembly, on a PDF of your choosing and draws what it extracted over a pdf.js
 render of the page, next to pdf.js's own text layer. Files stay in your browser:
 nothing is uploaded. The overlay draws each string from where it starts to
-where it ends, as livre reads them from simple fonts' widths, with a tick at each
+where it ends, as livre reads them from the fonts' widths, with a tick at each
 character's start, and the inspector lists the decoded text. Composite fonts
-(`Type0`, common in Word exports) are not read yet: their strings advance by the
-character spacing only. See [`demo/README.md`](demo/README.md) to run it locally.
+(`Type0`, common in Word exports) are read too, and a vertical font's strings
+are drawn down the page. See [`demo/README.md`](demo/README.md) to run it locally.
 
 ## Obtaining the PDF specification
 
@@ -34,9 +34,9 @@ to get your version.
 - [x] (`v0.4.0`) Parser for the general PDF structure, allowing to iterate over
   pages and their content
 - [x] (`v0.5.0`) Parser for pages' content operators & text content
-- [ ] (`v0.6.0`) Parser for fonts definition - starting with "simple fonts".
+- [x] (`v0.6.0`) Parser for fonts definition - starting with "simple fonts".
   This step will allow iterating over characters and their actual position.
   - [x] Glyph widths of simple fonts, so each shown string has a start and an end
   - [x] Decoding character codes of simple fonts to text, with each character's
     position
-  - [ ] Composite (`Type0`) fonts
+  - [x] Composite (`Type0`) fonts, with vertical writing

@@ -35,6 +35,12 @@ const ENCODINGS: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../livre/tests/resources/encodings.pdf"
 ));
+/// Three `Type0` fonts: `Identity-H` with `/W`, an embedded CMap mixing one- and two-byte
+/// codes, and `Identity-V` with `/W2` on a second page.
+const COMPOSITE: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../livre/tests/resources/composite.pdf"
+));
 
 /// The checks every fixture passes: a clean parse of `page_count` pages with a media box
 /// each, and at least one shown string on the first page.
@@ -73,7 +79,16 @@ fn first_page_runs(analysis: &Analysis) -> Vec<&Run> {
 
 #[test]
 fn text_pdf_parses_without_errors() {
-    assert_clean(&analyze(TEXT), 1);
+    let analysis = analyze(TEXT);
+    assert_clean(&analysis, 1);
+
+    // The first word, one run per glyph in an `Identity-H` font with a `/ToUnicode`.
+    let word: String = analysis.pages[0].text_objects[0]
+        .runs
+        .iter()
+        .map(|run| run.text.as_str())
+        .collect();
+    assert_eq!(word, "Longtemps,");
 }
 
 #[test]
@@ -134,6 +149,35 @@ fn encodings_pdf_parses_without_errors() {
     assert_eq!(differences.characters.len(), 4);
     assert_eq!(differences.bytes, "01020304");
     assert_eq!(differences.characters[3].text, None);
+}
+
+#[test]
+fn composite_pdf_parses_without_errors() {
+    let analysis = analyze(COMPOSITE);
+    assert_clean(&analysis, 2);
+    assert_eq!(analysis.pages[0].text_objects.len(), 3);
+    assert_eq!(analysis.pages[1].text_objects.len(), 2);
+
+    let texts: Vec<&str> = analysis
+        .pages
+        .iter()
+        .flat_map(|page| &page.text_objects)
+        .flat_map(|object| &object.runs)
+        .map(|run| run.text.as_str())
+        .collect();
+    assert_eq!(texts, ["ABCDE\u{FFFD}", "AあA", "A A", "XY", "YY"]);
+
+    // Page two is vertical: its runs advance downwards, along the same x.
+    for run in analysis.pages[1]
+        .text_objects
+        .iter()
+        .flat_map(|object| &object.runs)
+    {
+        assert!(run.end.y < run.start.y, "{run:?}");
+        assert_eq!(run.end.x, run.start.x, "{run:?}");
+    }
+    let run = &analysis.pages[0].text_objects[0].runs[0];
+    assert_eq!(run.font_kind, Some(FontKind::Composite));
 }
 
 /// The first text object of `kerned.pdf` is one kerned `TJ` line: its runs advance along

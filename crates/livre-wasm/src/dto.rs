@@ -73,8 +73,7 @@ pub struct Run {
     /// the text matrix and the CTM in force at `BT`.
     pub start: Point,
     /// Where the string ends: the same point once the text matrix has advanced past every
-    /// glyph. Composite fonts advance by spacing only, so their runs end short. Its `y`
-    /// differs from `start`'s only under a rotated or skewed matrix.
+    /// glyph. Its `y` differs from `start`'s only under a rotated or skewed matrix.
     pub end: Point,
     /// Font resource name, lossily decoded as UTF-8.
     pub font: String,
@@ -117,7 +116,7 @@ pub enum FontKind {
     Simple,
     /// `Type3`.
     Type3,
-    /// `Type0`: its glyphs are given zero width.
+    /// `Type0`: a composite font, its codes mapped to CIDs by a CMap.
     Composite,
 }
 

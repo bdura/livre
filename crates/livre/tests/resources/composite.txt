@@ -1,0 +1,41 @@
+# Expected runs of composite.pdf: `x y end_x end_y (text)`, one run per line,
+# in page order, the text in UTF-8 between parentheses, as in kerned.txt.
+#
+# Three Type0 fonts, Tfs = 12, Ts = 0. Widths are in thousandths of text
+# space units, from the descendant CIDFont (ISO 32000-2, 9.7.4.3).
+#
+# Page one, horizontal: tx = (w0 * 12 + Tc + Tw if single-byte code 32) * Th.
+#
+# Run 1, /F1: /Identity-H, two-byte codes 0001..0006 are CIDs 1..6.
+# /DW 500 /W [1 [722 667] 3 5 600]; the ToUnicode maps 0001 -> A and
+# bfrange 0002..0005 -> B..E. CID 6 is in no /W entry (DW 500) and unmapped
+# (U+FFFD).
+#   722 + 667 + 600 + 600 + 600 + 500 = 3689, 72 + 44.268 = 116.268
+#
+# Run 2, /F2: the embedded CMap /Mixed, codespaces <00>..<80> (one byte)
+# and <8140>..<FFFF> (two bytes). <41814041> splits into codes of 1, 2 and
+# 1 bytes: <41>, <8140>, <41>. cidrange <20>..<7E> from 1 gives <41> CID 34,
+# cidchar gives <8140> CID 200. /DW 1000 /W [34 [667] 200 [1000]].
+#   667 + 1000 + 667 = 2334, 72 + 28.008 = 100.008
+#
+# Run 3, /F2 with 2 Tw: <412041>. <20> is CID 1, in no /W entry (DW 1000).
+# Word spacing applies to the single-byte code 32 (9.3.3).
+#   667 + 1000 + 667 = 2334, 72 + 28.008 + 2 = 102.008
+#
+# Page two, vertical: ty = (w1 * 12 + Tc + Tw if single-byte code 32), no
+# horizontal scaling (9.4.4). Th does not apply vertically: adding `50 Tz`
+# to run 5 would change nothing.
+#
+# /F3: /Identity-V, no /DW2 (default [880 -1000]), /W2 [1 [-500 250 880]]:
+# CID 1 has w1y -500, CID 2 the default -1000. ToUnicode 0001 -> X, 0002 -> Y.
+#
+# Run 4, Tc 0: X ty = -0.5 * 12 = -6, Y ty = -1 * 12 = -12.
+#   X from (300, 700) to (300, 694), Y from (300, 694) to (300, 682).
+#
+# Run 5, 1 Tc: each Y ty = -12 + 1 = -11, Tc moves the point up.
+#   600 - 22 = 578
+72.000 700 116.268 700 (ABCDE�)
+72.000 680 100.008 680 (AあA)
+72.000 660 102.008 660 (A A)
+300.000 700 300.000 682 (XY)
+300.000 600 300.000 578 (YY)
