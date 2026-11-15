@@ -19,8 +19,7 @@ struct StreamConfig {
 }
 ```
 
-The supported shapes, the `rename`, `from`, `default` and `flatten`
-attributes, and the key convention are documented on
-[docs.rs](https://docs.rs/livre-derive).
+The supported shapes, the `rename`, `from`, `default` and `flatten` attributes,
+and the key convention are documented on [docs.rs](https://docs.rs/livre-derive).
 
 The minimum supported Rust version is 1.85.

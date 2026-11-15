@@ -103,6 +103,7 @@ and the root manifest only lists the members and their shared package metadata.
 ├── crates/
 │   ├── livre/                 # The library, with its examples, tests and changelog
 │   ├── livre-derive/          # Proc-macro crate for the derive macros
+│   ├── livre-font-data/       # Glyph names and standard-font widths, as committed lookup tables
 │   └── livre-wasm/            # Unpublished wasm glue behind the browser demo
 ├── demo/                      # Static page of the browser demo (TypeScript, no bundler)
 └── nix/                       # Flake checks (crane), toolchains, generated fixtures, demo site
@@ -217,6 +218,24 @@ fails when the committed files drift from what it produces.
 └── Cargo.toml
 ```
 
+### `crates/livre-font-data/`
+
+```text
+├── src/
+│   ├── table.rs          # The blob format: read in place, written by the tests
+│   ├── glyph_list.rs     # Glyph name to Unicode text
+│   ├── standard_font.rs  # StandardFont: alias resolution and widths
+│   └── generate.rs       # cfg(test): parses the sources, checks the blobs are fresh
+├── data/                 # Vendored AGL and AFM files, unmodified
+├── tables/               # The .bin blobs built from data/ by the tests
+└── LICENSE               # MIT, plus Adobe's notices
+```
+
+Not used by `livre` yet. The vendored files are compiled by the crate's own
+tests into `.bin` blobs under `tables/`, which are committed and embedded with
+`include_bytes!`, so the crate needs no build script. The tests fail when a
+committed blob no longer matches its source.
+
 ### `crates/livre-wasm/`
 
 ```text
@@ -303,6 +322,9 @@ Showing text with no font selected is `NoFontSelected`.
   type in `filtering.rs`.
 - **Create a custom builder**: Implement the `Builder` trait for your type to
   provide a custom reference resolution strategy.
+- **Update the font data**: Replace the file under
+  `crates/livre-font-data/data/`, then follow the crate's README to rebuild
+  the blobs.
 
 ## Cross-cutting concerns
 

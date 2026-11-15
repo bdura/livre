@@ -1,0 +1,32 @@
+[package]
+name = "livre-font-data"
+version = "0.1.0"
+edition.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+readme = "README.md"
+description = "The Adobe Glyph List and the Core 14 font metrics, as lookup tables for Livre"
+repository.workspace = true
+
+# The AFM notice has no SPDX identifier, so the licence is a file rather than
+# an expression; Cargo treats `license` and `license-file` as alternatives.
+license-file = "LICENSE"
+keywords = ["pdf", "font", "afm", "glyph"]
+
+# The notice must travel with the AFM files, and the sources ship with the
+# lookup tables derived from them.
+include = [
+    "/src/**/*.rs",
+    "/data/agl/*.txt",
+    "/tables/agl/*.bin",
+    "/data/afm/*.afm",
+    "/tables/afm/*.bin",
+    "/data/afm/NOTICE",
+    "/LICENSE",
+    "/README.md",
+    "/CHANGELOG.md",
+]
+
+[dev-dependencies]
+rstest = "0.26"
