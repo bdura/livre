@@ -53,14 +53,15 @@ The system is designed as a layered architecture:
    traits live, enabling lazy resolution of object graphs.
 
 4. **Content layer** (`content/`): Parsing of page content streams into text runs.
-   `TextObjects` walks a page's operators against its fonts, resolved beforehand by
-   `Page::fonts`, and owns its graphics state: the CTM and the text state parameters
-   (font, spacing, leading...), saved and restored together by `q`/`Q`, so a `Tf`
-   outside `BT` or in an earlier text object still applies. Each text object it hands
-   out yields `Run { start, end, text }`, where `end` is `start` advanced past the shown
-   glyphs, both in default user space. Matrices and points are typed by coordinate
-   space (`Glyph`, `Text`, `User`, `DefaultUser`). This is the highest-level layer for
-   extracting human-readable content; decoding shown bytes to text is not done yet.
+   `TextObjects` walks a page's operators against its fonts, resolved beforehand
+   by `Page::fonts`, and owns its graphics state: the CTM and the text state
+   parameters (font, spacing, leading...), saved and restored together by
+   `q`/`Q`, so a `Tf` outside `BT` or in an earlier text object still applies.
+   Each text object it hands out yields `Run { start, end, text }`, where `end`
+   is `start` advanced past the shown glyphs, both in default user space.
+   Matrices and points are typed by coordinate space (`Glyph`, `Text`, `User`,
+   `DefaultUser`). This is the highest-level layer for extracting human-readable
+   content; decoding shown bytes to text is not done yet.
 
 The library deliberately does **not** render PDFs, edit PDFs, or handle encryption.
 It focuses solely on reading and extracting data from existing PDF files in a
@@ -68,8 +69,8 @@ type-safe manner.
 
 ## Entry Point
 
-Execution begins in `crates/livre/src/lib.rs` which exports the main `InMemoryDocument` type.
-The primary entry point for users is:
+Execution begins in `crates/livre/src/lib.rs` which exports the main
+`InMemoryDocument` type. The primary entry point for users is:
 
 ```rust
 use livre::{extraction::Extract, InMemoryDocument};
@@ -197,8 +198,8 @@ and the root manifest only lists the members and their shared package metadata.
 ```
 
 Most fixtures in `tests/resources/` are hand-picked PDFs. Generated ones (today
-`text-xref-stream.pdf`, `text.pdf` rewritten by qpdf with object streams and a
-cross-reference stream using `/Predictor 12`) come from `nix/fixtures.nix`:
+`text-xref-stream.pdf`, `text.pdf` rewritten by qpdf with object streams and
+a cross-reference stream using `/Predictor 12`) come from `nix/fixtures.nix`:
 `nix run .#fixtures` regenerates them in place, and the `fixtures` flake check
 fails when the committed files drift from what it produces.
 
@@ -241,8 +242,8 @@ fails when the committed files drift from what it produces.
 └── README.md             # Local development and deployment
 ```
 
-`demo/pkg/`, `demo/fixtures/`, `demo/style.css`, `demo/version.json` and `demo/*.js` are generated
-and git-ignored.
+`demo/pkg/`, `demo/fixtures/`, `demo/style.css`, `demo/version.json` and
+`demo/*.js` are generated and git-ignored.
 
 ### Key Components
 
@@ -270,16 +271,16 @@ extract the referenced object. The `InMemoryBuilder` is the primary implementati
 containing references to the page tree and other document-level information.
 
 **`Page`** (structure/pages.rs): Represents a page in the PDF, containing content
-streams and resources. Its fonts are resolved eagerly, so the content layer needs no
-document.
+streams and resources. Its fonts are resolved eagerly, so the content layer needs
+no document.
 
-**`Font`** (content/font/mod.rs): A font dictionary, reduced to what positioning text
-needs: splitting strings into codes and glyph widths.
+**`Font`** (content/font/mod.rs): A font dictionary, reduced to what positioning
+text needs: splitting strings into codes and glyph widths.
 
-**`TextObjects`** (content/state/text.rs): The entry point for text extraction. It
-wraps a page's operator iterator and owns the graphics state for the whole content
-stream: text state operators and `q`/`Q`/`cm` met outside `BT` update it, and
-`next_object()` hands out a `TextObjectStream` borrowing it mutably, which yields
+**`TextObjects`** (content/state/text.rs): The entry point for text extraction.
+It wraps a page's operator iterator and owns the graphics state for the whole
+content stream: text state operators and `q`/`Q`/`cm` met outside `BT` update it,
+and `next_object()` hands out a `TextObjectStream` borrowing it mutably, which yields
 `Run`s. A dropped stream is skipped to its `ET`, text state operators still applied;
 a missing `ET` is reported by the next `next_object()` as `IncompleteTextObject`.
 Showing text with no font selected is `NoFontSelected`.
@@ -291,13 +292,13 @@ Showing text with no font selected is `NoFontSelected`.
 - **Add support for a new PDF structure type**: Define a struct and implement
   `Extract` and `Build` as needed, typically in the `structure/` module.
 - **Add a new content operator**: Add a variant to `content::operators::Operator`
-  and implement its parsing in the appropriate text or graphics submodule. A text
-  operator also implements `TextStateOperation`, `TextPositioningOperation` or
-  `TextShowingOperation`, depending on whether it mutates the text state parameters,
-  the text matrix or the text object's buffered strings.
-- **Add a new font subtype**: Add a variant to `content::font::Font`, backed by its
-  own module in `content/font/`, and handle it in each of `Font`'s matches. The text
-  advance only goes through `Font`, so it needs no change.
+  and implement its parsing in the appropriate text or graphics submodule.
+  A text operator also implements `TextStateOperation`, `TextPositioningOperation`
+  or `TextShowingOperation`, depending on whether it mutates the text state
+  parameters, the text matrix or the text object's buffered strings.
+- **Add a new font subtype**: Add a variant to `content::font::Font`, backed by
+  its own module in `content/font/`, and handle it in each of `Font`'s matches.
+  The text advance only goes through `Font`, so it needs no change.
 - **Add a new stream filter**: Implement the `Filtering` trait for your filter
   type in `filtering.rs`.
 - **Create a custom builder**: Implement the `Builder` trait for your type to
@@ -314,14 +315,14 @@ strongly typed via the `Reference<T>` type, ensuring type safety when following
 object graphs.
 
 **Derive macros**: The `livre-derive` crate provides derive macros for `Extract`
-(tuple structs, unit structs, enums of single-field variants), `FromRawDict` and
-`BuildFromRawDict` (structs with named fields). Each dictionary field reads the
-`PascalCase` form of its name as key, tunable with `#[livre(...)]` attributes:
-`rename = "Key"`, `from = Type` (extract, then `Into`), `default` (bare, literal,
-closure or expression; applied after `from`) and `flatten`. Generated code uses
-absolute `::livre::` and `::winnow::` paths; `livre` itself declares
-`extern crate self as livre` so those paths resolve inside the crate too. Misuse
-is a spanned compile error, checked by the trybuild cases in `tests/ui`.
+(tuple structs, unit structs, enums of single-field variants), `FromRawDict`
+and `BuildFromRawDict` (structs with named fields). Each dictionary field reads
+the `PascalCase` form of its name as key, tunable with `#[livre(...)]` attributes:
+`rename = "Key"`, `from = Type` (extract, then `Into`), `default` (bare,
+literal, closure or expression; applied after `from`) and `flatten`.
+Generated code uses absolute `::livre::` and `::winnow::` paths; `livre` itself
+declares `extern crate self as livre` so those paths resolve inside the crate too.
+Misuse is a spanned compile error, checked by the trybuild cases in `tests/ui`.
 
 **Memory model**: `InMemoryDocument` loads the entire PDF into memory.
 The `InMemoryBuilder` holds the raw bytes and cross-reference table, allowing
@@ -329,9 +330,9 @@ lazy resolution of objects without reparsing.
 
 **Stream decoding**: The `Filtering` trait abstracts over different compression
 algorithms. Currently only `FlateDecode` (zlib) is implemented; others return
-unsupported errors. `StreamConfig` reads `/DecodeParms` alongside `/Filter` (a
-single dictionary or an array parallel to it, `null` for no parameters), and
-FlateDecode undoes PNG (10 to 15) and TIFF (2) predictors after inflating.
+unsupported errors. `StreamConfig` reads `/DecodeParms` alongside `/Filter`
+(a single dictionary or an array parallel to it, `null` for no parameters),
+and FlateDecode undoes PNG (10 to 15) and TIFF (2) predictors after inflating.
 
 **Browser demo**: `crates/livre-wasm` (unpublished) exposes `analyze_pdf`,
 which runs livre on a PDF's bytes and returns plain DTOs (`dto.rs`), so serde
@@ -339,8 +340,8 @@ stays out of livre. The DTOs derive `tsify::Tsify`: the page's TypeScript is
 type-checked against the generated declarations, so a DTO change that breaks
 it fails the build. `nix/demo.nix` assembles the site (wasm, `tsc`, Tailwind,
 fixtures), which is a flake check, deployed to GitHub Pages and served locally
-by `nix run .#demo`. The page overlays livre's runs on pdf.js's text layer, the
-visual harness for the font work.
+by `nix run .#demo`. The page overlays livre's runs on pdf.js's text layer,
+the visual harness for the font work.
 
 **Invariants**:
 
