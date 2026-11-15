@@ -53,19 +53,14 @@ The system is designed as a layered architecture:
    traits live, enabling lazy resolution of object graphs.
 
 4. **Content layer** (`content/`): Parsing of page content streams into text runs.
-   `Page::fonts` resolves the page's `/Resources /Font` map into `Fonts`, parsed font
-   dictionaries by resource name, and `TextObjects::new(ops, &fonts)` walks the page's
-   operators against them. It owns the graphics state: the CTM and the text state
-   parameters (font, spacing, leading...), saved and restored together by `q`/`Q`, so a
-   `Tf` outside `BT` or in an earlier text object still applies; `Tf` selects a font from
-   `Fonts` as a `SelectedFont`. Each text object it hands out keeps a text matrix and a
-   line matrix (`Td`, `TD`, `T*` move from the start of the line) and yields `Run {
-   start, end, text }`: showing a string advances the text matrix past each glyph by
-   its width, `Tc`, `Tw` and `Tz` (ISO 32000-2, 9.4.4), and `end` is where that leaves
-   it. Positions are in default user space, the rise `Ts` included. Matrices and points
-   are typed by coordinate space (`Glyph`, `Text`, `User`, `DefaultUser`). This is the
-   highest-level layer for extracting human-readable content; decoding the shown bytes
-   to text through the font's encoding is not done yet.
+   `TextObjects` walks a page's operators against its fonts, resolved beforehand by
+   `Page::fonts`, and owns its graphics state: the CTM and the text state parameters
+   (font, spacing, leading...), saved and restored together by `q`/`Q`, so a `Tf`
+   outside `BT` or in an earlier text object still applies. Each text object it hands
+   out yields `Run { start, end, text }`, where `end` is `start` advanced past the shown
+   glyphs, both in default user space. Matrices and points are typed by coordinate
+   space (`Glyph`, `Text`, `User`, `DefaultUser`). This is the highest-level layer for
+   extracting human-readable content; decoding shown bytes to text is not done yet.
 
 The library deliberately does **not** render PDFs, edit PDFs, or handle encryption.
 It focuses solely on reading and extracting data from existing PDF files in a
@@ -162,12 +157,12 @@ and the root manifest only lists the members and their shared package metadata.
 │       ├── mod.rs             # Module exports
 │       ├── error.rs           # Content parsing errors
 │       ├── font/              # Font dictionaries, as far as positioning text needs
-│       │   ├── mod.rs         # Font (by /Subtype), Fonts, glyph_to_text, width
-│       │   ├── code.rs        # Code, Codes and Font::codes: a shown string split into codes
-│       │   ├── widths.rs      # Widths (/FirstChar, /Widths, /MissingWidth), GlyphWidth
-│       │   ├── simple.rs      # SimpleFont (Type1, MMType1, TrueType), FontDescriptor
-│       │   ├── type3.rs       # Type3Font, with its /FontMatrix
-│       │   └── composite.rs   # CompositeFont (Type0): placeholder, two-byte codes, zero widths
+│       │   ├── mod.rs         # Font, dispatching on /Subtype, and Fonts
+│       │   ├── code.rs        # Splitting a shown string into character codes
+│       │   ├── widths.rs      # Glyph widths
+│       │   ├── simple.rs      # Type1, MMType1, TrueType
+│       │   ├── type3.rs       # Type3
+│       │   └── composite.rs   # Type0, a placeholder
 │       ├── operators/         # Content stream operators
 │       │   ├── mod.rs         # Operator enum and parsing
 │       │   ├── graphics.rs    # Special graphics state operators (q, Q, cm)
@@ -192,7 +187,7 @@ and the root manifest only lists the members and their shared package metadata.
 │
 └── tests/                    # Integration tests
     ├── content.rs           # Content parsing tests
-    ├── text_objects.rs       # Text object tests, golden runs of font-before-bt.pdf and kerned.pdf
+    ├── text_objects.rs       # Text object tests, golden runs of the fixtures
     ├── xref_stream.rs       # Golden test: a predicted xref stream reads like the original
     ├── incremental_update.rs # Cross-reference sections chained through /Prev
     ├── derive.rs            # Behavioural tests for the derives, as a downstream crate
@@ -275,14 +270,11 @@ extract the referenced object. The `InMemoryBuilder` is the primary implementati
 containing references to the page tree and other document-level information.
 
 **`Page`** (structure/pages.rs): Represents a page in the PDF, containing content
-streams and resources, the latter possibly inherited from a parent `/Pages` node.
-`Page::fonts` resolves its `/Font` resources eagerly into `Fonts` (empty when there
-are none), so the content layer needs no document.
+streams and resources. Its fonts are resolved eagerly, so the content layer needs no
+document.
 
-**`Font`** (content/font/mod.rs): A font dictionary by `/Subtype`: `Simple`, `Type3` or
-`Composite` (`Type0`, a placeholder). It answers what positioning needs: `codes` splits
-a string into character codes, `width` gives a code's glyph width in glyph space, and
-`glyph_to_text` maps glyph space to text space (1/1000, or a `Type3` `/FontMatrix`).
+**`Font`** (content/font/mod.rs): A font dictionary, reduced to what positioning text
+needs: splitting strings into codes and glyph widths.
 
 **`TextObjects`** (content/state/text.rs): The entry point for text extraction. It
 wraps a page's operator iterator and owns the graphics state for the whole content
@@ -290,8 +282,7 @@ stream: text state operators and `q`/`Q`/`cm` met outside `BT` update it, and
 `next_object()` hands out a `TextObjectStream` borrowing it mutably, which yields
 `Run`s. A dropped stream is skipped to its `ET`, text state operators still applied;
 a missing `ET` is reported by the next `next_object()` as `IncompleteTextObject`.
-Showing text with no font selected is `NoFontSelected`; a `Tf` naming a font absent
-from `Fonts` is `UnknownFont`.
+Showing text with no font selected is `NoFontSelected`.
 
 ## Common tasks
 
@@ -304,11 +295,9 @@ from `Fonts` is `UnknownFont`.
   operator also implements `TextStateOperation`, `TextPositioningOperation` or
   `TextShowingOperation`, depending on whether it mutates the text state parameters,
   the text matrix or the text object's buffered strings.
-- **Add a new font subtype**: Add a variant to `content::font::Font` with its own
-  module in `content/font/`, a struct deriving or implementing `BuildFromRawDict`,
-  dispatch to it on its `/Subtype` in `Font`'s `BuildFromRawDict`, and give it an arm in
-  `Font::codes` (in `code.rs`), `Font::width` and `Font::glyph_to_text`. The advance in
-  `content/state/text.rs` only goes through these, so it needs no change.
+- **Add a new font subtype**: Add a variant to `content::font::Font`, backed by its
+  own module in `content/font/`, and handle it in each of `Font`'s matches. The text
+  advance only goes through `Font`, so it needs no change.
 - **Add a new stream filter**: Implement the `Filtering` trait for your filter
   type in `filtering.rs`.
 - **Create a custom builder**: Implement the `Builder` trait for your type to
