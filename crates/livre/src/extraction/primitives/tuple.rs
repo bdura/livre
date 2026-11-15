@@ -1,6 +1,5 @@
-use crate::extraction::Extract;
+use crate::extraction::{multicomment1, Extract};
 
-use winnow::ascii::multispace1;
 use winnow::combinator::trace;
 use winnow::{BStr, ModalResult, Parser};
 
@@ -18,7 +17,7 @@ macro_rules! impl_tuple {
                     trace(concat!("livre-{}-tuple", $len), move |i: &mut &'de BStr| {
                         let [<$first:lower>] = $first::extract(i)?;
                         $(
-                            multispace1(i)?;
+                            multicomment1(i)?;
                             let [<$ty:lower>] = $ty::extract(i)?;
                         )*
 
@@ -68,6 +67,7 @@ mod tests {
     #[case(b"42 true", (42, true))]
     #[case(b"null true", ((), true))]
     #[case(b"1   8 true", (1, 8i32, true))]
+    #[case(b"42 % answer\ntrue", (42, true))]
     fn vec<T>(#[case] input: &[u8], #[case] expected: T)
     where
         T: for<'a> Extract<'a> + Debug + PartialEq,

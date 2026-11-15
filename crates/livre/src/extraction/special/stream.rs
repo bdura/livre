@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use winnow::{
-    ascii::{line_ending, multispace0},
+    ascii::line_ending,
     combinator::{delimited, trace},
     error::{ContextError, ErrMode},
     token::take,
@@ -9,7 +9,7 @@ use winnow::{
 };
 
 use crate::{
-    extraction::{extract, Extract, FromRawDict},
+    extraction::{extract, multicomment0, Extract, FromRawDict},
     filtering::{Filter, Filtering, FlateParams},
     follow_refs::{Build, BuildFromRawDict, Builder, BuilderParser},
 };
@@ -40,9 +40,9 @@ impl Parser<&BStr, Vec<u8>, ErrMode<ContextError>> for StreamConfig {
         let content = trace(
             "livre-stream-content",
             delimited(
-                (multispace0, b"stream", line_ending),
+                (multicomment0, b"stream", line_ending),
                 take(self.length),
-                (multispace0, b"endstream"),
+                (multicomment0, b"endstream"),
             ),
         )
         .parse_next(input)?;
@@ -332,6 +332,11 @@ mod tests {
     )]
     #[case(b"<</Length 1/Test true/Test2 false>>stream\n0\nendstream", b"0", Nil)]
     #[case(b"<</Length 1/Test false/Root true>>stream\n0\nendstream", b"0", Nil)]
+    #[case(
+        b"<</Length 1/Test true>> % data follows\nstream\n0\n% end\nendstream",
+        b"0",
+        TestStruct { test: true },
+    )]
     #[case(
         b"<</Length 10/Test/Test>> stream\n0123456789\nendstream\n",
         b"0123456789",

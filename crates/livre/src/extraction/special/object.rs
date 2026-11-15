@@ -1,13 +1,11 @@
 use winnow::{
-    ascii::multispace0,
     combinator::{alt, fail, peek, preceded},
     dispatch,
-    error::ContextError,
     token::any,
     BStr, ModalResult, Parser,
 };
 
-use crate::extraction::{extract, Extract};
+use crate::extraction::{extract, multicomment0, Extract};
 
 use super::{
     map::{Map, RawDict},
@@ -196,7 +194,7 @@ fn map_or_stream(input: &mut &BStr) -> ModalResult<Object> {
     // delegates to `DoubleAngles::recognize`, which simply scans for the closing `>>`.
     RawDict::recognize(input)?;
 
-    let is_stream = preceded(multispace0::<&BStr, ContextError>, peek(b"stream"))
+    let is_stream = preceded(multicomment0, peek(b"stream"))
         .parse_next(input)
         .is_ok();
 
@@ -252,6 +250,17 @@ mod tests {
         vec![("bool", Object::Boolean(true)), ("int", Object::Integer(1))].into_iter().collect::<Object>()
     )]
     #[case(b"0 0 R", Reference::<Object>::from((0, 0)))]
+    #[case(
+        b"<</bool true % a comment\n/int 1>>",
+        vec![("bool", Object::Boolean(true)), ("int", Object::Integer(1))].into_iter().collect::<Object>()
+    )]
+    #[case(
+        b"<</Length 1>>\n% data follows\nstream\n0\nendstream",
+        Stream {
+            content: b"0".into(),
+            structured: (),
+        }
+    )]
     #[case(
         indoc!{b"
             <</Length 1>>stream
