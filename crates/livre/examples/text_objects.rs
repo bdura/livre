@@ -34,12 +34,13 @@ fn main() {
             let mut input = BStr::new(&content);
 
             let mut it = iterator(&mut input, preceded(multispace0, Operator::extract));
-            let mut objects = TextObjects::new(&mut it);
+            let fonts = page.fonts(&doc).unwrap();
+            let mut objects = TextObjects::new(&mut it, &fonts);
 
             while let Some(mut stream) = objects.next_object().unwrap() {
                 println!("NEW TEXT OBJECT");
-                for Run { position, text } in &mut stream {
-                    println!("- {:?} {:?}", position, text.decode());
+                for Run { start, text, .. } in &mut stream {
+                    println!("- {:?} {:?}", start, text.decode());
                 }
                 println!("END TEXT OBJECT");
                 println!();

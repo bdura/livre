@@ -19,7 +19,11 @@ pub use state::{
     SetTextRenderingMode, SetTextRise, SetWordSpacing, TextStateOperator,
 };
 
-use crate::content::state::{TextObject, TextStateParameters};
+use crate::content::{
+    error::Result,
+    state::{TextObject, TextStateParameters},
+    Fonts,
+};
 
 use super::Operator;
 
@@ -30,15 +34,22 @@ use super::Operator;
 #[enum_dispatch]
 pub trait TextStateOperation: Sized {
     /// Update the text state parameters: the operator's effect lasts until another
-    /// operator overrides it or `Q` restores an earlier state.
-    fn apply(self, parameters: &mut TextStateParameters);
+    /// operator overrides it or `Q` restores an earlier state. `Tf` looks its font up in
+    /// `fonts`, the page's font resources, and the parameters keep a borrow of it.
+    ///
+    /// # Errors
+    ///
+    /// [`ContentError::UnknownFont`](crate::content::ContentError::UnknownFont) if `Tf`
+    /// names a font absent from `fonts`. The parameters are left unchanged.
+    fn apply<'f>(self, parameters: &mut TextStateParameters<'f>, fonts: &'f Fonts) -> Result<()>;
 }
 
-/// Defines operations that move the text matrix of a [`TextObject`]. `TD` also sets the
-/// leading, through the text object's parameters.
+/// Defines operations that move the text matrix and the line matrix of a [`TextObject`].
+/// `TD` also sets the leading, through the text object's parameters.
 #[enum_dispatch]
 pub trait TextPositioningOperation: Sized {
-    /// Update the text object's text matrix. `TD` also sets the leading in its parameters.
+    /// Update the text object's matrices: `Td`, `TD` and `T*` move the line matrix and reset
+    /// the text matrix to it, `Tm` sets both. `TD` also sets the leading in its parameters.
     fn apply(self, text_object: &mut TextObject);
 }
 
@@ -63,12 +74,20 @@ impl TextOperator {
     /// Apply the operator inside a text object, dispatching to its category. Text state
     /// operators mutate the text state parameters the object borrows from the graphics
     /// state, so their effect persists past `ET`.
-    pub fn apply(self, text_object: &mut TextObject) {
+    ///
+    /// # Errors
+    ///
+    /// [`ContentError::UnknownFont`](crate::content::ContentError::UnknownFont) if `Tf`
+    /// names a font absent from the text object's fonts.
+    pub fn apply(self, text_object: &mut TextObject) -> Result<()> {
         match self {
             Self::TextShowingOperator(op) => op.apply(text_object),
             Self::TextPositioningOperator(op) => op.apply(text_object),
-            Self::TextStateOperator(op) => op.apply(text_object.parameters),
+            Self::TextStateOperator(op) => {
+                return op.apply(text_object.parameters, text_object.fonts)
+            }
         }
+        Ok(())
     }
 }
 

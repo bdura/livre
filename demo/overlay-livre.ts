@@ -1,15 +1,20 @@
 // livre's layer: what livre extracted, drawn over the pdf.js render.
 //
-// livre knows where each shown string starts and at what font size, but has no glyph
-// widths and no graphics state. So each run is a dot at its baseline origin with a tick
-// one font size tall, and each text object a dashed hull around its runs' markers: a
-// hull of known points, never an estimated extent.
+// livre knows where each shown string starts and ends, from the font widths, and at what
+// font size. So each run is a box from its start to its end, one font size tall, with a
+// dot at its baseline origin. Each text object also gets a hull around its runs' boxes,
+// shown only while the inspector highlights it: Word exports split a line into many small
+// text objects, whose hulls would otherwise cover the page in overlapping frames.
+// The box height is the font size, not the glyphs' real extent: compare widths and
+// baselines with the pdf.js boxes, not heights.
 
 import type { Page } from "./pkg/livre_wasm.js";
 import type { PageViewport } from "./pdfjs.js";
 import { element } from "./svg.js";
 
 type Point = [number, number];
+/** A run box: baseline start, baseline end, then the end and start one font size up. */
+type Corners = [Point, Point, Point, Point];
 
 /**
  * Replace the `<g class="livre">` in `svg` with livre's markers for `page`.
@@ -30,25 +35,25 @@ export function drawLivreLayer(svg: SVGSVGElement, page: Page, viewport: PageVie
   page.text_objects.forEach((object, objectIndex) => {
     if (object.runs.length === 0) return;
     const box = new Bounds();
-    let maxSize = 0;
     object.runs.forEach((run, runIndex) => {
-      const base = viewport.convertToViewportPoint(run.x, run.y);
-      // The tick goes up in text space, so it follows the page's rotation.
-      const top = viewport.convertToViewportPoint(run.x, run.y + run.size);
-      box.add(...base);
-      box.add(...top);
-      maxSize = Math.max(maxSize, run.size);
-      layer.append(runMarker(base, top, objectIndex, runIndex));
+      // The height goes straight up in user space, not across the baseline: boxes fit unrotated text only.
+      const corners: Corners = [
+        viewport.convertToViewportPoint(run.start.x, run.start.y),
+        viewport.convertToViewportPoint(run.end.x, run.end.y),
+        viewport.convertToViewportPoint(run.end.x, run.end.y + run.size),
+        viewport.convertToViewportPoint(run.start.x, run.start.y + run.size),
+      ];
+      for (const corner of corners) box.add(...corner);
+      layer.append(runMarker(corners, objectIndex, runIndex));
     });
-    const pad = maxSize * viewport.scale;
     // Behind the markers, so it never takes their pointer events.
     layer.prepend(
       element("rect", {
         class: "hull",
-        x: box.xmin - pad,
-        y: box.ymin - pad,
-        width: box.xmax - box.xmin + 2 * pad,
-        height: box.ymax - box.ymin + 2 * pad,
+        x: box.xmin,
+        y: box.ymin,
+        width: box.xmax - box.xmin,
+        height: box.ymax - box.ymin,
         "data-object": objectIndex,
       }),
     );
@@ -58,12 +63,15 @@ export function drawLivreLayer(svg: SVGSVGElement, page: Page, viewport: PageVie
   return layer;
 }
 
-function runMarker([bx, by]: Point, [tx, ty]: Point, objectIndex: number, runIndex: number): SVGGElement {
+/** A run's box through `corners`, and its origin dot. */
+function runMarker(corners: Corners, objectIndex: number, runIndex: number): SVGGElement {
+  const [[bx, by], , , [tx, ty]] = corners;
   const group = element("g", { class: "run", "data-object": objectIndex, "data-run": runIndex });
   group.append(
-    // An invisible, wider stroke so hovering does not need to be pixel-perfect.
+    element("polygon", { class: "box", points: corners.map(([x, y]) => `${x},${y}`).join(" ") }),
+    // An invisible, wider stroke on the start edge, so a run that does not advance (a
+    // composite font) can still be hovered without pixel precision.
     element("line", { class: "hit", x1: bx, y1: by, x2: tx, y2: ty }),
-    element("line", { x1: bx, y1: by, x2: tx, y2: ty }),
     element("circle", { cx: bx, cy: by, r: 2 }),
   );
   return group;

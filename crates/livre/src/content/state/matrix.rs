@@ -4,8 +4,11 @@ use std::{fmt, marker::PhantomData};
 
 use winnow::{combinator::trace, BStr, ModalResult, Parser};
 
-use super::space::{Displacement, Point};
-use crate::extraction::{extract, Extract};
+use super::space::{Displacement, Glyph, Point, Text};
+use crate::{
+    content::font::GlyphWidth,
+    extraction::{extract, Extract},
+};
 
 /// A transformation matrix from the space `From` to the space `To`, written `[a b c d e f]`
 /// in content streams and standing for
@@ -52,6 +55,17 @@ impl<From, To> Extract<'_> for Matrix<From, To> {
             extract.map(|(a, b, c, d, e, f)| Self::new(a, b, c, d, e, f)),
         )
         .parse_next(input)
+    }
+}
+
+/// The six numbers of a PDF array `[a b c d e f]`, such as a font's `/FontMatrix`, as
+/// [`Matrix::new`] takes them.
+///
+/// As with [`Matrix::new`], the declared type asserts the spaces: convert into a field or
+/// binding whose type names both.
+impl<F, T> std::convert::From<[f32; 6]> for Matrix<F, T> {
+    fn from([a, b, c, d, e, f]: [f32; 6]) -> Self {
+        Self::new(a, b, c, d, e, f)
     }
 }
 
@@ -125,6 +139,15 @@ impl<From, To> Matrix<From, To> {
 
         self.e += self.a * dx + self.c * dy;
         self.f += self.b * dx + self.d * dy;
+    }
+}
+
+impl Matrix<Glyph, Text> {
+    /// The text space displacement of a glyph `width` along the glyph's horizontal axis:
+    /// the linear part of the matrix applied to `(width, 0)`, without its translation.
+    pub fn apply_width(&self, width: GlyphWidth) -> Displacement<Text> {
+        let GlyphWidth(w) = width;
+        Displacement::new(self.a * w, self.b * w)
     }
 }
 

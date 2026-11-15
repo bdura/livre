@@ -60,6 +60,7 @@ const ui = {
   runPinned: $("run-pinned", HTMLSpanElement),
   runFont: $("run-font", HTMLElement),
   runOrigin: $("run-origin", HTMLElement),
+  runEnd: $("run-end", HTMLElement),
   runBytes: $("run-bytes", HTMLElement),
   runObject: $("run-object", HTMLButtonElement),
   runPlace: $("run-place", HTMLSpanElement),
@@ -499,7 +500,7 @@ function showInspector(): void {
       const item = document.createElement("li");
       item.dataset.object = String(index);
 
-      // livre has no glyph widths, so it cannot tell a gap from a space: no separator.
+      // Runs are joined as shown: no gap threshold decides yet where a space falls between them.
       const text = object.runs.length ? JSON.stringify(object.runs.map((run) => run.text).join("")) : "(no runs)";
       const count = `${object.runs.length} run${object.runs.length === 1 ? "" : "s"}`;
       const row = listRow(String(index + 1), text, count);
@@ -577,8 +578,11 @@ function showRun(indices: RunIndices | null): void {
   // JSON quoting shows control characters such as the NULs of 2-byte composite strings.
   ui.runText.textContent = JSON.stringify(run.text);
   ui.runPinned.hidden = !samePlace(indices, state.pinned);
-  ui.runFont.textContent = `${run.font || "(none)"} · ${round(run.size)}`;
-  ui.runOrigin.textContent = `(${round(run.x)}, ${round(run.y)})`;
+  ui.runFont.textContent = run.font_kind
+    ? `${run.font} · ${run.base_font ?? "(no /BaseFont)"} (${run.font_kind}) · ${round(run.size)}`
+    : "(none)";
+  ui.runOrigin.textContent = `(${round(run.start.x)}, ${round(run.start.y)})`;
+  ui.runEnd.textContent = `(${round(run.end.x)}, ${round(run.end.y)})`;
   ui.runBytes.textContent = run.bytes.match(/../g)?.join(" ") ?? "";
   const runs = livrePage()?.text_objects[indices.object]?.runs.length ?? 0;
   ui.runObject.textContent = `Object ${indices.object + 1}`;

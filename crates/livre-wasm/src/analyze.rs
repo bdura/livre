@@ -1,5 +1,5 @@
 use livre::{
-    content::{operators::Operator, TextObjects},
+    content::{operators::Operator, Font, Fonts, TextObjects},
     extraction::Extract,
     structure::Page as LivrePage,
     InMemoryDocument,
@@ -11,7 +11,7 @@ use winnow::{
     BStr,
 };
 
-use crate::dto::{Analysis, Page, Rect, Run, Stage, StageError, TextObject};
+use crate::dto::{Analysis, FontKind, Page, Point, Rect, Run, Stage, StageError, TextObject};
 
 /// US Letter, the fallback for a page tree without the (required) `MediaBox`.
 const LETTER: Rect = Rect {
@@ -91,8 +91,13 @@ fn analyze_page(doc: &InMemoryDocument, index: usize, page: &LivrePage) -> Page 
         error: None,
     };
 
-    match page.build_content(doc) {
-        Ok(content) => out.error = extract_text_objects(&content, &mut out.text_objects),
+    let content = page
+        .build_content(doc)
+        .and_then(|content| Ok((content, page.fonts(doc)?)));
+    match content {
+        Ok((content, fonts)) => {
+            out.error = extract_text_objects(&content, &fonts, &mut out.text_objects)
+        }
         Err(e) => out.error = Some(stage_error(Stage::Content, e)),
     }
 
@@ -101,12 +106,16 @@ fn analyze_page(doc: &InMemoryDocument, index: usize, page: &LivrePage) -> Page 
 
 /// Push the text objects of `content` onto `text_objects`, returning the error that
 /// stopped the parse, if any.
-fn extract_text_objects(content: &[u8], text_objects: &mut Vec<TextObject>) -> Option<StageError> {
+fn extract_text_objects(
+    content: &[u8],
+    fonts: &Fonts,
+    text_objects: &mut Vec<TextObject>,
+) -> Option<StageError> {
     let mut input = BStr::new(content);
     let mut it = iterator(&mut input, preceded(multispace0, Operator::extract));
     // One per content stream: a `cm` or a `Tf` at the top of the page applies to every
     // text object below it.
-    let mut objects = TextObjects::new(&mut it);
+    let mut objects = TextObjects::new(&mut it, fonts);
 
     loop {
         let mut stream = match objects.next_object() {
@@ -118,17 +127,34 @@ fn extract_text_objects(content: &[u8], text_objects: &mut Vec<TextObject>) -> O
         let mut runs = Vec::new();
         while let Some(run) = stream.next() {
             // The font in effect is the one of the run just yielded.
-            let (font, size) = match &stream.text_object().parameters.font {
-                Some(font) => (
-                    String::from_utf8_lossy(&font.name.0).into_owned(),
-                    font.size,
-                ),
-                None => (String::new(), 0.0),
+            let (font, font_kind, base_font, size) = match &stream.text_object().parameters.font {
+                Some(selected) => {
+                    let (kind, base_font) = match selected.font {
+                        Font::Simple(font) => (FontKind::Simple, Some(&font.base_font)),
+                        Font::Type3(_) => (FontKind::Type3, None),
+                        Font::Composite(font) => (FontKind::Composite, Some(&font.base_font)),
+                    };
+                    (
+                        String::from_utf8_lossy(&selected.name.0).into_owned(),
+                        Some(kind),
+                        base_font.map(|name| String::from_utf8_lossy(&name.0).into_owned()),
+                        selected.size.0,
+                    )
+                }
+                None => (String::new(), None, None, 0.0),
             };
             runs.push(Run {
-                x: run.position.x,
-                y: run.position.y,
+                start: Point {
+                    x: run.start.x,
+                    y: run.start.y,
+                },
+                end: Point {
+                    x: run.end.x,
+                    y: run.end.y,
+                },
                 font,
+                font_kind,
+                base_font,
                 size,
                 text: run.text.decode(),
                 bytes: run.text.0.iter().map(|b| format!("{b:02x}")).collect(),

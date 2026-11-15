@@ -42,6 +42,13 @@ pub struct Page {
     pub error: Option<StageError>,
 }
 
+/// A point in default user space units.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Tsify)]
+pub struct Point {
+    pub x: f32,
+    pub y: f32,
+}
+
 /// A rectangle by its corners, in default user space units.
 #[derive(Debug, Clone, PartialEq, Serialize, Tsify)]
 pub struct Rect {
@@ -60,20 +67,40 @@ pub struct TextObject {
 
 /// One shown string.
 #[derive(Debug, Clone, PartialEq, Serialize, Tsify)]
+#[tsify(missing_as_null)]
 pub struct Run {
-    /// Start position, in user space: the translation of the text matrix times the CTM in
-    /// force at `BT`. livre knows no glyph widths, so there is no extent.
-    pub x: f32,
-    /// Baseline of the start position.
-    pub y: f32,
+    /// Where the string starts, on its baseline: the point `(0, rise)` of text space through
+    /// the text matrix and the CTM in force at `BT`.
+    pub start: Point,
+    /// Where the string ends: the same point once the text matrix has advanced past every
+    /// glyph. Composite fonts advance by spacing only, so their runs end short. Its `y`
+    /// differs from `start`'s only under a rotated or skewed matrix.
+    pub end: Point,
     /// Font resource name, lossily decoded as UTF-8.
     pub font: String,
+    /// How the font is read, by its `/Subtype`; `None` when no font is selected.
+    pub font_kind: Option<FontKind>,
+    /// The font's `/BaseFont`, lossily decoded as UTF-8; `None` for a `Type3` font, which
+    /// has none, or when no font is selected.
+    pub base_font: Option<String>,
     /// Font size from `Tf`, in text space units: the scale of the text matrix is not applied.
     pub size: f32,
     /// Best-effort decoding of `bytes`: UTF-16BE behind a BOM, Latin-1 otherwise.
     pub text: String,
     /// The raw string bytes, as lowercase hex.
     pub bytes: String,
+}
+
+/// The kind of font a run is shown in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Tsify)]
+#[serde(rename_all = "kebab-case")]
+pub enum FontKind {
+    /// `Type1`, `MMType1` or `TrueType`.
+    Simple,
+    /// `Type3`.
+    Type3,
+    /// `Type0`: its glyphs are given zero width.
+    Composite,
 }
 
 /// Where and why extraction stopped.
@@ -93,7 +120,7 @@ pub enum Stage {
     Document,
     /// Flattening the page tree.
     Pages,
-    /// Decoding and concatenating a page's content streams.
+    /// Decoding and concatenating a page's content streams, and resolving its fonts.
     Content,
     /// Parsing a page's content stream into operators.
     Operators,

@@ -7,6 +7,12 @@
 
 use std::{fmt, marker::PhantomData, ops::Add};
 
+/// Glyph space: the space a font's glyphs and widths are described in. A font's matrix maps
+/// it to [`Text`] space: a scale by 1/1000 for `Type1` and `TrueType`, the `/FontMatrix`
+/// for `Type3` (ISO 32000-2, 9.2.4).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Glyph;
+
 /// Text space: the space of the text matrix's source, in which `Td`, `TJ` offsets and glyph
 /// advances are expressed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,7 +28,7 @@ pub struct User;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DefaultUser;
 
-/// A location in the coordinate space `S`, such as a run position in [`DefaultUser`] space.
+/// A location in the coordinate space `S`, such as the start of a run in [`DefaultUser`] space.
 ///
 /// Its coordinates are in the units of `S`. Only a [`Matrix`](super::Matrix) whose source
 /// space is `S` maps it into another space.

@@ -47,7 +47,8 @@ for (const name of samples) {
 
     const [run] = runs(analysis.pages[0]);
     assert.ok(run, "the first page shows some text");
-    assert.equal(typeof run.x, "number");
+    assert.equal(typeof run.start.x, "number");
+    assert.equal(typeof run.end.x, "number");
     assert.match(run.bytes, /^(?:[0-9a-f]{2})+$/);
   });
 }
