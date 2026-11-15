@@ -54,7 +54,7 @@ fn runs(path: &str) -> Vec<Run> {
 #[case("tests/resources/text-xref-stream.pdf")]
 fn test_content(#[case] path: &str) {
     for Run { start, text, .. } in runs(path) {
-        println!("- {:?} {:?}", start, text.decode());
+        println!("- {:?} {:?}", start, text);
     }
 }
 
@@ -154,7 +154,7 @@ fn font_runs(path: &str) -> Vec<(usize, GoldenRun)> {
                         y: start.y,
                         font: String::from_utf8_lossy(&font.name.0).into_owned(),
                         size: font.size.0,
-                        text: text.decode(),
+                        text,
                     },
                 ));
             }
@@ -322,6 +322,6 @@ fn kerned_runs_start_and_end_where_expected() {
             run.end.x,
             run.end.y
         );
-        assert_eq!(run.text.decode(), golden.text, "run {i}");
+        assert_eq!(run.text, golden.text, "run {i}");
     }
 }

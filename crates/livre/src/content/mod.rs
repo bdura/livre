@@ -27,6 +27,6 @@ pub use font::{
     UnicodeText, Widths, WritingMode,
 };
 pub use state::{
-    DefaultUser, Displacement, FontSize, Glyph, Matrix, Point, RenderingMode, Run, SelectedFont,
-    Text, TextObject, TextObjectStream, TextObjects, TextStateParameters, User,
+    Character, DefaultUser, Displacement, FontSize, Glyph, Matrix, Point, RenderingMode, Run,
+    SelectedFont, Text, TextObject, TextObjectStream, TextObjects, TextStateParameters, User,
 };

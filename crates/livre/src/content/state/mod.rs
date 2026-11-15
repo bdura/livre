@@ -13,6 +13,6 @@ pub(crate) use graphics::GraphicsState;
 pub use matrix::Matrix;
 pub use space::{DefaultUser, Displacement, Glyph, Point, Text, User};
 pub use text::{
-    FontSize, RenderingMode, Run, SelectedFont, TextObject, TextObjectStream, TextObjects,
-    TextStateParameters,
+    Character, FontSize, RenderingMode, Run, SelectedFont, TextObject, TextObjectStream,
+    TextObjects, TextStateParameters,
 };

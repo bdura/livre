@@ -1,5 +1,5 @@
 use livre_wasm::{
-    analyze, Analysis, FontKind, Page, Point, Rect, Run, Stage, StageError, TextObject,
+    analyze, Analysis, Character, FontKind, Page, Point, Rect, Run, Stage, StageError, TextObject,
 };
 
 const TEXT: &[u8] = include_bytes!(concat!(
@@ -214,6 +214,12 @@ fn run_fields_round_trip_through_json() {
                     size: 12.0,
                     text: "A".into(),
                     bytes: "41".into(),
+                    characters: vec![Character {
+                        code: 65,
+                        start: Point { x: 1.0, y: 2.0 },
+                        end: Point { x: 3.0, y: 2.0 },
+                        text: Some("A".into()),
+                    }],
                 }],
             }],
             error: Some(StageError {
@@ -235,6 +241,8 @@ fn run_fields_round_trip_through_json() {
         "text_objects",
         "runs",
         "bytes",
+        "characters",
+        "code",
         "start",
         "end",
         "xmin",
