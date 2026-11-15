@@ -24,18 +24,30 @@ pub(crate) const WORD: usize = 4;
 #[derive(Clone, Copy)]
 pub(crate) struct Table<'a> {
     bytes: &'a [u8],
+    len: usize,
 }
 
 impl<'a> Table<'a> {
+    /// The table over `bytes`. A count whose index does not fit in the blob
+    /// is malformed, and the table is then empty.
     pub(crate) const fn new(bytes: &'a [u8]) -> Self {
-        Self { bytes }
+        let len = match bytes.first_chunk::<WORD>() {
+            Some(word) => u32::from_le_bytes(*word) as usize,
+            None => 0,
+        };
+        // The count and `len` offsets must fit: `(len + 1) * WORD <= bytes.len()`,
+        // rearranged so that nothing can overflow on 32-bit targets.
+        let fits = len <= (bytes.len() / WORD).saturating_sub(1);
+        Self {
+            bytes,
+            len: if fits { len } else { 0 },
+        }
     }
 
     /// The value under `key`, if any. Never panics: a malformed blob reads
     /// as a table with no matching key.
     pub(crate) fn get(&self, key: &[u8]) -> Option<&'a [u8]> {
-        let n = self.len();
-        let (mut low, mut high) = (0, n);
+        let (mut low, mut high) = (0, self.len());
         while low < high {
             let mid = low + (high - low) / 2;
             let (record_key, value) = self.record(mid)?;
@@ -48,10 +60,10 @@ impl<'a> Table<'a> {
         None
     }
 
-    /// The number of records the blob declares; `0` if it is too short to
-    /// hold the count.
-    pub(crate) fn len(&self) -> usize {
-        self.word(0).unwrap_or(0)
+    /// The number of records; `0` if the blob is too short to hold the count
+    /// or the index it declares.
+    pub(crate) const fn len(&self) -> usize {
+        self.len
     }
 
     /// The little-endian `u32` at byte `at`.
@@ -128,6 +140,24 @@ mod tests {
         // The count and the first index entry, then half of the second.
         let truncated = &blob[..2 * WORD + 2];
         let table = Table::new(truncated);
+        assert_eq!(table.len(), 0);
+        for (key, _) in entries() {
+            assert_eq!(table.get(&key), None);
+        }
+    }
+
+    #[rstest]
+    #[case::just_past_the_end(0)]
+    #[case::largest(u32::MAX - 1)]
+    fn a_count_whose_index_overruns_the_blob_misses_every_key(#[case] excess: u32) {
+        let mut blob = write_table(&entries());
+        // The smallest count whose index ends past the blob, plus `excess`.
+        let count = u32::try_from(blob.len() / WORD)
+            .unwrap()
+            .saturating_add(excess);
+        blob[..WORD].copy_from_slice(&count.to_le_bytes());
+        let table = Table::new(&blob);
+        assert_eq!(table.len(), 0);
         for (key, _) in entries() {
             assert_eq!(table.get(&key), None);
         }
