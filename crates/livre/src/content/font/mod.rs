@@ -6,6 +6,7 @@
 //! font without `/Widths`, its metrics) and a [`Decoder`] from codes to text; `Type0` fonts are
 //! a placeholder that reads two bytes per code, reports zero widths and decodes nothing.
 
+pub mod cid;
 pub mod cmap;
 mod code;
 mod composite;
@@ -22,6 +23,7 @@ use winnow::{
     BStr, ModalResult,
 };
 
+pub use cid::{CidFont, CidFontSubtype, CidWidths, VerticalMetric, VerticalMetrics};
 pub use cmap::{CMap, Cid, CodespaceRange, EncodingCMap, ToUnicode, UnicodeText, WritingMode};
 pub use code::{Code, Codes};
 pub use composite::CompositeFont;
