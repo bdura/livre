@@ -29,6 +29,12 @@ const KERNED_RUNS: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../livre/tests/resources/kerned.txt"
 ));
+/// One font per decoding route: standard encoding with AFM widths, `/Differences`,
+/// `/ToUnicode` over `WinAnsiEncoding`, and the built-in Symbol table.
+const ENCODINGS: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../livre/tests/resources/encodings.pdf"
+));
 
 /// The checks every fixture passes: a clean parse of `page_count` pages with a media box
 /// each, and at least one shown string on the first page.
@@ -101,6 +107,13 @@ fn font_before_bt_pdf_parses_without_errors() {
 #[test]
 fn kerned_pdf_parses_without_errors() {
     let analysis = analyze(KERNED);
+    assert_clean(&analysis, 1);
+    assert_eq!(analysis.pages[0].text_objects.len(), 4);
+}
+
+#[test]
+fn encodings_pdf_parses_without_errors() {
+    let analysis = analyze(ENCODINGS);
     assert_clean(&analysis, 1);
     assert_eq!(analysis.pages[0].text_objects.len(), 4);
 }
