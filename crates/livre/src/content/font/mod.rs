@@ -211,6 +211,8 @@ pub(crate) mod tests {
     use super::*;
     use crate::{extraction::ReferenceId, follow_refs::Build};
 
+    pub(crate) use super::composite::tests::f3 as composite_f3;
+
     /// The font in the dictionary literal `input`, with no reference to follow.
     pub(crate) fn font(input: &[u8]) -> Font {
         font_with(input, &HashMap::new())

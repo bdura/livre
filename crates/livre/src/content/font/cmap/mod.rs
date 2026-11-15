@@ -14,6 +14,7 @@ pub(crate) use parse::{Destination, Operand};
 pub use unicode::{ToUnicode, UnicodeText};
 
 use super::Code;
+use crate::content::{Displacement, FontSize, Text};
 
 /// A range of byte sequences the CMap defines codes over (ISO 32000-2, 9.7.6.2).
 ///
@@ -85,6 +86,52 @@ pub enum WritingMode {
     Horizontal,
     /// `/WMode 1`.
     Vertical,
+}
+
+impl WritingMode {
+    /// The displacement of the current point after a glyph, in text space. ISO 32000-2,
+    /// 9.4.4:
+    ///
+    /// > tx = ((w0 − Tj/1000) × Tfs + Tc + Tw) × Th
+    /// >
+    /// > ty = (w1 − Tj/1000) × Tfs + Tc + Tw
+    ///
+    /// `glyph` is the font's displacement for the glyph at size 1, `(w0, 0)` or `(0, w1)`.
+    /// `spacing` is `Tc + Tw`, or `Tc` where word spacing does not apply. The
+    /// `horizontal_scaling` `Th` is a percentage and applies to the horizontal mode only.
+    /// The `Tj` term is [`adjustment`](Self::adjustment)'s.
+    pub(crate) fn advance(
+        self,
+        glyph: Displacement<Text>,
+        FontSize(size): FontSize,
+        spacing: f32,
+        horizontal_scaling: f32,
+    ) -> Displacement<Text> {
+        match self {
+            Self::Horizontal => Displacement::new(
+                (glyph.dx * size + spacing) * horizontal_scaling / 100.0,
+                0.0,
+            ),
+            Self::Vertical => Displacement::new(0.0, glyph.dy * size + spacing),
+        }
+    }
+
+    /// The displacement of a number `n` of a `TJ` array, in thousandths of a unit of glyph
+    /// space: the `−Tj/1000 × Tfs` term of the formulas in [`advance`](Self::advance),
+    /// scaled by the percentage `horizontal_scaling` in the horizontal mode only. A positive
+    /// `n` moves left, or up in the vertical mode.
+    pub(crate) fn adjustment(
+        self,
+        n: f32,
+        FontSize(size): FontSize,
+        horizontal_scaling: f32,
+    ) -> Displacement<Text> {
+        let shift = -n / 1000.0 * size;
+        match self {
+            Self::Horizontal => Displacement::new(shift * horizontal_scaling / 100.0, 0.0),
+            Self::Vertical => Displacement::new(0.0, shift),
+        }
+    }
 }
 
 /// A mapping from character codes to `D`, as a ToUnicode or an encoding CMap defines it.
@@ -186,6 +233,44 @@ impl<D> CMap<D> {
 mod tests {
     use super::*;
     use rstest::rstest;
+
+    fn assert_displacement(actual: Displacement<Text>, (dx, dy): (f32, f32)) {
+        assert!(
+            (actual.dx - dx).abs() < 1e-4 && (actual.dy - dy).abs() < 1e-4,
+            "expected ({dx}, {dy}), got ({}, {})",
+            actual.dx,
+            actual.dy
+        );
+    }
+
+    #[rstest]
+    // 0.556 · 12.
+    #[case(WritingMode::Horizontal, (0.556, 0.0), 0.0, 100.0, (6.672, 0.0))]
+    // (0.556 · 12 + 3) · 50/100.
+    #[case(WritingMode::Horizontal, (0.556, 0.0), 3.0, 50.0, (4.836, 0.0))]
+    // −0.5 · 12.
+    #[case(WritingMode::Vertical, (0.0, -0.5), 0.0, 100.0, (0.0, -6.0))]
+    // −1 · 12 + 1: `Th` does not apply vertically.
+    #[case(WritingMode::Vertical, (0.0, -1.0), 1.0, 50.0, (0.0, -11.0))]
+    fn advance(
+        #[case] mode: WritingMode,
+        #[case] (dx, dy): (f32, f32),
+        #[case] spacing: f32,
+        #[case] scaling: f32,
+        #[case] expected: (f32, f32),
+    ) {
+        let advance = mode.advance(Displacement::new(dx, dy), FontSize(12.0), spacing, scaling);
+        assert_displacement(advance, expected);
+    }
+
+    #[rstest]
+    // 500/1000 · 12 · 50/100, right.
+    #[case(WritingMode::Horizontal, (3.0, 0.0))]
+    // 500/1000 · 12, up: `Th` does not apply vertically.
+    #[case(WritingMode::Vertical, (0.0, 6.0))]
+    fn adjustment(#[case] mode: WritingMode, #[case] expected: (f32, f32)) {
+        assert_displacement(mode.adjustment(-500.0, FontSize(12.0), 50.0), expected);
+    }
 
     #[rstest]
     #[case(&[0x81, 0x40], true)]

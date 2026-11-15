@@ -139,7 +139,7 @@ impl BuildFromRawDict for CompositeFont {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use std::collections::HashMap;
 
     use winnow::BStr;
@@ -276,14 +276,22 @@ end";
         )
     }
 
-    /// `/F3` of `composite.pdf`: `Identity-V`, `/W2 [1 [-500 250 880]]`, default `/DW2`.
-    fn f3() -> Font {
+    /// `/F3` of `composite.pdf`: `Identity-V`, `/W2 [1 [-500 250 880]]`, default `/DW2`,
+    /// ToUnicode `<0001>` to `X` and `<0002>` to `Y`.
+    pub(crate) fn f3() -> Font {
         build(
-            b"<</Type/Font/Subtype/Type0/BaseFont/F3/Encoding/Identity-V/DescendantFonts[6 0 R]>>",
-            &[object(
-                6,
-                b"<</Type/Font/Subtype/CIDFontType2/BaseFont/F3/W2[1[-500 250 880]]>>",
-            )],
+            b"<</Type/Font/Subtype/Type0/BaseFont/F3/Encoding/Identity-V/DescendantFonts[6 0 R]/ToUnicode 8 0 R>>",
+            &[
+                object(
+                    6,
+                    b"<</Type/Font/Subtype/CIDFontType2/BaseFont/F3/W2[1[-500 250 880]]>>",
+                ),
+                stream(
+                    8,
+                    "",
+                    &to_unicode("<0000> <FFFF>", &["<0001> <0058>", "<0002> <0059>"], &[]),
+                ),
+            ],
         )
     }
 
