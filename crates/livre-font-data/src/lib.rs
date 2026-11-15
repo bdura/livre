@@ -8,3 +8,9 @@
 //! [Adobe Glyph List]: https://github.com/adobe-type-tools/agl-aglfn
 
 #![forbid(unsafe_code)]
+
+pub mod glyph_list;
+mod table;
+
+#[cfg(test)]
+mod generate;
