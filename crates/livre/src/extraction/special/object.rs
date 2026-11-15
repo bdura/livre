@@ -162,7 +162,7 @@ impl Extract<'_> for Object {
             b'n' => b"null".map(|_| Object::Null),
             b't' | b'f' => bool::extract.map(Object::Boolean),
             b'0'..=b'9' => alt((Reference::extract.map(Object::from), number)),
-            b'+' | b'-' => number,
+            b'+' | b'-' | b'.' => number,
             b'(' => LiteralString::extract.map(Object::from),
             b'/' => Name::extract.map(Object::from),
             b'<' => alt((map_or_stream, HexadecimalString::extract.map(Object::from))),
@@ -237,6 +237,8 @@ mod tests {
     #[case(b"null", ())]
     #[case(b"1", 1i32)]
     #[case(b"1.0", 1.0f32)]
+    #[case(b".5", 0.5f32)]
+    #[case(b"-.5", -0.5f32)]
     #[case(b"[true 1]", vec![Object::Boolean(true), Object::Integer(1)])]
     #[case(b"(test)", "test")]
     #[case(b"/test", Name::from("test"))]
