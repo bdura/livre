@@ -22,7 +22,7 @@ use winnow::{
     BStr, ModalResult,
 };
 
-pub use cmap::{CMap, CodespaceRange, ToUnicode, UnicodeText, WritingMode};
+pub use cmap::{CMap, Cid, CodespaceRange, EncodingCMap, ToUnicode, UnicodeText, WritingMode};
 pub use code::{Code, Codes};
 pub use composite::CompositeFont;
 pub use decoder::Decoder;

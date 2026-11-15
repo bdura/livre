@@ -1,12 +1,15 @@
 //! CMaps: mappings from character codes to text or CIDs (ISO 32000-2, 9.7.5 and 9.10.3).
 //!
 //! A [`CMap`] is generic over what it maps codes to. A [`ToUnicode`] CMap maps them to
-//! [`UnicodeText`]. It is read from the decoded bytes of its stream with [`CMap::parse`],
-//! which never fails.
+//! [`UnicodeText`]. An encoding CMap maps them to [`Cid`]s, and is wrapped in an
+//! [`EncodingCMap`] that also covers the predefined identities. A CMap is read from the
+//! decoded bytes of its stream with [`CMap::parse`], which never fails.
 
+mod cid;
 mod parse;
 mod unicode;
 
+pub use cid::{Cid, EncodingCMap};
 pub(crate) use parse::{Destination, Operand};
 pub use unicode::{ToUnicode, UnicodeText};
 
@@ -59,7 +62,12 @@ pub struct CMap<D> {
     singles: Vec<(Code, D)>,
     /// `bfrange` and `cidrange` entries, sorted by `low`.
     ranges: Vec<Range<D>>,
-    writing_mode: WritingMode,
+    /// From `/WMode n def` in the body, or `usecmap` of `Identity-V`; `None` when neither
+    /// appears, so that a stream dictionary's `/WMode` can stand in.
+    writing_mode: Option<WritingMode>,
+    /// Whether the body reads `/Identity-H usecmap` or `/Identity-V usecmap`: codes it does
+    /// not map fall back to the identity.
+    use_identity: bool,
 }
 
 impl<D> Default for CMap<D> {
@@ -68,7 +76,8 @@ impl<D> Default for CMap<D> {
             codespace: Vec::new(),
             singles: Vec::new(),
             ranges: Vec::new(),
-            writing_mode: WritingMode::default(),
+            writing_mode: None,
+            use_identity: false,
         }
     }
 }
@@ -127,8 +136,13 @@ impl<D> CMap<D> {
         self.singles.is_empty() && self.ranges.is_empty()
     }
 
-    /// The writing mode, from `/WMode`.
+    /// The writing mode, from `/WMode`; horizontal when the body declares none.
     pub fn writing_mode(&self) -> WritingMode {
-        self.writing_mode
+        self.writing_mode.unwrap_or_default()
+    }
+
+    /// Whether the CMap inherits from `Identity-H` or `Identity-V` through `usecmap`.
+    pub fn use_identity(&self) -> bool {
+        self.use_identity
     }
 }

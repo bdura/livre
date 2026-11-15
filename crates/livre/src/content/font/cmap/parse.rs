@@ -185,7 +185,8 @@ struct Reader<D> {
     // A map, so that a code mapped twice keeps its last mapping.
     singles: BTreeMap<Code, D>,
     ranges: Vec<Range<D>>,
-    writing_mode: WritingMode,
+    writing_mode: Option<WritingMode>,
+    use_identity: bool,
 }
 
 /// Whether the reader goes on after a keyword.
@@ -201,27 +202,40 @@ impl<D: Destination> Reader<D> {
             codespace: Vec::new(),
             singles: BTreeMap::new(),
             ranges: Vec::new(),
-            writing_mode: WritingMode::default(),
+            writing_mode: None,
+            use_identity: false,
         }
     }
 
     fn keyword(&mut self, keyword: &[u8]) -> Flow {
         match keyword {
             b"endcodespacerange" => self.drain("codespacerange", 2, Self::codespace_range),
-            b"endbfchar" => self.drain("bfchar", 2, Self::bf_char),
-            b"endbfrange" => self.drain("bfrange", 3, Self::bf_range),
-            b"usecmap" => {
-                if let Some(Operand::Name(name)) = self.stack.last() {
+            b"endbfchar" => self.drain("bfchar", 2, Self::single),
+            b"endbfrange" => self.drain("bfrange", 3, Self::range),
+            b"endcidchar" => self.drain("cidchar", 2, Self::single),
+            b"endcidrange" => self.drain("cidrange", 3, Self::range),
+            b"endnotdefchar" | b"endnotdefrange" => {
+                let section = String::from_utf8_lossy(&keyword[b"end".len()..]);
+                tracing::warn!("{section} section not supported: dropped");
+            }
+            b"usecmap" => match self.stack.last() {
+                Some(Operand::Name(name)) if name.0 == b"Identity-H" => self.use_identity = true,
+                Some(Operand::Name(name)) if name.0 == b"Identity-V" => {
+                    self.use_identity = true;
+                    self.writing_mode = Some(WritingMode::Vertical);
+                }
+                Some(Operand::Name(name)) => {
                     tracing::warn!("usecmap /{} not supported", String::from_utf8_lossy(name));
                 }
-            }
+                _ => {}
+            },
             b"def" => {
                 if let [.., Operand::Name(key), Operand::Integer(mode)] = self.stack.as_slice() {
                     if key.0 == b"WMode" {
-                        self.writing_mode = match mode {
+                        self.writing_mode = Some(match mode {
                             1 => WritingMode::Vertical,
                             _ => WritingMode::Horizontal,
-                        };
+                        });
                     }
                 }
             }
@@ -236,7 +250,7 @@ impl<D: Destination> Reader<D> {
     }
 
     /// Hand the stack to `entry` in chunks of `arity` operands.
-    fn drain(&mut self, section: &str, arity: usize, entry: fn(&mut Self, &[Operand])) {
+    fn drain(&mut self, section: &str, arity: usize, entry: fn(&mut Self, &str, &[Operand])) {
         let stack = std::mem::take(&mut self.stack);
         let chunks = stack.chunks_exact(arity);
         if !chunks.remainder().is_empty() {
@@ -246,11 +260,11 @@ impl<D: Destination> Reader<D> {
             );
         }
         for chunk in chunks {
-            entry(self, chunk);
+            entry(self, section, chunk);
         }
     }
 
-    fn codespace_range(&mut self, chunk: &[Operand]) {
+    fn codespace_range(&mut self, _section: &str, chunk: &[Operand]) {
         let [low, high] = chunk else {
             unreachable!("chunks of 2")
         };
@@ -263,12 +277,13 @@ impl<D: Destination> Reader<D> {
         }
     }
 
-    fn bf_char(&mut self, chunk: &[Operand]) {
+    /// A `bfchar` or `cidchar` entry: a code and its destination.
+    fn single(&mut self, section: &str, chunk: &[Operand]) {
         let [source, destination] = chunk else {
             unreachable!("chunks of 2")
         };
         let Some(code) = code(source) else {
-            tracing::warn!("bfchar source {source:?} is not a code: dropped");
+            tracing::warn!("{section} source {source:?} is not a code: dropped");
             return;
         };
         if let Some(destination) = D::from_operand(destination) {
@@ -276,17 +291,21 @@ impl<D: Destination> Reader<D> {
         }
     }
 
-    fn bf_range(&mut self, chunk: &[Operand]) {
+    /// A `bfrange` or `cidrange` entry: the low and high codes, then the destination of
+    /// `low` or an array of one destination per code.
+    fn range(&mut self, section: &str, chunk: &[Operand]) {
         let [low, high, destination] = chunk else {
             unreachable!("chunks of 3")
         };
-        let Some((low, high)) = bounds("bfrange", low, high) else {
+        let Some((low, high)) = bounds(section, low, high) else {
             return;
         };
         let destination = match destination {
             Operand::Array(operands) => {
                 let Some(destinations) = operands.iter().map(D::from_operand).collect() else {
-                    tracing::warn!("bfrange {low:?} {high:?} has a malformed destination: dropped");
+                    tracing::warn!(
+                        "{section} {low:?} {high:?} has a malformed destination: dropped"
+                    );
                     return;
                 };
                 RangeDestination::Listed(destinations)
@@ -311,6 +330,7 @@ impl<D: Destination> Reader<D> {
             singles: self.singles.into_iter().collect(),
             ranges,
             writing_mode: self.writing_mode,
+            use_identity: self.use_identity,
         }
     }
 }
@@ -320,8 +340,9 @@ impl<D: Destination> CMap<D> {
     ///
     /// Never fails: entries that are malformed are dropped with a warning, and a CMap with an
     /// unparseable tail is the CMap read up to it, with a warning naming the byte offset.
-    /// Reading stops at `endcmap`. `usecmap` is not supported: the parent's mappings are
-    /// missing, with a warning.
+    /// Reading stops at `endcmap`. `usecmap` of `Identity-H` or `Identity-V` is recorded in
+    /// [`CMap::use_identity`]; any other parent is not supported: its mappings are missing,
+    /// with a warning. `notdefchar` and `notdefrange` sections are dropped with a warning.
     pub fn parse(bytes: &[u8]) -> Self {
         let mut reader = Reader::new();
         let mut input: &BStr = bytes.into();
@@ -527,6 +548,18 @@ mod tests {
         assert_eq!(get(&cmap, Code::one_byte(0x42)), None);
         assert!(logs_contain("usecmap /Parent not supported"));
         assert!(!logs_contain("unparseable"));
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn notdef_sections_warn() {
+        let chars = CMap::<Bytes>::parse(b"1 beginnotdefchar <00> <01> endnotdefchar");
+        let ranges = CMap::<Bytes>::parse(b"1 beginnotdefrange <00> <1F> <01> endnotdefrange");
+
+        assert!(chars.is_empty());
+        assert!(ranges.is_empty());
+        assert!(logs_contain("notdefchar section not supported: dropped"));
+        assert!(logs_contain("notdefrange section not supported: dropped"));
     }
 
     #[test]

@@ -22,9 +22,9 @@ mod state;
 
 pub use error::ContentError;
 pub use font::{
-    CMap, Code, Codes, CodespaceRange, CompositeFont, Decoder, Encoding, Flags, Font,
-    FontDescriptor, Fonts, GlyphName, GlyphWidth, SimpleFont, SimpleWidths, ToUnicode, Type3Font,
-    UnicodeText, Widths, WritingMode,
+    CMap, Cid, Code, Codes, CodespaceRange, CompositeFont, Decoder, Encoding, EncodingCMap, Flags,
+    Font, FontDescriptor, Fonts, GlyphName, GlyphWidth, SimpleFont, SimpleWidths, ToUnicode,
+    Type3Font, UnicodeText, Widths, WritingMode,
 };
 pub use state::{
     Character, DefaultUser, Displacement, FontSize, Glyph, Matrix, Point, RenderingMode, Run,
