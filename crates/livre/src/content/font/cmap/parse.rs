@@ -160,7 +160,7 @@ fn bounds(section: &str, low: &Operand, high: &Operand) -> Option<(Code, Code)> 
         tracing::warn!("{section} entry {low:?} {high:?} is not a pair of codes: dropped");
         return None;
     };
-    if low_code.bytes() != high_code.bytes() {
+    if low_code.byte_count() != high_code.byte_count() {
         let (Operand::Hex(low), Operand::Hex(high)) = (low, high) else {
             unreachable!("both are codes");
         };
@@ -256,7 +256,7 @@ impl<D: Destination> Reader<D> {
         };
         if let Some((low, high)) = bounds("codespacerange", low, high) {
             self.codespace.push(CodespaceRange {
-                bytes: low.bytes(),
+                byte_count: low.byte_count(),
                 low: low.value(),
                 high: high.value(),
             });
@@ -471,12 +471,12 @@ mod tests {
             cmap.codespace(),
             [
                 CodespaceRange {
-                    bytes: 1,
+                    byte_count: 1,
                     low: 0x00,
                     high: 0x80
                 },
                 CodespaceRange {
-                    bytes: 2,
+                    byte_count: 2,
                     low: 0x8140,
                     high: 0xFFFC
                 },

@@ -192,7 +192,7 @@ mod tests {
         assert_eq!(text(&cmap, one(0x45)).as_deref(), Some("ff"));
         assert_eq!(text(&cmap, one(0x46)), None);
         assert_eq!(cmap.codespace().len(), 1);
-        assert_eq!(cmap.codespace()[0].bytes(), 1);
+        assert_eq!(cmap.codespace()[0].byte_count(), 1);
         assert_eq!(
             (cmap.codespace()[0].low(), cmap.codespace()[0].high()),
             (0x00, 0xFF)

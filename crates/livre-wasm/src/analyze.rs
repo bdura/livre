@@ -201,6 +201,6 @@ fn hex(code: Code) -> String {
     format!(
         "{:0width$x}",
         code.value(),
-        width = 2 * code.bytes() as usize
+        width = 2 * code.byte_count() as usize
     )
 }

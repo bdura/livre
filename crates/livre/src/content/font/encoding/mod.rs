@@ -139,7 +139,7 @@ impl Encoding {
     /// The glyph name of `code`, if the encoding has one. Always `None` for a code that is not
     /// one byte long.
     pub fn glyph_name(&self, code: Code) -> Option<&GlyphName> {
-        if code.bytes() != 1 {
+        if code.byte_count() != 1 {
             return None;
         }
         self.names

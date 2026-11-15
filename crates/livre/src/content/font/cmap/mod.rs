@@ -14,18 +14,18 @@ use super::Code;
 
 /// A range of byte sequences the CMap defines codes over (ISO 32000-2, 9.7.6.2).
 ///
-/// `low` and `high` are the values of codes of `bytes` bytes, inclusive.
+/// `low` and `high` are the values of codes of `byte_count` bytes, inclusive.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CodespaceRange {
-    bytes: u8,
+    byte_count: u8,
     low: u32,
     high: u32,
 }
 
 impl CodespaceRange {
     /// The number of bytes of every code in the range.
-    pub const fn bytes(&self) -> u8 {
-        self.bytes
+    pub const fn byte_count(&self) -> u8 {
+        self.byte_count
     }
 
     /// The lowest code value of the range.
@@ -102,7 +102,7 @@ impl<D: Destination> CMap<D> {
         let index = self.ranges.partition_point(|range| range.low <= code);
         let range = &self.ranges[index.checked_sub(1)?];
 
-        if range.low.bytes() != code.bytes() || code.value() > range.high {
+        if range.low.byte_count() != code.byte_count() || code.value() > range.high {
             return None;
         }
 

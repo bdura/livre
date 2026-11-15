@@ -12,8 +12,8 @@ use crate::extraction::PDFString;
 /// in a sorted CMap table: `<41>` and `<0041>` are distinct codes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Code {
-    // Field order matters: the derived `Ord` compares `bytes` first.
-    bytes: u8,
+    // Field order matters: the derived `Ord` compares `byte_count` first.
+    byte_count: u8,
     value: u32,
 }
 
@@ -22,7 +22,7 @@ impl Code {
     pub const fn one_byte(value: u8) -> Self {
         Self {
             value: value as u32,
-            bytes: 1,
+            byte_count: 1,
         }
     }
 
@@ -30,15 +30,15 @@ impl Code {
     pub const fn two_bytes(value: u16) -> Self {
         Self {
             value: value as u32,
-            bytes: 2,
+            byte_count: 2,
         }
     }
 
-    /// The code read from `bytes` big-endian bytes, as a CMap's codespace defines it.
+    /// The code read from `byte_count` big-endian bytes, as a CMap's codespace defines it.
     ///
-    /// `bytes` is expected in `1..=4`, the lengths a codespace range allows.
-    pub(crate) const fn new(value: u32, bytes: u8) -> Self {
-        Self { value, bytes }
+    /// `byte_count` is expected in `1..=4`, the lengths a codespace range allows.
+    pub(crate) const fn new(value: u32, byte_count: u8) -> Self {
+        Self { value, byte_count }
     }
 
     /// The code's numeric value.
@@ -47,13 +47,13 @@ impl Code {
     }
 
     /// The number of bytes the code was read from.
-    pub const fn bytes(&self) -> u8 {
-        self.bytes
+    pub const fn byte_count(&self) -> u8 {
+        self.byte_count
     }
 
     /// Whether `Tw` applies after this code: only for the one-byte code 32.
     pub const fn word_spacing_applies(&self) -> bool {
-        self.bytes == 1 && self.value == 32
+        self.byte_count == 1 && self.value == 32
     }
 }
 

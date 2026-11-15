@@ -359,7 +359,7 @@ fn encodings_runs_decode_and_advance_as_expected() {
 
     for (character, (code, start_x, end_x, text)) in characters.iter().zip(expected) {
         assert_eq!(character.code.value(), code);
-        assert_eq!(character.code.bytes(), 1);
+        assert_eq!(character.code.byte_count(), 1);
         assert!(
             close(character.start.x, start_x) && close(character.start.y, 680.0),
             "code {code}: expected start ({start_x}, 680), got {:?}",
@@ -417,7 +417,7 @@ fn composite_runs_are_replacement_characters(#[case] path: &str) {
         assert!(
             run.characters
                 .iter()
-                .all(|character| character.code.bytes() == 2 && character.text.is_none()),
+                .all(|character| character.code.byte_count() == 2 && character.text.is_none()),
             "run {i}"
         );
     }
