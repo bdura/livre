@@ -76,8 +76,6 @@ fn strip_subset_tag(base_font: &[u8]) -> &[u8] {
 /// or ZapfDingbats table for those fonts; nothing for a font flagged symbolic, whose built-in
 /// encoding is in its program; else `StandardEncoding`. An unknown encoding name and a
 /// symbolic font without a table both warn.
-// No font reads its `/Encoding` yet: the constructors of simple and `Type3` fonts will.
-#[cfg_attr(not(test), expect(dead_code))]
 pub(crate) fn base_table(
     spec: Option<&EncodingSpec>,
     base_font: &Name,
@@ -125,7 +123,6 @@ pub struct Encoding {
 
 impl Encoding {
     /// The names of `base`, if any, overwritten by `differences`.
-    #[cfg_attr(not(test), expect(dead_code))]
     pub(crate) fn new(base: Option<&'static Table>, differences: &Differences) -> Self {
         let mut names: Box<[Option<GlyphName>; 256]> = Box::new(std::array::from_fn(|code| {
             base.and_then(|table| table[code]).map(GlyphName::from)

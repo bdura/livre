@@ -2,18 +2,20 @@
 //! character codes, and how wide each code's glyph is (ISO 32000-2, 9.5 to 9.7).
 //!
 //! A [`Font`] is told apart by its `/Subtype`. Simple fonts (`Type1`, `MMType1`, `TrueType`)
-//! and `Type3` fonts read one byte per code and carry a [`Widths`] table; `Type0` fonts are a
-//! placeholder that reads two bytes per code and reports zero widths.
+//! and `Type3` fonts read one byte per code, carry a [`Widths`] table (or, for a standard 14
+//! font without `/Widths`, its metrics) and a [`Decoder`] from codes to text; `Type0` fonts are
+//! a placeholder that reads two bytes per code, reports zero widths and decodes nothing.
 
 pub mod cmap;
 mod code;
 mod composite;
+mod decoder;
 pub mod encoding;
 mod simple;
 mod type3;
 mod widths;
 
-use std::{collections::HashMap, fmt};
+use std::{borrow::Cow, collections::HashMap, fmt};
 
 use winnow::{
     error::{ContextError, ErrMode, FromExternalError, StrContext},
@@ -23,8 +25,9 @@ use winnow::{
 pub use cmap::{CMap, CodespaceRange, ToUnicode, UnicodeText, WritingMode};
 pub use code::{Code, Codes};
 pub use composite::CompositeFont;
+pub use decoder::Decoder;
 pub use encoding::{Encoding, Flags, GlyphName};
-pub use simple::{FontDescriptor, SimpleFont};
+pub use simple::{FontDescriptor, SimpleFont, SimpleWidths};
 pub use type3::Type3Font;
 pub use widths::{GlyphWidth, Widths};
 
@@ -85,9 +88,19 @@ impl Font {
     /// The width of `code`'s glyph. Always zero for a composite font.
     pub fn width(&self, code: Code) -> GlyphWidth {
         match self {
-            Font::Simple(font) => font.widths.width(code),
+            Font::Simple(font) => font.width(code),
             Font::Type3(font) => font.widths.width(code),
             Font::Composite(_) => GlyphWidth(0.0),
+        }
+    }
+
+    /// The text `code` shows, if the font can say: `/ToUnicode` first, then the glyph name
+    /// through the encoding. Always `None` for a composite font until its CMaps are read.
+    pub fn decode(&self, code: Code) -> Option<Cow<'_, str>> {
+        match self {
+            Font::Simple(font) => font.decoder.text(code),
+            Font::Type3(font) => font.decoder.text(code),
+            Font::Composite(_) => None,
         }
     }
 }
@@ -170,9 +183,40 @@ pub(crate) mod tests {
         Font::build(&mut input.as_ref(), objects).unwrap()
     }
 
+    /// The font in the dictionary literal `input`, whose `9 0 R` is a stream holding `content`.
+    pub(crate) fn font_with_stream(input: &[u8], content: &[u8]) -> Font {
+        let object = [
+            format!("9 0 obj\n<</Length {}>>\nstream\n", content.len()).as_bytes(),
+            content,
+            b"\nendstream\nendobj",
+        ]
+        .concat();
+        let objects: HashMap<ReferenceId, &BStr> =
+            [((9, 0).into(), object.as_slice().as_ref())].into();
+        font_with(input, &objects)
+    }
+
+    /// The text `font` decodes the one-byte code `code` to.
+    pub(crate) fn decode(font: &Font, code: u8) -> Option<String> {
+        font.decode(Code::one_byte(code)).map(Cow::into_owned)
+    }
+
+    /// A ToUnicode CMap mapping the one-byte code `code` to the UTF-16BE hex `destination`.
+    pub(crate) fn bfchar(code: &str, destination: &str) -> Vec<u8> {
+        format!(
+            "begincmap\n1 begincodespacerange <00> <FF> endcodespacerange\n\
+             1 beginbfchar <{code}> <{destination}> endbfchar\nendcmap"
+        )
+        .into_bytes()
+    }
+
     /// A standard-14 font dictionary with a `/Widths` table, so parsing it does not warn.
     pub(crate) const HELVETICA: &[u8] =
         b"<</Type/Font/Subtype/Type1/BaseFont/Helvetica/FirstChar 32/LastChar 32/Widths[278]>>";
+
+    /// A standard-14 font dictionary with neither `/Widths` nor `/Encoding`: AFM widths through
+    /// `StandardEncoding`.
+    pub(crate) const HELVETICA_STANDARD: &[u8] = b"<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>";
 
     /// The fonts of a page, each given by its resource name and its dictionary literal.
     pub(crate) fn fonts(entries: &[(&str, &[u8])]) -> Fonts {

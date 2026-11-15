@@ -122,6 +122,11 @@ impl<D> CMap<D> {
         &self.codespace
     }
 
+    /// Whether the CMap maps no code at all.
+    pub fn is_empty(&self) -> bool {
+        self.singles.is_empty() && self.ranges.is_empty()
+    }
+
     /// The writing mode, from `/WMode`.
     pub fn writing_mode(&self) -> WritingMode {
         self.writing_mode
