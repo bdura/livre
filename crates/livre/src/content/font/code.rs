@@ -1,5 +1,6 @@
 //! Character codes: the units a font splits a shown string into (ISO 32000-2, 9.4.3).
 
+use super::cmap::{CodespaceRange, IDENTITY_CODESPACE};
 use super::Font;
 use crate::extraction::PDFString;
 
@@ -61,30 +62,88 @@ impl Code {
 #[derive(Debug, Clone)]
 pub struct Codes<'s> {
     bytes: &'s [u8],
-    two_bytes: bool,
+    kind: CodesKind<'s>,
+}
+
+/// How [`Codes`] splits its bytes.
+#[derive(Debug, Clone, Copy)]
+enum CodesKind<'s> {
+    /// One code per byte, as simple and `Type3` fonts read strings.
+    OneByte,
+    /// Codes of the lengths a CMap's codespace ranges define (ISO 32000-2, 9.7.6.3).
+    Codespace(&'s [CodespaceRange]),
+}
+
+impl<'s> Codes<'s> {
+    /// Read `bytes` one code per byte.
+    pub(crate) fn one_byte(bytes: &'s [u8]) -> Self {
+        Self {
+            bytes,
+            kind: CodesKind::OneByte,
+        }
+    }
+
+    /// Read `bytes` by the codespace `ranges`, with the partial-match fallback of
+    /// ISO 32000-2, 9.7.6.3: a sequence no range contains still yields a code, of the
+    /// length of the shortest range whose first byte matches, or of one byte.
+    ///
+    /// A code cut short by the end of the string is dropped with a `truncated code` warning.
+    pub(crate) fn codespace(bytes: &'s [u8], ranges: &'s [CodespaceRange]) -> Self {
+        Self {
+            bytes,
+            kind: CodesKind::Codespace(ranges),
+        }
+    }
+
+    /// The next code's length under `ranges`, which may exceed the bytes left.
+    fn codespace_length(&self, ranges: &[CodespaceRange]) -> usize {
+        let matched = (1..=4.min(self.bytes.len())).find(|&len| {
+            let prefix = &self.bytes[..len];
+            ranges.iter().any(|range| range.contains(prefix))
+        });
+        matched.unwrap_or_else(|| {
+            let first = self.bytes[0];
+            ranges
+                .iter()
+                .filter(|range| range.first_byte_contains(first))
+                .map(|range| usize::from(range.byte_count()))
+                .min()
+                .unwrap_or(1)
+        })
+    }
 }
 
 impl Iterator for Codes<'_> {
     type Item = Code;
 
     fn next(&mut self) -> Option<Code> {
-        if self.two_bytes {
-            match *self.bytes {
-                [high, low, ref rest @ ..] => {
-                    self.bytes = rest;
-                    Some(Code::two_bytes(u16::from_be_bytes([high, low])))
-                }
-                [byte] => {
-                    self.bytes = &[];
-                    tracing::warn!("Odd trailing byte {byte:#04x} in a two-byte string: dropped");
-                    None
-                }
-                [] => None,
+        match self.kind {
+            CodesKind::OneByte => {
+                let (&byte, rest) = self.bytes.split_first()?;
+                self.bytes = rest;
+                Some(Code::one_byte(byte))
             }
-        } else {
-            let (&byte, rest) = self.bytes.split_first()?;
-            self.bytes = rest;
-            Some(Code::one_byte(byte))
+            CodesKind::Codespace(ranges) => {
+                if self.bytes.is_empty() {
+                    return None;
+                }
+                let len = self.codespace_length(ranges);
+                if self.bytes.len() < len {
+                    tracing::warn!(
+                        "truncated code: {:02x?} is shorter than its {len}-byte codespace range, dropped",
+                        self.bytes
+                    );
+                    self.bytes = &[];
+                    return None;
+                }
+                let (prefix, rest) = self.bytes.split_at(len);
+                self.bytes = rest;
+                let value = prefix
+                    .iter()
+                    .fold(0u32, |value, &byte| (value << 8) | u32::from(byte));
+                // `len` is at most 4, the longest codespace range.
+                Some(Code::new(value, len as u8))
+            }
         }
     }
 }
@@ -93,12 +152,12 @@ impl Font {
     /// Split a shown string into the font's character codes.
     ///
     /// Simple and `Type3` fonts read one code per byte. Composite fonts read two bytes per
-    /// code, the `Identity-H` layout whatever their `/Encoding`; an odd trailing byte is
-    /// dropped with a warning.
+    /// code, the `Identity-H` codespace whatever their `/Encoding`; a trailing byte too short
+    /// for a code is dropped with a warning.
     pub fn codes<'s>(&self, string: &'s PDFString) -> Codes<'s> {
-        Codes {
-            bytes: &string.0,
-            two_bytes: matches!(self, Font::Composite(_)),
+        match self {
+            Font::Composite(_) => Codes::codespace(&string.0, &IDENTITY_CODESPACE),
+            _ => Codes::one_byte(&string.0),
         }
     }
 }
@@ -114,5 +173,69 @@ mod tests {
     #[case(Code::one_byte(33), false)]
     fn word_spacing_applies(#[case] code: Code, #[case] expected: bool) {
         assert_eq!(code.word_spacing_applies(), expected);
+    }
+
+    const IDENTITY: &[CodespaceRange] = &[CodespaceRange::new(2, 0x0000, 0xFFFF)];
+    const MIXED: &[CodespaceRange] = &[
+        CodespaceRange::new(1, 0x00, 0x80),
+        CodespaceRange::new(2, 0x8140, 0xFFFF),
+    ];
+    const TWO_BYTES_ONLY: &[CodespaceRange] = &[CodespaceRange::new(2, 0x8140, 0xFFFF)];
+    const BYTE_BY_BYTE: &[CodespaceRange] = &[
+        CodespaceRange::new(2, 0x8140, 0x9FFC),
+        CodespaceRange::new(3, 0x81FF00, 0x81FFFF),
+    ];
+    const FOUR_BYTES: &[CodespaceRange] = &[CodespaceRange::new(4, 0x0000_0000, 0xFFFF_FFFF)];
+
+    #[rstest]
+    #[case::identity(IDENTITY, &[0x00, 0x41, 0x00, 0x42], &[Code::new(0x41, 2), Code::new(0x42, 2)])]
+    #[case::mixed(MIXED, &[0x41, 0x81, 0x40, 0x41], &[Code::new(0x41, 1), Code::new(0x8140, 2), Code::new(0x41, 1)])]
+    #[case::mixed_space(MIXED, &[0x20], &[Code::one_byte(0x20)])]
+    // Second byte below the range's low: a partial match on the first byte gives two bytes.
+    #[case::partial_match(MIXED, &[0x81, 0x20], &[Code::new(0x8120, 2)])]
+    #[case::no_partial_match(TWO_BYTES_ONLY, &[0x41], &[Code::new(0x41, 1)])]
+    // Comparing values would stop at the two-byte 0x81FF, which lies between 8140 and 9FFC.
+    #[case::byte_by_byte(BYTE_BY_BYTE, &[0x81, 0xFF, 0x00], &[Code::new(0x81FF00, 3)])]
+    #[case::four_bytes(FOUR_BYTES, &[0x00, 0x00, 0x00, 0x41], &[Code::new(0x41, 4)])]
+    fn codespace(
+        #[case] ranges: &[CodespaceRange],
+        #[case] bytes: &[u8],
+        #[case] expected: &[Code],
+    ) {
+        let codes: Vec<_> = Codes::codespace(bytes, ranges).collect();
+
+        assert_eq!(codes, expected);
+    }
+
+    #[test]
+    fn mixed_space_gets_word_spacing() {
+        let code = Codes::codespace(&[0x20], MIXED).next().unwrap();
+
+        assert!(code.word_spacing_applies());
+    }
+
+    #[test]
+    fn partial_match_is_in_no_range() {
+        let code = Codes::codespace(&[0x81, 0x20], MIXED).next().unwrap();
+
+        assert_eq!(code.byte_count(), 2);
+        assert!(!MIXED.iter().any(|range| range.contains(&[0x81, 0x20])));
+    }
+    #[test]
+    #[tracing_test::traced_test]
+    fn identity_odd_byte_is_truncated() {
+        let codes: Vec<_> = Codes::codespace(&[0x00, 0x41, 0x00], IDENTITY).collect();
+
+        assert_eq!(codes, [Code::new(0x41, 2)]);
+        assert!(logs_contain("truncated code"));
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn partial_match_at_the_end_is_truncated() {
+        let codes: Vec<_> = Codes::codespace(&[0xFF], MIXED).collect();
+
+        assert_eq!(codes, []);
+        assert!(logs_contain("truncated code"));
     }
 }

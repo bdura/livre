@@ -9,6 +9,7 @@ mod cid;
 mod parse;
 mod unicode;
 
+pub(crate) use cid::IDENTITY_CODESPACE;
 pub use cid::{Cid, EncodingCMap};
 pub(crate) use parse::{Destination, Operand};
 pub use unicode::{ToUnicode, UnicodeText};
@@ -26,6 +27,15 @@ pub struct CodespaceRange {
 }
 
 impl CodespaceRange {
+    /// The range of `byte_count`-byte codes from `low` to `high`, inclusive.
+    pub(crate) const fn new(byte_count: u8, low: u32, high: u32) -> Self {
+        Self {
+            byte_count,
+            low,
+            high,
+        }
+    }
+
     /// The number of bytes of every code in the range.
     pub const fn byte_count(&self) -> u8 {
         self.byte_count
@@ -39,6 +49,32 @@ impl CodespaceRange {
     /// The highest code value of the range, inclusive.
     pub const fn high(&self) -> u32 {
         self.high
+    }
+
+    /// Whether every byte of `bytes` lies between the matching bytes of `low` and `high`.
+    ///
+    /// The check is byte by byte, not by value (ISO 32000-2, 9.7.6.2): `<8140> <9FFC>` does
+    /// not contain `<81FF>`, whose second byte is above `FC`. `false` when the lengths differ.
+    pub(crate) fn contains(&self, bytes: &[u8]) -> bool {
+        bytes.len() == usize::from(self.byte_count)
+            && bytes
+                .iter()
+                .enumerate()
+                .all(|(index, &byte)| self.byte_interval(index).contains(&byte))
+    }
+
+    /// Whether `byte` lies in the range's interval of first bytes: a partial match
+    /// (ISO 32000-2, 9.7.6.3).
+    pub(crate) fn first_byte_contains(&self, byte: u8) -> bool {
+        self.byte_interval(0).contains(&byte)
+    }
+
+    /// The interval the byte at `index`, counted from the most significant, ranges over.
+    fn byte_interval(&self, index: usize) -> std::ops::RangeInclusive<u8> {
+        let shift = 8 * (usize::from(self.byte_count) - 1 - index);
+        let low = (self.low >> shift) as u8;
+        let high = (self.high >> shift) as u8;
+        low..=high
     }
 }
 
@@ -144,5 +180,25 @@ impl<D> CMap<D> {
     /// Whether the CMap inherits from `Identity-H` or `Identity-V` through `usecmap`.
     pub fn use_identity(&self) -> bool {
         self.use_identity
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[case(&[0x81, 0x40], true)]
+    #[case(&[0x9F, 0xFC], true)]
+    #[case(&[0x90, 0x80], true)]
+    // In by value, out by its second byte.
+    #[case(&[0x81, 0xFF], false)]
+    #[case(&[0x80, 0x50], false)]
+    #[case(&[0x81], false)]
+    fn contains(#[case] bytes: &[u8], #[case] expected: bool) {
+        let range = CodespaceRange::new(2, 0x8140, 0x9FFC);
+
+        assert_eq!(range.contains(bytes), expected);
     }
 }

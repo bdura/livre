@@ -40,11 +40,7 @@ impl Destination for Cid {
 }
 
 /// The codespace of `Identity-H` and `Identity-V`: every two-byte code.
-pub static IDENTITY_CODESPACE: [CodespaceRange; 1] = [CodespaceRange {
-    byte_count: 2,
-    low: 0,
-    high: 0xFFFF,
-}];
+pub static IDENTITY_CODESPACE: [CodespaceRange; 1] = [CodespaceRange::new(2, 0, 0xFFFF)];
 
 /// How a `Type0` font's `/Encoding` splits strings into codes and maps them to CIDs
 /// (ISO 32000-2, 9.7.5).

@@ -51,6 +51,6 @@ mod tests {
         let codes: Vec<_> = calibri().codes(&string).collect();
 
         assert_eq!(codes, [Code::two_bytes(0x41)]);
-        assert!(logs_contain("Odd trailing byte 0x00"));
+        assert!(logs_contain("truncated code"));
     }
 }
