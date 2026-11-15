@@ -10,7 +10,10 @@
 #![forbid(unsafe_code)]
 
 pub mod glyph_list;
+pub mod standard_font;
 mod table;
+
+pub use standard_font::StandardFont;
 
 #[cfg(test)]
 mod generate;

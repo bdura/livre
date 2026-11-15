@@ -89,3 +89,57 @@ fn glyph_list_blob_is_fresh() {
         write_table(&parse_glyph_list(source)),
     );
 }
+
+/// The glyph widths of an AFM file (Adobe Font Metrics specification 4.1,
+/// §8): each glyph name `N` and its advance width `WX` as two little-endian
+/// bytes.
+///
+/// Panics if a metrics line lacks `C`, `WX` or `N`, if a width does not fit
+/// in a `u16`, or if the line count disagrees with `StartCharMetrics`: the
+/// source is vendored, so each is a data error.
+pub(crate) fn parse_afm(text: &str) -> Vec<(Vec<u8>, Vec<u8>)> {
+    let mut lines = text.lines();
+    let declared: usize = lines
+        .by_ref()
+        .find_map(|line| line.strip_prefix("StartCharMetrics "))
+        .expect("no StartCharMetrics")
+        .trim()
+        .parse()
+        .expect("bad StartCharMetrics count");
+
+    let entries: Vec<_> = lines
+        .take_while(|line| !line.starts_with("EndCharMetrics"))
+        // The vendored files are double-spaced: a blank line follows every line.
+        .filter(|line| !line.trim().is_empty())
+        .map(|line| {
+            let (mut code, mut width, mut name) = (None, None, None);
+            for field in line.split(';').map(str::trim).filter(|f| !f.is_empty()) {
+                let (key, value) = field.split_once(' ').unwrap_or((field, ""));
+                match key {
+                    "C" => code = value.parse::<i32>().ok(),
+                    "WX" => width = value.parse::<u16>().ok(),
+                    "N" => name = Some(value),
+                    _ => {}
+                }
+            }
+            code.unwrap_or_else(|| panic!("no code in {line:?}"));
+            let width = width.unwrap_or_else(|| panic!("no width in {line:?}"));
+            let name = name.unwrap_or_else(|| panic!("no name in {line:?}"));
+            (name.as_bytes().to_vec(), width.to_le_bytes().to_vec())
+        })
+        .collect();
+
+    assert_eq!(entries.len(), declared, "StartCharMetrics count");
+    entries
+}
+
+#[test]
+fn afm_blobs_are_fresh() {
+    for font in crate::StandardFont::ALL {
+        let stem = format!("data/afm/{}", font.name());
+        let afm = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("{stem}.afm"));
+        let source = std::fs::read_to_string(&afm)
+            .unwrap_or_else(|e| panic!("cannot read {}: {e}", afm.display()));
+        assert_fresh(&format!("{stem}.bin"), write_table(&parse_afm(&source)));
+    }
+}
