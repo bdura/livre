@@ -584,8 +584,9 @@ where
 /// A [`TextObject`] and the operators that apply to it, up to its `ET`.
 ///
 /// Iterates over the object's shown strings as [`Run`]s: each carries its start position in
-/// default user space, its characters and its decoded text. The font and other text state parameters in
-/// force for the run just yielded are read from [`text_object`](Self::text_object).
+/// default user space, its characters and its decoded text. The font and other text state
+/// parameters in force for the run just yielded are read from
+/// [`text_object`](Self::text_object).
 ///
 /// Borrows the [`TextObjects`] it comes from: its operators, and the graphics state's text
 /// state through the text object. A `Tf` naming an unknown font ends the stream; the

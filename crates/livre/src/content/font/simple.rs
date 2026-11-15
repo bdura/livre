@@ -37,7 +37,10 @@ pub enum SimpleWidths {
     /// No `/Widths`, and a `/BaseFont` naming one of the standard 14: the width of each code's
     /// glyph name in the font's metrics, else `missing`.
     Standard {
+        /// The standard font whose AFM metrics give the widths.
         font: StandardFont,
+        /// The descriptor's `/MissingWidth`, 0 without a descriptor: the width of a code with
+        /// no glyph name, or whose glyph the metrics lack.
         missing: GlyphWidth,
     },
 }

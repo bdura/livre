@@ -266,7 +266,7 @@ committed blob no longer matches its source.
 ```text
 ├── index.html            # The page: header controls, error strips, canvas and overlay svg, inspector
 ├── app.ts                # Loads the wasm and pdf.js, renders, navigates, reports errors, drives the inspector
-├── overlay-livre.ts      # livre's layer: run boxes from start to end, text object hulls on highlight
+├── overlay-livre.ts      # livre's layer: run boxes from start to end, a tick at each character's start, text object hulls on highlight
 ├── overlay-pdfjs.ts      # Ground truth: pdf.js text items as boxes
 ├── svg.ts                # The overlays' SVG element helper
 ├── pdfjs.d.ts            # Hand-written types for the slice of pdf.js the page uses

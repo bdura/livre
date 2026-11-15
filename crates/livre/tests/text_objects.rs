@@ -398,12 +398,12 @@ fn letter_header_decodes_to_words() {
 }
 
 /// `text.pdf` shows every string in `Type0` fonts with two-byte codes, which livre does
-/// not decode yet: every run is replacement characters only, one per code. PR 5 of the
-/// content-extraction spec (composite fonts) turns this around.
+/// not decode yet: every run is replacement characters only, one per code. Decoding
+/// composite fonts turns this around.
 #[rstest]
 #[case("tests/resources/text.pdf")]
 #[case("tests/resources/text-xref-stream.pdf")]
-fn composite_runs_are_replacement_characters_until_pr5(#[case] path: &str) {
+fn composite_runs_are_replacement_characters(#[case] path: &str) {
     let runs = runs(path);
     assert!(!runs.is_empty());
 

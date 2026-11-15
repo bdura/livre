@@ -24,11 +24,14 @@ use crate::extraction::{
 /// An operand on a CMap's stack.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Operand {
+    /// An integer, as `begincodespacerange` counts and `/WMode` values are written.
     Integer(i64),
+    /// A name: a glyph name in a `bfchar` destination, or a dictionary key.
     Name(Name),
     /// The bytes of a hex string with an even number of digits: `<41>` and `<0041>` stay
     /// distinct.
     Hex(Vec<u8>),
+    /// An array, the destination of a `bfrange` that lists one destination per code.
     Array(Vec<Operand>),
     /// A dictionary, a literal string, a real, or a hex string with an odd number of digits,
     /// which is ambiguous as a code.

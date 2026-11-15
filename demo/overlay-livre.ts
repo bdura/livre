@@ -45,7 +45,7 @@ export function drawLivreLayer(svg: SVGSVGElement, page: Page, viewport: PageVie
         viewport.convertToViewportPoint(run.start.x, run.start.y + run.size),
       ];
       for (const corner of corners) box.add(...corner);
-      // A quarter of the font size, straight up from the baseline like the box's height.
+      // A quarter of the font size marks each start without hiding the glyphs; straight up, like the box's height.
       const ticks = run.characters.map(({ start }): [Point, Point] => [
         viewport.convertToViewportPoint(start.x, start.y),
         viewport.convertToViewportPoint(start.x, start.y + run.size / 4),

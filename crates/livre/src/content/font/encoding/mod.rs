@@ -23,7 +23,10 @@ use crate::{
 
 /// The font descriptor's `/Flags` (ISO 32000-2, 9.8.2, Table 121). Defaults to no flag set.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Extract)]
-pub struct Flags(pub u32);
+pub struct Flags(
+    /// The raw bit field, bit 1 being the least significant.
+    pub u32,
+);
 
 impl Flags {
     /// Bit 3: the font uses glyphs outside the standard Latin character set.

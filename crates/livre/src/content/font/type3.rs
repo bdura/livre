@@ -100,7 +100,7 @@ mod tests {
 
         assert_eq!(decode(&font, 97).as_deref(), Some("□"));
         assert_eq!(decode(&font, 98), None);
-        // No built-in table under the differences.
+        // A Type3 font has no base encoding (9.6.5): codes outside `/Differences` have no name.
         assert_eq!(decode(&font, 65), None);
     }
 

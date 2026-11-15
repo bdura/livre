@@ -27,6 +27,7 @@ pub(crate) enum EncodingSpec {
 pub(crate) struct EncodingDict {
     /// The predefined encoding the differences apply to, if the dictionary names one.
     pub base_encoding: Option<Name>,
+    /// The codes the dictionary renames, empty when `/Differences` is absent.
     #[livre(default)]
     pub differences: Differences,
 }
