@@ -3,15 +3,29 @@
 //! Layout, all integers little-endian:
 //!
 //! ```text
-//! u32       n            number of records
-//! u32 × n   offset[n]    byte offset of each record from the blob start,
-//!                        in ascending bytewise key order
-//! records, each:
-//!   u8      key_len
-//!   [u8]    key
-//!   u8      value_len
-//!   [u8]    value
+//! ┌───────┬───────────┬───────────┬───┬─────────────┬──────────┬──────────┬───┐
+//! │ u32 n │ offset[0] │ offset[1] │ … │ offset[n-1] │ record 0 │ record 1 │ … │
+//! └───────┴─────┬─────┴───────────┴───┴─────────────┴──────────┴──────────┴───┘
+//!               │  u32 each, from the blob start,       ▲
+//!               └───────────────────────────────────────┘
+//!                  in ascending bytewise key order
+//!
+//! record: ┌─────────┬─────┬───────────┬───────┐
+//!         │ key_len │ key │ value_len │ value │   lengths are u8
+//!         └─────────┴─────┴───────────┴───────┘
 //! ```
+//!
+//! Records vary in length, so the offsets give the random access that
+//! [`Table::get`]'s binary search needs: about log₂ n key comparisons, each
+//! on bytes read in place, with no allocation.
+//!
+//! The reader assumes nothing it could check, even where the data is known:
+//! every read is bounds-checked, every value carries its length although AFM
+//! widths are always two bytes, and the glyph list's values are checked as
+//! UTF-8 although the writer only emits valid text. One format serves every
+//! blob, the crate forbids `unsafe`, and a corrupt blob then reads as a miss
+//! rather than a panic or undefined behaviour, at the cost of a few bytes and
+//! comparisons per lookup.
 //!
 //! The writer is `generate::write_table`, compiled for tests only.
 
@@ -44,8 +58,8 @@ impl<'a> Table<'a> {
         }
     }
 
-    /// The value under `key`, if any. Never panics: a malformed blob reads
-    /// as a table with no matching key.
+    /// The value under `key`, if any, by binary search over the offsets.
+    /// Never panics: a malformed blob reads as a table with no matching key.
     pub(crate) fn get(&self, key: &[u8]) -> Option<&'a [u8]> {
         let (mut low, mut high) = (0, self.len());
         while low < high {
