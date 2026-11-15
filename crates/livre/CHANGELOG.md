@@ -18,20 +18,20 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   and `Page::fonts` to build it
 - Decode simple and `Type3` fonts' character codes to text (ISO 32000-2, 9.10.2):
   `Font::decode` reads `/ToUnicode` first, then the glyph name the font's
-  `Encoding` gives the code, through the Adobe Glyph List and its rules
-  (`uniXXXX`, `uXXXX[XX]`, suffixes and ligature components). `Encoding` is the
-  base table (`StandardEncoding`, `WinAnsiEncoding`, `MacRomanEncoding`,
-  `MacExpertEncoding`, or the built-in Symbol and ZapfDingbats tables) with
-  `/Differences` applied; `Decoder` holds it with the `ToUnicode` map. Composite
-  fonts decode nothing yet, nor do ZapfDingbats glyph names without `/ToUnicode`
-- `CMap<D>`, `ToUnicode` and `UnicodeText`: a `/ToUnicode` CMap's `bfchar` and
-  `bfrange` entries, both range forms, and its codespace; `usecmap` is warned
+  `Encoding` gives the code, through the Adobe Glyph List and its rules (`uniXXXX`,
+  `uXXXX[XX]`, suffixes and ligature components). `Encoding` is the base table
+  (`StandardEncoding`, `WinAnsiEncoding`, `MacRomanEncoding`, `MacExpertEncoding`,
+  or the built-in Symbol and ZapfDingbats tables) with `/Differences` applied;
+  `Decoder` holds it with the `ToUnicode` map. Composite fonts decode nothing yet,
+  nor do ZapfDingbats glyph names without `/ToUnicode`
+- `CMap<D>`, `ToUnicode` and `UnicodeText`: a `/ToUnicode` CMap's `bfchar`
+  and `bfrange` entries, both range forms, and its codespace; `usecmap` is warned
   and ignored
 - `Character`: one per character code of a shown string, with its code, the
   glyph's start and end in default user space, and its text if the font maps it.
   `Run::characters` lists them in string order
-- Widths of the standard 14 fonts from their AFM metrics, through the new
-  `livre-font-data` dependency, for a simple font with no `/Widths`
+- Widths of the standard 14 fonts from their AFM metrics, through the
+  new `livre-font-data` dependency, for a simple font with no `/Widths`
   (`SimpleWidths::Standard`)
 
 ### Fixed
@@ -54,8 +54,7 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Track the line matrix: `Td`, `TD` and `T*` move from the start of the current
   line, not from where the last string ended
 - Apply the text rise `Ts` to the reported positions
-- Give a standard 14 font without `/Widths` its AFM widths: its runs had no
-  extent
+- Give a standard 14 font without `/Widths` its AFM widths: its runs had no extent
 - Accept a page whose `/Resources` has no `/Font` entry: it was rejected
 - Inherit `/Resources` from the parent `/Pages` nodes when a page has none of its
   own
@@ -71,9 +70,9 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   longer public
 - Text object streams yield `Run { start, end, characters, text }`: where the
   shown string starts and ends, each a `Point<DefaultUser>`, its `Character`s,
-  and its decoded text as a `String`, U+FFFD for each code the font does not
-  map. The raw `PDFString` is no longer part of the run; each `Character`
-  carries its `Code`
+  and its decoded text as a `String`, U+FFFD for each code the font does not map.
+  The raw `PDFString` is no longer part of the run; each `Character` carries its
+  `Code`
 - Type matrices and points by coordinate space: `Matrix<From, To>` and `Point<Space>`
   over the `Text`, `User` and `DefaultUser` markers, so composing mismatched
   matrices, or applying a matrix to a point of another space, does not compile
