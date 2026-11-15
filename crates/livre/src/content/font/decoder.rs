@@ -41,10 +41,9 @@ impl Decoder {
         } else {
             None
         };
-        let empty = Differences::default();
         let differences = match encoding {
             Some(EncodingSpec::Dictionary(dict)) => &dict.differences,
-            Some(EncodingSpec::Named(_)) | None => &empty,
+            Some(EncodingSpec::Named(_)) | None => &Differences::default(),
         };
 
         let to_unicode = to_unicode.map(ToUnicode::parse).filter(|cmap| {
