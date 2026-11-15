@@ -8,7 +8,7 @@
 use std::{collections::BTreeMap, fmt::Write};
 
 use winnow::{
-    combinator::{alt, delimited, fail, peek, preceded, repeat},
+    combinator::{alt, delimited, fail, peek},
     dispatch,
     error::ErrMode,
     stream::AsChar,
@@ -69,7 +69,7 @@ fn keyword<'de>(input: &mut &'de BStr) -> ModalResult<&'de [u8]> {
 fn operand(input: &mut &BStr) -> ModalResult<Operand> {
     dispatch! {peek(any);
         b'/' => Name::extract.map(Operand::Name),
-        b'[' => array,
+        b'[' => Vec::extract.map(Operand::Array),
         b'<' => alt((RawDict::recognize.value(Operand::Skipped), hex)),
         b'(' => LiteralString::recognize.value(Operand::Skipped),
         b'0'..=b'9' | b'+' | b'-' | b'.' => number,
@@ -89,14 +89,10 @@ fn number(input: &mut &BStr) -> ModalResult<Operand> {
     .parse_next(input)
 }
 
-fn array(input: &mut &BStr) -> ModalResult<Operand> {
-    delimited(
-        b'[',
-        repeat(0.., preceded(multicomment0, operand)),
-        (multicomment0, b']'),
-    )
-    .map(Operand::Array)
-    .parse_next(input)
+impl Extract<'_> for Operand {
+    fn extract(input: &mut &BStr) -> ModalResult<Self> {
+        operand(input)
+    }
 }
 
 /// A hex string, read digit by digit rather than through
