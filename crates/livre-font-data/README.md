@@ -36,6 +36,17 @@ them with:
 LIVRE_FONT_DATA_UPDATE=1 cargo test -p livre-font-data
 ```
 
+One run is enough for a blob that already exists. A new blob takes one more
+step, because `include_bytes!` needs the file before the crate compiles:
+create it empty, regenerate with the freshness tests alone (the lookup tests
+were compiled against the empty file), then run the tests plainly.
+
+```sh
+touch data/afm/<Font>.bin
+LIVRE_FONT_DATA_UPDATE=1 cargo test -p livre-font-data _fresh
+cargo test -p livre-font-data
+```
+
 ## Licence
 
 See [`LICENSE`](LICENSE), which has three sections:
