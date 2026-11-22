@@ -37,20 +37,18 @@ export function drawLivreLayer(svg: SVGSVGElement, page: Page, viewport: PageVie
     if (object.runs.length === 0) return;
     const box = new Bounds();
     object.runs.forEach((run, runIndex) => {
-      // The height goes straight up in user space, not across the baseline: boxes fit unrotated text only.
-      const corners: Corners = [
-        viewport.convertToViewportPoint(run.start.x, run.start.y),
-        viewport.convertToViewportPoint(run.end.x, run.end.y),
-        viewport.convertToViewportPoint(run.end.x, run.end.y + run.size),
-        viewport.convertToViewportPoint(run.start.x, run.start.y + run.size),
-      ];
-      for (const corner of corners) box.add(...corner);
-      // A quarter of the font size marks each start without hiding the glyphs; straight up, like the box's height.
+      const corners = runCorners(run);
+      const viewportCorners = corners.map(([x, y]) => viewport.convertToViewportPoint(x, y)) as Corners;
+      for (const corner of viewportCorners) box.add(...corner);
+      // A quarter of the font size marks each start without hiding the glyphs, across the
+      // direction of advance: up for a horizontal run, right for a vertical one.
+      const [dx, dy] = isVertical(run) ? [run.size / 4, 0] : [0, run.size / 4];
       const ticks = run.characters.map(({ start }): [Point, Point] => [
         viewport.convertToViewportPoint(start.x, start.y),
-        viewport.convertToViewportPoint(start.x, start.y + run.size / 4),
+        viewport.convertToViewportPoint(start.x + dx, start.y + dy),
       ]);
-      layer.append(runMarker(corners, ticks, objectIndex, runIndex));
+      const origin = viewport.convertToViewportPoint(run.start.x, run.start.y);
+      layer.append(runMarker(viewportCorners, origin, ticks, objectIndex, runIndex));
     });
     // Behind the markers, so it never takes their pointer events.
     layer.prepend(
@@ -69,14 +67,56 @@ export function drawLivreLayer(svg: SVGSVGElement, page: Page, viewport: PageVie
   return layer;
 }
 
-/** A run's box through `corners`, its origin dot, and a tick from each pair of `ticks`. */
+type Run = Page["text_objects"][number]["runs"][number];
+
+/**
+ * Whether `run` advances along y rather than x: a vertical writing mode, whose `end.y` is
+ * below `start.y`. Read from the geometry, so a run rotated by a quarter turn counts too.
+ */
+function isVertical({ start, end }: Pick<Run, "start" | "end">): boolean {
+  return Math.abs(end.y - start.y) > Math.abs(end.x - start.x);
+}
+
+/**
+ * A run's box in user space, start edge first: corners 0 and 3 lie on the start edge,
+ * 1 and 2 on the end edge.
+ *
+ * A horizontal run's box goes one font size straight up from its baseline. A vertical
+ * run's glyphs are centred on the line through its start and end (ISO 32000-2, 9.7.4.3,
+ * the default position vector), so its box is one font size wide around that line.
+ * Either way the box goes straight along user space axes: boxes fit unrotated text only.
+ */
+function runCorners({ start, end, size }: Run): Corners {
+  if (isVertical({ start, end })) {
+    const half = size / 2;
+    return [
+      [start.x - half, start.y],
+      [end.x - half, end.y],
+      [end.x + half, end.y],
+      [start.x + half, start.y],
+    ];
+  }
+  return [
+    [start.x, start.y],
+    [end.x, end.y],
+    [end.x, end.y + size],
+    [start.x, start.y + size],
+  ];
+}
+
+/**
+ * A run's box through `corners`, a dot at its `origin`, and a tick from each pair of
+ * `ticks`. All in viewport coordinates.
+ */
 function runMarker(
   corners: Corners,
+  origin: Point,
   ticks: [Point, Point][],
   objectIndex: number,
   runIndex: number,
 ): SVGGElement {
   const [[bx, by], , , [tx, ty]] = corners;
+  const [ox, oy] = origin;
   const group = element("g", { class: "run", "data-object": objectIndex, "data-run": runIndex });
   group.append(
     element("polygon", { class: "box", points: corners.map(([x, y]) => `${x},${y}`).join(" ") }),
@@ -84,7 +124,7 @@ function runMarker(
     // composite font) can still be hovered without pixel precision.
     element("line", { class: "hit", x1: bx, y1: by, x2: tx, y2: ty }),
     ...ticks.map(([[x1, y1], [x2, y2]]) => element("line", { class: "tick", x1, y1, x2, y2 })),
-    element("circle", { cx: bx, cy: by, r: 2 }),
+    element("circle", { cx: ox, cy: oy, r: 2 }),
   );
   return group;
 }

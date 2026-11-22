@@ -1,16 +1,20 @@
 //! CMaps: mappings from character codes to text or CIDs (ISO 32000-2, 9.7.5 and 9.10.3).
 //!
 //! A [`CMap`] is generic over what it maps codes to. A [`ToUnicode`] CMap maps them to
-//! [`UnicodeText`]. It is read from the decoded bytes of its stream with [`CMap::parse`],
-//! which never fails.
+//! [`UnicodeText`]. An encoding CMap maps them to [`Cid`]s, and is wrapped in an
+//! [`EncodingCMap`] that also covers the predefined identities. A CMap is read from the
+//! decoded bytes of its stream with [`CMap::parse`], which never fails.
 
+mod cid;
 mod parse;
 mod unicode;
 
+pub use cid::{Cid, EncodingCMap};
 pub(crate) use parse::{Destination, Operand};
 pub use unicode::{ToUnicode, UnicodeText};
 
 use super::Code;
+use crate::content::{Displacement, FontSize, Text};
 
 /// A range of byte sequences the CMap defines codes over (ISO 32000-2, 9.7.6.2).
 ///
@@ -23,6 +27,15 @@ pub struct CodespaceRange {
 }
 
 impl CodespaceRange {
+    /// The range of `byte_count`-byte codes from `low` to `high`, inclusive.
+    pub(crate) const fn new(byte_count: u8, low: u32, high: u32) -> Self {
+        Self {
+            byte_count,
+            low,
+            high,
+        }
+    }
+
     /// The number of bytes of every code in the range.
     pub const fn byte_count(&self) -> u8 {
         self.byte_count
@@ -37,6 +50,32 @@ impl CodespaceRange {
     pub const fn high(&self) -> u32 {
         self.high
     }
+
+    /// Whether every byte of `bytes` lies between the matching bytes of `low` and `high`.
+    ///
+    /// The check is byte by byte, not by value (ISO 32000-2, 9.7.6.2): `<8140> <9FFC>` does
+    /// not contain `<81FF>`, whose second byte is above `FC`. `false` when the lengths differ.
+    pub(crate) fn contains(&self, bytes: &[u8]) -> bool {
+        bytes.len() == usize::from(self.byte_count)
+            && bytes
+                .iter()
+                .enumerate()
+                .all(|(index, &byte)| self.byte_interval(index).contains(&byte))
+    }
+
+    /// Whether `byte` lies in the range's interval of first bytes: a partial match
+    /// (ISO 32000-2, 9.7.6.3).
+    pub(crate) fn first_byte_contains(&self, byte: u8) -> bool {
+        self.byte_interval(0).contains(&byte)
+    }
+
+    /// The interval the byte at `index`, counted from the most significant, ranges over.
+    fn byte_interval(&self, index: usize) -> std::ops::RangeInclusive<u8> {
+        let shift = 8 * (usize::from(self.byte_count) - 1 - index);
+        let low = (self.low >> shift) as u8;
+        let high = (self.high >> shift) as u8;
+        low..=high
+    }
 }
 
 /// The direction a CMap lays its glyphs out in, from its `/WMode` entry (ISO 32000-2, 9.7.5.3).
@@ -49,6 +88,52 @@ pub enum WritingMode {
     Vertical,
 }
 
+impl WritingMode {
+    /// The displacement of the current point after a glyph, in text space. ISO 32000-2,
+    /// 9.4.4:
+    ///
+    /// > tx = ((w0 − Tj/1000) × Tfs + Tc + Tw) × Th
+    /// >
+    /// > ty = (w1 − Tj/1000) × Tfs + Tc + Tw
+    ///
+    /// `glyph` is the font's displacement for the glyph at size 1, `(w0, 0)` or `(0, w1)`.
+    /// `spacing` is `Tc + Tw`, or `Tc` where word spacing does not apply. The
+    /// `horizontal_scaling` `Th` is a percentage and applies to the horizontal mode only.
+    /// The `Tj` term is [`adjustment`](Self::adjustment)'s.
+    pub(crate) fn advance(
+        self,
+        glyph: Displacement<Text>,
+        FontSize(size): FontSize,
+        spacing: f32,
+        horizontal_scaling: f32,
+    ) -> Displacement<Text> {
+        match self {
+            Self::Horizontal => Displacement::new(
+                (glyph.dx * size + spacing) * horizontal_scaling / 100.0,
+                0.0,
+            ),
+            Self::Vertical => Displacement::new(0.0, glyph.dy * size + spacing),
+        }
+    }
+
+    /// The displacement of a number `n` of a `TJ` array, in thousandths of a unit of glyph
+    /// space: the `−Tj/1000 × Tfs` term of the formulas in [`advance`](Self::advance),
+    /// scaled by the percentage `horizontal_scaling` in the horizontal mode only. A positive
+    /// `n` moves left, or up in the vertical mode.
+    pub(crate) fn adjustment(
+        self,
+        n: f32,
+        FontSize(size): FontSize,
+        horizontal_scaling: f32,
+    ) -> Displacement<Text> {
+        let shift = -n / 1000.0 * size;
+        match self {
+            Self::Horizontal => Displacement::new(shift * horizontal_scaling / 100.0, 0.0),
+            Self::Vertical => Displacement::new(0.0, shift),
+        }
+    }
+}
+
 /// A mapping from character codes to `D`, as a ToUnicode or an encoding CMap defines it.
 ///
 /// Ranges are kept as ranges: an identity range over two bytes is one entry, not 65536.
@@ -59,7 +144,12 @@ pub struct CMap<D> {
     singles: Vec<(Code, D)>,
     /// `bfrange` and `cidrange` entries, sorted by `low`.
     ranges: Vec<Range<D>>,
-    writing_mode: WritingMode,
+    /// From `/WMode n def` in the body, or `usecmap` of `Identity-V`; `None` when neither
+    /// appears, so that a stream dictionary's `/WMode` can stand in.
+    writing_mode: Option<WritingMode>,
+    /// Whether the body reads `/Identity-H usecmap` or `/Identity-V usecmap`: codes it does
+    /// not map fall back to the identity.
+    use_identity: bool,
 }
 
 impl<D> Default for CMap<D> {
@@ -68,7 +158,8 @@ impl<D> Default for CMap<D> {
             codespace: Vec::new(),
             singles: Vec::new(),
             ranges: Vec::new(),
-            writing_mode: WritingMode::default(),
+            writing_mode: None,
+            use_identity: false,
         }
     }
 }
@@ -127,8 +218,71 @@ impl<D> CMap<D> {
         self.singles.is_empty() && self.ranges.is_empty()
     }
 
-    /// The writing mode, from `/WMode`.
+    /// The writing mode, from `/WMode`; horizontal when the body declares none.
     pub fn writing_mode(&self) -> WritingMode {
-        self.writing_mode
+        self.writing_mode.unwrap_or_default()
+    }
+
+    /// Whether the CMap inherits from `Identity-H` or `Identity-V` through `usecmap`.
+    pub fn use_identity(&self) -> bool {
+        self.use_identity
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::rstest;
+
+    fn assert_displacement(actual: Displacement<Text>, (dx, dy): (f32, f32)) {
+        assert!(
+            (actual.dx - dx).abs() < 1e-4 && (actual.dy - dy).abs() < 1e-4,
+            "expected ({dx}, {dy}), got ({}, {})",
+            actual.dx,
+            actual.dy
+        );
+    }
+
+    #[rstest]
+    // 0.556 · 12.
+    #[case(WritingMode::Horizontal, (0.556, 0.0), 0.0, 100.0, (6.672, 0.0))]
+    // (0.556 · 12 + 3) · 50/100.
+    #[case(WritingMode::Horizontal, (0.556, 0.0), 3.0, 50.0, (4.836, 0.0))]
+    // −0.5 · 12.
+    #[case(WritingMode::Vertical, (0.0, -0.5), 0.0, 100.0, (0.0, -6.0))]
+    // −1 · 12 + 1: `Th` does not apply vertically.
+    #[case(WritingMode::Vertical, (0.0, -1.0), 1.0, 50.0, (0.0, -11.0))]
+    fn advance(
+        #[case] mode: WritingMode,
+        #[case] (dx, dy): (f32, f32),
+        #[case] spacing: f32,
+        #[case] scaling: f32,
+        #[case] expected: (f32, f32),
+    ) {
+        let advance = mode.advance(Displacement::new(dx, dy), FontSize(12.0), spacing, scaling);
+        assert_displacement(advance, expected);
+    }
+
+    #[rstest]
+    // 500/1000 · 12 · 50/100, right.
+    #[case(WritingMode::Horizontal, (3.0, 0.0))]
+    // 500/1000 · 12, up: `Th` does not apply vertically.
+    #[case(WritingMode::Vertical, (0.0, 6.0))]
+    fn adjustment(#[case] mode: WritingMode, #[case] expected: (f32, f32)) {
+        assert_displacement(mode.adjustment(-500.0, FontSize(12.0), 50.0), expected);
+    }
+
+    #[rstest]
+    #[case(&[0x81, 0x40], true)]
+    #[case(&[0x9F, 0xFC], true)]
+    #[case(&[0x90, 0x80], true)]
+    // In by value, out by its second byte.
+    #[case(&[0x81, 0xFF], false)]
+    #[case(&[0x80, 0x50], false)]
+    #[case(&[0x81], false)]
+    fn contains(#[case] bytes: &[u8], #[case] expected: bool) {
+        let range = CodespaceRange::new(2, 0x8140, 0x9FFC);
+
+        assert_eq!(range.contains(bytes), expected);
     }
 }

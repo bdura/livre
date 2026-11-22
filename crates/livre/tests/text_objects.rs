@@ -373,7 +373,7 @@ fn encodings_runs_decode_and_advance_as_expected() {
 /// `letter.pdf` uses `WinAnsiEncoding` TrueType fonts for its header: the first text
 /// objects show a single space each, and text object 42 (`/F3`, Times New Roman Bold) is
 /// the first to show words, split into runs by its `TJ` offsets. Text object 60 has an
-/// accented capital, `0xC9` in WinAnsi.
+/// accented capital, `0xC9` in WinAnsi. Text objects 211 and 227 are in a composite font.
 #[test]
 fn letter_header_decodes_to_words() {
     let runs = font_runs("tests/resources/letter.pdf");
@@ -391,30 +391,114 @@ fn letter_header_decodes_to_words() {
 
     assert_eq!(text_of(42), "Groupe Hospitalier Henri Mondor");
     assert_eq!(text_of(60), "SANTÉ PUBLIQUE");
+
+    // `/F7` is Calibri, an `Identity-H` `Type0` font with a `/ToUnicode`. pdf.js 6.5.438
+    // reads its items `l’attention` at `x = 370.139` and `l’APHP,` at `x = 453.46`.
+    assert_eq!(text_of(211), "A l’attention ");
+    assert_eq!(text_of(227), "l’APHP, ");
+    let start_of = |index: usize| {
+        runs.iter()
+            .find(|(object, _)| *object == index)
+            .unwrap()
+            .1
+            .x
+    };
+    let attention = runs
+        .iter()
+        .find(|(object, run)| *object == 211 && run.text.starts_with('l'))
+        .unwrap();
+    assert!((attention.1.x - 370.139).abs() < 0.5, "{}", attention.1.x);
+    assert!((start_of(227) - 453.46).abs() < 0.5, "{}", start_of(227));
 }
 
-/// `text.pdf` shows every string in `Type0` fonts with two-byte codes, which livre does
-/// not decode yet: every run is replacement characters only, one per code. Decoding
-/// composite fonts turns this around.
+/// `composite.pdf` has three `Type0` fonts: `Identity-H` with `/W` and `/DW`, an embedded
+/// CMap mixing one- and two-byte codespaces, and on page two `Identity-V` with `/W2` and
+/// the default `/DW2`. `composite.txt` shows the arithmetic.
+#[test]
+fn composite_runs_advance_by_their_cid_widths() {
+    let actual = runs("tests/resources/composite.pdf");
+    assert_eq!(read_sidecar("tests/resources/composite.txt").len(), 5);
+    assert_matches_sidecar(&actual, "tests/resources/composite.txt");
+
+    // `<41814041>` through the `/Mixed` CMap: `<41>`, `<8140>`, `<41>`.
+    let byte_counts: Vec<u8> = actual[1]
+        .characters
+        .iter()
+        .map(|character| character.code.byte_count())
+        .collect();
+    assert_eq!(byte_counts, [1, 2, 1]);
+}
+
+/// `text.pdf` (Skia) shows every glyph with its own `Td … Tj` in an `Identity-H` `Type0`
+/// font with `/W` and `/ToUnicode`, one text object per word. Its first line, as pdf.js
+/// 6.5.438 reads it (`getTextContent`, a single item for the whole line):
+/// `str` below, origin `(72, 709.6821)`, width `454.6285`.
 #[rstest]
 #[case("tests/resources/text.pdf")]
 #[case("tests/resources/text-xref-stream.pdf")]
-fn composite_runs_are_replacement_characters(#[case] path: &str) {
-    let runs = runs(path);
-    assert!(!runs.is_empty());
+fn text_pdf_first_line_matches_pdfjs(#[case] path: &str) {
+    const LINE: &str =
+        "Longtemps, je me suis couché de bonne heure. Parfois, à peine ma bougie éteinte, mes yeux";
+    const ORIGIN: (f32, f32) = (72.0, 709.6821);
+    const WIDTH: f32 = 454.6285;
 
-    for (i, run) in runs.iter().enumerate() {
+    let runs = runs(path);
+    let line: Vec<&Run> = runs
+        .iter()
+        .take_while(|run| (run.start.y - ORIGIN.1).abs() < 0.5)
+        .collect();
+
+    assert!(
+        line.iter().all(|run| run
+            .characters
+            .iter()
+            .all(|character| character.code.byte_count() == 2 && character.text.is_some())),
+        "every code is two bytes and decodes"
+    );
+
+    // pdf.js puts a space between words, which `text.pdf` separates by position only.
+    let words: Vec<String> = font_runs(path)
+        .into_iter()
+        .take(line.len())
+        .fold(
+            Vec::new(),
+            |mut words: Vec<(usize, String)>, (object, run)| {
+                match words.last_mut() {
+                    Some((last, word)) if *last == object => word.push_str(&run.text),
+                    _ => words.push((object, run.text)),
+                }
+                words
+            },
+        )
+        .into_iter()
+        .map(|(_, word)| word)
+        .collect();
+    assert_eq!(words.join(" "), LINE);
+
+    let first = line[0];
+    let last = line[line.len() - 1];
+    assert!(
+        (first.start.x - ORIGIN.0).abs() < 0.5 && (first.start.y - ORIGIN.1).abs() < 0.5,
+        "line start: {:?}",
+        first.start
+    );
+    assert!(
+        (last.end.x - (ORIGIN.0 + WIDTH)).abs() < 0.5,
+        "line end: expected {}, got {}",
+        ORIGIN.0 + WIDTH,
+        last.end.x
+    );
+
+    // Inside a word every glyph starts where the previous one ended: the `Td` that places
+    // it matches the `/W` advance, instead of every run collapsing onto its start.
+    for pair in line.windows(2) {
+        let (gap, run) = (pair[1].start.x - pair[0].end.x, pair[0]);
         assert!(
-            run.text.chars().all(|c| c == '\u{FFFD}'),
-            "run {i}: {:?}",
-            run.text
+            gap > -0.5,
+            "{:?} overlaps the next run by {}",
+            run.text,
+            -gap
         );
-        assert_eq!(run.characters.len(), run.text.chars().count(), "run {i}");
-        assert!(
-            run.characters
-                .iter()
-                .all(|character| character.code.byte_count() == 2 && character.text.is_none()),
-            "run {i}"
-        );
+        assert!(run.end.x - run.start.x > 0.0, "{:?} has no width", run.text);
     }
 }

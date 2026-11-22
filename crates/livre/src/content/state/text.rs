@@ -299,40 +299,39 @@ impl<'a, 'f> TextObject<'a, 'f> {
     /// [`Character`] per code.
     ///
     /// The selected font splits the string into codes. Each code advances the text matrix
-    /// horizontally by `tx = (w0 · Tfs + Tc + Tw) · Th` (ISO 32000-2, 9.4.4), where `w0` is
-    /// the glyph width through the font's glyph-to-text matrix and `Tw` applies to the
-    /// one-byte code 32 only. With no font selected, nothing advances and the run has no
+    /// by the displacement of ISO 32000-2, 9.4.4, along its font's
+    /// [writing mode](Font::writing_mode), from the code's
+    /// [glyph displacement](Font::glyph_displacement); `Tw` applies to the one-byte code 32
+    /// only. With no font selected, nothing advances and the run has no
     /// characters.
     pub fn show(&mut self, string: &PDFString) -> Run {
         let start = self.origin();
         let mut characters = Vec::new();
         let mut text = String::new();
 
-        if let Some(SelectedFont {
-            font,
-            size: FontSize(size),
-            ..
-        }) = self.parameters.font
-        {
-            let glyph_to_text = font.glyph_to_text();
+        if let Some(SelectedFont { font, size, .. }) = self.parameters.font {
+            let mode = font.writing_mode();
             let TextStateParameters {
                 character_spacing,
                 word_spacing,
                 horizontal_scaling,
                 ..
             } = *self.parameters;
-            let scaling = horizontal_scaling / 100.0;
 
             for code in font.codes(string) {
                 let start = self.origin();
-                let w0 = glyph_to_text.apply_width(font.width(code));
                 let spacing = if code.word_spacing_applies() {
                     character_spacing + word_spacing
                 } else {
                     character_spacing
                 };
-                let tx = (w0.dx * size + spacing) * scaling;
-                self.matrix.translate(Displacement::new(tx, 0.0));
+                let shift = mode.advance(
+                    font.glyph_displacement(code),
+                    size,
+                    spacing,
+                    horizontal_scaling,
+                );
+                self.matrix.translate(shift);
 
                 let decoded = font.decode(code);
                 match &decoded {
@@ -367,13 +366,15 @@ impl<'a, 'f> TextObject<'a, 'f> {
             match buffer.pop_front()? {
                 TextArrayElement::Text(text) => return Some(self.show(&text)),
                 TextArrayElement::Offset(offset) => {
-                    // ISO 32000-2, 9.4.4: tx = -n/1000 · Tfs · Th, the offset being in
-                    // thousandths of a unit of glyph space.
-                    let size = self.parameters.font.as_ref().map_or(0.0, |f| f.size.0);
-                    let scaling = self.parameters.horizontal_scaling / 100.0;
-                    let shift: Displacement<Text> =
-                        Displacement::new(-offset / 1_000.0 * size * scaling, 0.0);
-                    self.matrix.translate(shift);
+                    // With no font selected the size is zero: the offset moves nothing.
+                    if let Some(SelectedFont { font, size, .. }) = &self.parameters.font {
+                        let shift = font.writing_mode().adjustment(
+                            offset,
+                            *size,
+                            self.parameters.horizontal_scaling,
+                        );
+                        self.matrix.translate(shift);
+                    }
                 }
             }
         }
@@ -1093,13 +1094,18 @@ mod advance_tests {
         .into_bytes()
     }
 
-    /// `F1` is [`helvetica`]; `F2` the `Type0` placeholder; `F3` a `Type3` font whose `a` is
+    /// `F1` is [`helvetica`]; `F2` an `Identity-H` `Type0` font whose `A`
+    /// (CID 65) is 500 wide and every other CID zero; `F3` a `Type3` font whose `a` is
     /// 50 units of a 1/100 glyph space; `F4` a font whose only width is `a`'s, with a
     /// `/MissingWidth` of 250.
     static FONTS: std::sync::LazyLock<Fonts> = std::sync::LazyLock::new(|| {
         fonts(&[
             ("F1", &helvetica()),
-            ("F2", b"<</Type/Font/Subtype/Type0/BaseFont/Calibri/Encoding/Identity-H>>"),
+            (
+                "F2",
+                b"<</Type/Font/Subtype/Type0/BaseFont/Calibri/Encoding/Identity-H\
+                  /DescendantFonts[<</Type/Font/Subtype/CIDFontType2/BaseFont/Calibri/DW 0/W[65[500]]>>]>>",
+            ),
             (
                 "F3",
                 b"<</Type/Font/Subtype/Type3/FontMatrix[0.01 0 0 0.01 0 0]/FirstChar 97/LastChar 97/Widths[50]>>",
@@ -1176,7 +1182,7 @@ mod advance_tests {
     #[test]
     fn word_spacing_skips_two_byte_codes() {
         // `A ` is the two-byte code 0x4120 and the odd `B` is dropped; `<0020>` is the
-        // two-byte code 32. Both are zero wide, and `Tw` applies to neither: 0.
+        // two-byte code 32. Both take `/DW` 0, and `Tw` applies to neither: 0.
         let runs = runs(b"BT /F2 10 Tf 2 Tw (A B) Tj <0020> Tj ET");
         assert_close(runs[0].end, (0.0, 0.0));
         assert_close(runs[1].end, (0.0, 0.0));
@@ -1205,14 +1211,20 @@ mod advance_tests {
 
     #[test]
     #[tracing_test::traced_test]
-    fn composite_fonts_advance_by_the_character_spacing_only() {
-        // Two two-byte codes, zero wide: 2 · 1 Tc.
+    fn composite_fonts_advance_by_their_cid_widths() {
+        // `A` is 500/1000 · 10, `B` past `/W` gets `/DW` 0; plus 1 Tc each.
         let run = run(b"BT /F2 10 Tf 1 Tc 3 0 Td (\\000A\\000B) Tj ET");
         assert_close(run.start, (3.0, 0.0));
-        assert_close(run.end, (3.0 + 2.0, 0.0));
-        assert!(logs_contain(
-            "is composite: its glyphs are given zero width"
-        ));
+        assert_close(run.end, (3.0 + 5.0 + 1.0 + 1.0, 0.0));
+        // `FONTS` may be built in this test, so the `Type3` font's own warning can show.
+        logs_assert(|lines: &[&str]| {
+            match lines.iter().find(|line| {
+                line.contains(" WARN ") && !line.contains("livre::content::font::type3")
+            }) {
+                Some(line) => Err(format!("unexpected warning: {line}")),
+                None => Ok(()),
+            }
+        });
     }
 
     #[test]
@@ -1335,5 +1347,88 @@ mod character_tests {
         assert_close(run.characters[0].start, (20.0, 40.0));
         assert_close(run.characters[0].end, (36.008, 40.0));
         assert_close(run.characters[1].end, (52.016, 40.0));
+    }
+}
+
+#[cfg(test)]
+mod vertical_tests {
+    use super::*;
+    use crate::content::font::tests::composite_f3;
+
+    /// `F3` is `/F3` of `composite.pdf`: `Identity-V`, `X` (CID 1) advancing by `-500` and
+    /// `Y` (CID 2) by the default `/DW2` `-1000`.
+    static FONTS: std::sync::LazyLock<Fonts> =
+        std::sync::LazyLock::new(|| [(Name::from("F3"), composite_f3())].into_iter().collect());
+
+    /// Every run of a content stream, selecting from [`FONTS`].
+    fn runs(input: &[u8]) -> Vec<Run> {
+        let mut objects = TextObjects::new(super::tests::operators(input).into_iter(), &FONTS);
+        let mut runs = Vec::new();
+        while let Some(stream) = objects.next_object().unwrap() {
+            runs.extend(stream);
+        }
+        runs
+    }
+
+    /// The single run of a content stream.
+    fn run(input: &[u8]) -> Run {
+        let runs = runs(input);
+        assert_eq!(runs.len(), 1, "{runs:?}");
+        runs.into_iter().next().unwrap()
+    }
+
+    fn assert_close(Point { x, y, .. }: Point<DefaultUser>, (ex, ey): (f32, f32)) {
+        assert!(
+            (x - ex).abs() < 1e-4 && (y - ey).abs() < 1e-4,
+            "expected ({ex}, {ey}), got ({x}, {y})"
+        );
+    }
+
+    #[test]
+    fn vertical_glyphs_advance_down_by_their_w1() {
+        // `X`: -500/1000 · 12 = -6; `Y`: -1000/1000 · 12 = -12.
+        let run = run(b"BT /F3 12 Tf 300 700 Td <00010002> Tj ET");
+        assert_eq!(run.text, "XY");
+        let [x, y] = run.characters.as_slice() else {
+            panic!("expected two characters, got {:?}", run.characters);
+        };
+        assert_eq!(x.text.as_deref(), Some("X"));
+        assert_close(x.start, (300.0, 700.0));
+        assert_close(x.end, (300.0, 694.0));
+        assert_eq!(y.text.as_deref(), Some("Y"));
+        assert_close(y.start, (300.0, 694.0));
+        assert_close(y.end, (300.0, 682.0));
+        assert_close(run.start, (300.0, 700.0));
+        assert_close(run.end, (300.0, 682.0));
+    }
+
+    #[test]
+    fn character_spacing_moves_vertical_glyphs_up() {
+        // Each `Y`: -12 + 1 = -11.
+        let run = run(b"BT /F3 12 Tf 1 Tc 300 600 Td <00020002> Tj ET");
+        assert_close(run.start, (300.0, 600.0));
+        assert_close(run.end, (300.0, 578.0));
+    }
+
+    #[test]
+    fn horizontal_scaling_leaves_vertical_runs_alone() {
+        let runs = runs(
+            b"BT /F3 12 Tf 50 Tz 300 700 Td <00010002> Tj ET \
+              BT /F3 12 Tf 1 Tc 300 600 Td <00020002> Tj ET",
+        );
+        assert_close(runs[0].end, (300.0, 682.0));
+        assert_close(runs[1].end, (300.0, 578.0));
+    }
+
+    #[test]
+    fn tj_offset_moves_along_y() {
+        // `X` ends at 694; a positive offset moves down (ISO 32000-2, Table 107):
+        // 500/1000 · 12 = 6, unscaled by `Tz`.
+        let down = runs(b"BT /F3 12 Tf 50 Tz 300 700 Td [<0001> 500 <0002>] TJ ET");
+        assert_close(down[0].end, (300.0, 694.0));
+        assert_close(down[1].start, (300.0, 688.0));
+        // And a negative one up: back to 700.
+        let up = runs(b"BT /F3 12 Tf 300 700 Td [<0001> -500 <0002>] TJ ET");
+        assert_close(up[1].start, (300.0, 700.0));
     }
 }
