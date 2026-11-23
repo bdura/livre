@@ -129,10 +129,9 @@ impl Build for Catalog {
         let pages: Reference<PageTreeNode> = dict
             .pop(&"Pages".into())
             .ok_or(ErrMode::Cut(ContextError::new()))?
-            .extract()
-            .unwrap();
+            .extract()?;
 
-        let pages = builder.build_reference(pages).unwrap();
+        let pages = builder.build_reference(pages)?;
 
         Ok(Self {
             page_mode,
@@ -144,11 +143,21 @@ impl Build for Catalog {
 
 #[cfg(test)]
 mod tests {
-    use std::fmt::Debug;
+    use std::{collections::HashMap, fmt::Debug};
 
     use rstest::rstest;
 
+    use crate::extraction::ReferenceId;
+
     use super::*;
+
+    #[rstest]
+    #[case::pages_not_a_reference(b"<</Type/Catalog/Pages 3>>")]
+    #[case::pages_target_missing(b"<</Type/Catalog/Pages 3 0 R>>")]
+    fn malformed_pages_is_an_error(#[case] input: &[u8]) {
+        let objects: HashMap<ReferenceId, &BStr> = HashMap::new();
+        assert!(Catalog::build(&mut input.as_ref(), &objects).is_err());
+    }
 
     #[rstest]
     #[case(b"/SinglePage", PageLayout::SinglePage)]
