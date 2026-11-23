@@ -94,52 +94,41 @@ impl Extract<'_> for InMemoryDocument {
         let input = *i;
 
         let StartXRef(start) = StartXRef::find(i)?;
-        let i = &mut input
-            .get(start..)
-            .map(BStr::new)
-            .ok_or(ErrMode::Cut(ContextError::new()))?;
 
         // Sections are visited newest-first, so the first entry seen for an object wins.
         let mut cross_references = HashMap::new();
-        let mut visited = HashSet::from([start]);
-
-        let XRefTrailerBlock {
-            trailer:
-                Trailer {
-                    root,
-                    size: _,
-                    id: _,
-                    mut prev,
-                },
-            xrefs,
-        } = extract(i)?;
-        for (id, location) in xrefs {
-            cross_references.entry(id).or_insert(location);
-        }
+        let mut root = None;
+        let mut visited = HashSet::new();
+        let mut next = Some(start);
 
         // A `/Prev` pointing at an already visited section would loop forever.
-        while let Some(p) = prev.filter(|&p| visited.insert(p)) {
+        while let Some(offset) = next.filter(|&o| visited.insert(o)) {
             let i = &mut input
-                .get(p..)
+                .get(offset..)
                 .map(BStr::new)
                 .ok_or(ErrMode::Cut(ContextError::new()))?;
 
+            // Older trailers are parsed in full, `/Root` included, though only the newest is used.
             let XRefTrailerBlock {
                 xrefs,
                 trailer:
                     Trailer {
                         size: _,
-                        prev: previous,
-                        root: _,
+                        prev,
+                        root: section_root,
                         id: _,
                     },
             } = extract(i)?;
             for (id, location) in xrefs {
                 cross_references.entry(id).or_insert(location);
             }
+            root.get_or_insert(section_root);
 
-            prev = previous;
+            next = prev;
         }
+
+        // The first turn always runs, so `root` is set; erroring keeps the crate panic-free.
+        let root = root.ok_or(ErrMode::Cut(ContextError::new()))?;
 
         let builder = InMemoryBuilder {
             input: input.to_vec(),
@@ -181,6 +170,43 @@ mod tests {
     fn prev_past_the_end_is_an_error() {
         let input = b"xref\n0 1\n0000000000 65535 f \ntrailer\n<</Size 1/Root 1 0 R/Prev 99999>>\nstartxref\n0\n%%EOF\n";
         assert!(InMemoryDocument::extract(&mut input.as_slice().as_ref()).is_err());
+    }
+
+    #[test]
+    fn prev_cycle_terminates() {
+        let input = b"xref\n0 1\n0000000000 65535 f \ntrailer\n<</Size 1/Root 1 0 R/Prev 0>>\nstartxref\n0\n%%EOF\n";
+        // Only termination matters here: `Ok` and `Err` are both acceptable.
+        let _ = InMemoryDocument::extract(&mut input.as_slice().as_ref());
+    }
+
+    #[test]
+    fn newest_section_wins() {
+        let catalog = "1 0 obj\n<</Type/Catalog/Pages 2 0 R>>\nendobj\n";
+        let pages = "2 0 obj\n<</Type/Pages/Kids[]/Count 0>>\nendobj\n";
+
+        let mut input = String::from("%PDF-1.7\n");
+        let old_catalog = input.len();
+        input += catalog;
+        let pages_offset = input.len();
+        input += pages;
+        let old_xref = input.len();
+        input += &format!(
+            "xref\n0 3\n0000000000 65535 f \n{old_catalog:010} 00000 n \n{pages_offset:010} 00000 n \n\
+             trailer\n<</Size 3/Root 1 0 R>>\n"
+        );
+        let new_catalog = input.len();
+        input += catalog;
+        let new_xref = input.len();
+        input += &format!(
+            "xref\n0 2\n0000000000 65535 f \n{new_catalog:010} 00000 n \n\
+             trailer\n<</Size 3/Root 1 0 R/Prev {old_xref}>>\nstartxref\n{new_xref}\n%%EOF\n"
+        );
+
+        let document = InMemoryDocument::extract(&mut input.as_bytes().as_ref()).unwrap();
+        assert_eq!(
+            document.builder.xrefs[&ReferenceId::from((1, 0))],
+            RefLocation::Plain(new_catalog)
+        );
     }
 
     #[test]
