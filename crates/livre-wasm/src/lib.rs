@@ -1,7 +1,8 @@
 //! The wasm glue behind livre's browser demo: one call turns PDF bytes into the
 //! [`Analysis`] the page draws.
 //!
-//! [`analyze`] is plain Rust and runs natively; only [`analyze_pdf`] needs a JS runtime.
+//! [`analyze()`] is plain Rust and runs natively; only `analyze_pdf`, built for
+//! wasm32 alone, needs a JS runtime.
 
 mod analyze;
 pub mod dto;
@@ -14,7 +15,7 @@ pub use dto::{
 #[cfg(target_arch = "wasm32")]
 use {tsify::Ts, wasm_bindgen::prelude::*};
 
-/// [`analyze`], serialised to a plain JS object declared as the `Analysis` interface.
+/// [`analyze()`], serialised to a plain JS object declared as the `Analysis` interface.
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn analyze_pdf(bytes: &[u8]) -> Ts<Analysis> {

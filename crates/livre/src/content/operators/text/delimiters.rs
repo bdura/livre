@@ -6,7 +6,7 @@ use crate::extraction::Extract;
 ///
 /// > Begin a text object, initializing the text matrix $T_m$ and the text line matrix
 /// > $T_{lm}$, to the identity matrix. Text objects shall not be nested; a second
-/// > `BeginText` shall not apear before an [`EndText`](EndText).
+/// > `BeginText` shall not apear before an [`EndText`].
 ///
 /// In Livre, when the iterator over the operators encounters a `BT` tag, we generate a
 /// text object and starts adding text operators to it.
