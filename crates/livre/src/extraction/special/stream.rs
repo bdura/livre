@@ -106,17 +106,22 @@ where
     }
 }
 
-impl<'de, T> Extract<'de> for Stream<T>
-where
-    T: FromRawDict<'de>,
-{
-    fn extract(input: &mut &'de BStr) -> ModalResult<Self> {
+impl<T> Stream<T> {
+    /// Parses a stream, turning its raw dictionary into a [`StreamDict`] with `read_dict`.
+    ///
+    /// `Extract` and `Build` differ only in that step; the `livre-stream` trace and the content
+    /// extraction are shared here.
+    fn parse_with<'de>(
+        input: &mut &'de BStr,
+        // `FnMut`, not `FnOnce`: `trace` needs a parser it can call repeatedly.
+        mut read_dict: impl FnMut(&mut RawDict<'de>) -> ModalResult<StreamDict<T>>,
+    ) -> ModalResult<Self> {
         trace("livre-stream", move |i: &mut &'de BStr| {
             let mut dict: RawDict = extract(i)?;
             let StreamDict {
                 mut config,
                 structured,
-            } = StreamDict::from_raw_dict(&mut dict)?;
+            } = read_dict(&mut dict)?;
 
             let content = config.parse_next(i)?;
 
@@ -129,6 +134,15 @@ where
     }
 }
 
+impl<'de, T> Extract<'de> for Stream<T>
+where
+    T: FromRawDict<'de>,
+{
+    fn extract(input: &mut &'de BStr) -> ModalResult<Self> {
+        Self::parse_with(input, StreamDict::from_raw_dict)
+    }
+}
+
 impl<T> Build for Stream<T>
 where
     T: BuildFromRawDict,
@@ -137,21 +151,7 @@ where
     where
         B: Builder,
     {
-        trace("livre-stream", move |i: &mut &BStr| {
-            let mut dict: RawDict = extract(i)?;
-            let StreamDict {
-                mut config,
-                structured,
-            } = StreamDict::build_from_raw_dict(&mut dict, builder)?;
-
-            let content = config.parse_next(i)?;
-
-            Ok(Self {
-                structured,
-                content,
-            })
-        })
-        .parse_next(input)
+        Self::parse_with(input, |dict| StreamDict::build_from_raw_dict(dict, builder))
     }
 }
 
