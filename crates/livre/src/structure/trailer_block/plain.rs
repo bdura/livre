@@ -6,7 +6,7 @@ use std::{fmt::Debug, str::FromStr};
 use winnow::{
     ascii::line_ending,
     combinator::{alt, delimited, iterator, repeat, separated_pair, terminated, trace},
-    error::ContextError,
+    error::{ContextError, ErrMode},
     token::take_while,
     BStr, ModalParser, ModalResult, Parser,
 };
@@ -24,9 +24,8 @@ where
     move |input: &mut &'de BStr| {
         let num = take_while(count, b'0'..=b'9').parse_next(input)?;
         let num = unsafe { std::str::from_utf8_unchecked(num) };
-        let n = num.parse().expect("correct by construction");
-
-        Ok(n)
+        // Only digits, but a value past `T` (a generation above 65535) still fails.
+        num.parse().map_err(|_| ErrMode::Cut(ContextError::new()))
     }
 }
 
@@ -127,6 +126,11 @@ mod tests {
     fn extract_ref_entry(#[case] input: &[u8], #[case] expected: (usize, u16, bool)) {
         let result = xref_entry(&mut input.as_ref()).unwrap();
         assert_eq!(expected, result)
+    }
+
+    #[test]
+    fn generation_overflowing_u16_is_an_error() {
+        assert!(xref_entry(&mut b"0000000000 99999 n\r\n".as_slice().as_ref()).is_err());
     }
 
     #[rstest]

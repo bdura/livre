@@ -46,9 +46,8 @@ pub struct ObjectStream {
 impl ObjectStream {
     /// Get the byte stream associated with a reference.
     fn get_data(&self, reference: &ReferenceId) -> Option<&BStr> {
-        self.map
-            .get(reference)
-            .map(|&offset| self.content[offset..].as_ref())
+        let &offset = self.map.get(reference)?;
+        self.content.get(offset..).map(AsRef::as_ref)
     }
 }
 
@@ -101,7 +100,9 @@ impl Build for ObjectStream {
                 content,
             } = builder.as_parser().parse_next(i)?;
 
-            let (i, content) = content.split_at(first);
+            let (i, content) = content
+                .split_at_checked(first)
+                .ok_or(ErrMode::Cut(ContextError::new()))?;
             let content = content.to_vec();
 
             let mut stream_dict = BStr::new(&i);
@@ -140,6 +141,27 @@ mod tests {
     use super::*;
 
     use indoc::indoc;
+
+    #[test]
+    fn first_past_the_content_is_an_error() {
+        let input =
+            b"<</Type/ObjStm/Length 18/N 2/First 100>>\nstream\n11 0 12 50\ntrue 42\nendstream";
+        let result: ModalResult<ObjectStream> =
+            ().as_parser().parse_next(&mut input.as_slice().as_ref());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn object_offset_past_the_content_is_an_error() {
+        let input =
+            b"<</Type/ObjStm/Length 18/N 2/First 11>>\nstream\n11 0 12 50\ntrue 42\nendstream";
+        let stream: ObjectStream =
+            ().as_parser()
+                .parse_next(&mut input.as_slice().as_ref())
+                .unwrap();
+        let result: ModalResult<bool> = stream.build_object(&(12, 0).into(), &());
+        assert!(result.is_err());
+    }
 
     #[test]
     fn object_stream() {

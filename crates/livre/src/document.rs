@@ -26,7 +26,9 @@ impl Builder for HashMap<ReferenceId, &BStr> {
             inner,
         } = Indirect::parse(input, self.as_parser())?;
 
-        debug_assert_eq!(reference_id, id);
+        if reference_id != id {
+            return Err(ErrMode::Cut(ContextError::new()));
+        }
 
         Ok(inner)
     }
@@ -63,7 +65,9 @@ impl Builder for InMemoryBuilder {
                     inner,
                 } = Indirect::parse(input, self.as_parser())?;
 
-                debug_assert_eq!(reference_id, id);
+                if reference_id != id {
+                    return Err(ErrMode::Cut(ContextError::new()));
+                }
 
                 Ok(inner)
             }
@@ -90,7 +94,10 @@ impl Extract<'_> for InMemoryDocument {
         let input = *i;
 
         let StartXRef(start) = StartXRef::find(i)?;
-        let i = &mut &input[start..];
+        let i = &mut input
+            .get(start..)
+            .map(BStr::new)
+            .ok_or(ErrMode::Cut(ContextError::new()))?;
 
         // Sections are visited newest-first, so the first entry seen for an object wins.
         let mut cross_references = HashMap::new();
@@ -112,7 +119,10 @@ impl Extract<'_> for InMemoryDocument {
 
         // A `/Prev` pointing at an already visited section would loop forever.
         while let Some(p) = prev.filter(|&p| visited.insert(p)) {
-            let i = &mut &input[p..];
+            let i = &mut input
+                .get(p..)
+                .map(BStr::new)
+                .ok_or(ErrMode::Cut(ContextError::new()))?;
 
             let XRefTrailerBlock {
                 xrefs,
@@ -154,5 +164,40 @@ impl Builder for InMemoryDocument {
 impl InMemoryDocument {
     pub fn pages(&self) -> ModalResult<Vec<Page>> {
         self.catalog.pages.list_pages(self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn startxref_past_the_end_is_an_error() {
+        let input = b"%PDF-1.7\nstartxref\n99999\n%%EOF\n";
+        assert!(InMemoryDocument::extract(&mut input.as_slice().as_ref()).is_err());
+    }
+
+    #[test]
+    fn prev_past_the_end_is_an_error() {
+        let input = b"xref\n0 1\n0000000000 65535 f \ntrailer\n<</Size 1/Root 1 0 R/Prev 99999>>\nstartxref\n0\n%%EOF\n";
+        assert!(InMemoryDocument::extract(&mut input.as_slice().as_ref()).is_err());
+    }
+
+    #[test]
+    fn object_with_another_id_is_an_error() {
+        let objects: HashMap<ReferenceId, &BStr> =
+            [((2, 0).into(), b"3 0 obj\ntrue\nendobj".as_slice().as_ref())].into();
+        let result: ModalResult<bool> = objects.build_reference(ReferenceId::from((2, 0)).into());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn xref_entry_pointing_at_another_object_is_an_error() {
+        let builder = InMemoryBuilder {
+            input: b"3 0 obj\ntrue\nendobj".to_vec(),
+            xrefs: [((2, 0).into(), RefLocation::Plain(0))].into(),
+        };
+        let result: ModalResult<bool> = builder.build_reference(ReferenceId::from((2, 0)).into());
+        assert!(result.is_err());
     }
 }

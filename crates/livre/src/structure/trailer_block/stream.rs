@@ -49,18 +49,17 @@ impl Extract<'_> for FieldSize {
         let [f1, f2, f3] = extract(input)?;
         Ok(Self {
             f1,
-            f2: NonZeroU8::new(f2).expect("guaranteed by the specification"),
+            f2: NonZeroU8::new(f2).ok_or(ErrMode::Cut(ContextError::new()))?,
             f3,
         })
     }
 }
 
-fn parse_num(num: &[u8]) -> usize {
-    let mut res = 0;
-    for (i, &digit) in num.iter().rev().enumerate() {
-        res += (digit as usize) * 256usize.pow(i as u32);
-    }
-    res
+/// Big-endian number, or `None` if it does not fit a `usize`.
+fn parse_num(num: &[u8]) -> Option<usize> {
+    num.iter().try_fold(0usize, |res, &digit| {
+        res.checked_mul(256)?.checked_add(usize::from(digit))
+    })
 }
 
 /// Reads one cross-reference stream row: three big-endian fields of `f1`, `f2` and `f3` bytes
@@ -81,10 +80,12 @@ impl Parser<&BStr, Option<RefLocation>, ContextError> for FieldSize {
         let entry_type = if self.f1 == 0 {
             1
         } else {
-            take(self.f1).map(parse_num).parse_next(input)?
+            take(self.f1).verify_map(parse_num).parse_next(input)?
         };
-        let field2 = take(self.f2.get()).map(parse_num).parse_next(input)?;
-        let field3 = take(self.f3).map(parse_num).parse_next(input)?;
+        let field2 = take(self.f2.get())
+            .verify_map(parse_num)
+            .parse_next(input)?;
+        let field3 = take(self.f3).verify_map(parse_num).parse_next(input)?;
 
         Ok(match entry_type {
             1 => Some(RefLocation::Plain(field2)),
@@ -184,6 +185,23 @@ mod tests {
         let result = w.parse_next(input).unwrap();
         assert_eq!(expected, result);
         assert!(input.is_empty(), "the whole row is consumed");
+    }
+
+    #[test]
+    fn zero_width_second_field_is_an_error() {
+        assert!(FieldSize::extract(&mut b"[1 0 1]".as_slice().as_ref()).is_err());
+    }
+
+    #[test]
+    fn field_wider_than_usize_is_an_error() {
+        let mut w = FieldSize {
+            f1: 1,
+            f2: NonZeroU8::new(9).unwrap(),
+            f3: 0,
+        };
+        let bytes: &[u8] = &[0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff];
+        let input = &mut bytes.as_ref();
+        assert!(w.parse_next(input).is_err());
     }
 
     /// The first four rows of `tests/resources/text-xref-stream.pdf`: a free entry, then plain

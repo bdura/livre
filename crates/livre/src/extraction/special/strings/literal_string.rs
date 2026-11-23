@@ -127,18 +127,12 @@ fn parse_octal(input: &mut &BStr) -> Result<u8, ContextError> {
     trace("livre-octal", |i: &mut &BStr| {
         let num = take_while(1..=3, b'0'..b'8').parse_next(i)?;
 
-        // SAFETY: `num` only contains octal digits,
-        // and is therefore both utf8-encoded and parseable
-        let s = unsafe { std::str::from_utf8_unchecked(num) };
-
-        // NOTE: three octal digits may produce an overflow. For instance,
-        // `777` is *not* a valid u8 number. In practice, the PDF specs state
-        // that "high-order overflow shall be ignored".
-        // Besides, a PDF that displays this kind of failure case is probably
-        // not worth parsing...
-        let n =
-            u8::from_str_radix(s, 8).expect("by construction, valid number. should not overflow.");
-        Ok(n)
+        // Three octal digits reach 0o777, past `u8`: "high-order overflow shall be ignored"
+        // (ISO 32000-2, 7.3.4.2), so the value is truncated to its low byte.
+        let n = num
+            .iter()
+            .fold(0u16, |n, &digit| n * 8 + u16::from(digit - b'0'));
+        Ok(n as u8)
     })
     .parse_next(input)
 }
@@ -154,6 +148,8 @@ mod tests {
     #[case(b"1", 0o1)]
     #[case(b"17", 0o17)]
     #[case(b"137", 0o137)]
+    #[case(b"777", 0o777u16 as u8)]
+    #[case(b"400", 0)]
     fn octal_parsing(#[case] input: &[u8], #[case] expected: u8) {
         let num = parse_octal(&mut input.as_ref()).unwrap();
         assert_eq!(expected, num);
