@@ -9,7 +9,7 @@ use crate::{
     content::{Font, Fonts},
     extraction::{
         extract, Date, Extract, FromRawDict, Id, Map, MaybeArray, Name, OptRef, RawDict, Rectangle,
-        Reference, Stream, Todo,
+        Reference, ReferenceId, Stream, Todo,
     },
     follow_refs::{Build, Builder},
 };
@@ -234,25 +234,50 @@ impl Build for PageTreeNode {
 }
 
 impl PageTreeNode {
+    /// Flatten the tree into its pages, in document order.
+    ///
+    /// # Errors
+    ///
+    /// Any error building a kid, or a `/Kids` entry pointing back at one of its ancestors.
     pub fn list_pages<B>(&self, builder: &B) -> ModalResult<Vec<Page>>
     where
         B: Builder,
     {
-        let Self { props, kids, .. } = self;
-
         let mut result = Vec::new();
+        self.collect_pages(builder, &mut Vec::new(), &mut result)?;
+        Ok(result)
+    }
 
-        for &kid in kids {
+    /// `ancestors` holds the nodes on the path from the root, so a loop back to one is caught
+    /// before it recurses forever. A node shared by two siblings is not a loop, and is listed
+    /// once per occurrence.
+    fn collect_pages<B>(
+        &self,
+        builder: &B,
+        ancestors: &mut Vec<ReferenceId>,
+        result: &mut Vec<Page>,
+    ) -> ModalResult<()>
+    where
+        B: Builder,
+    {
+        for &kid in &self.kids {
             let mut element = builder.build_reference(kid)?;
-            element.merge_props(props);
+            element.merge_props(&self.props);
 
             match element {
                 PageElement::Page(p) => result.push(p),
-                PageElement::Node(n) => result.extend(n.list_pages(builder)?),
+                PageElement::Node(n) => {
+                    if ancestors.contains(&kid.id) {
+                        return Err(ErrMode::Cut(ContextError::new()));
+                    }
+                    ancestors.push(kid.id);
+                    n.collect_pages(builder, ancestors, result)?;
+                    ancestors.pop();
+                }
             }
         }
 
-        Ok(result)
+        Ok(())
     }
 }
 
@@ -555,6 +580,41 @@ mod tests {
         let content = page.build_content(&objects).unwrap();
 
         assert_eq!(content, b"BT /F1 12 Tf (a) Tj ET\nBT (b) Tj ET");
+    }
+
+    #[test]
+    fn page_tree_cycle_is_an_error() {
+        let objects: HashMap<ReferenceId, &BStr> = [(
+            (2, 0).into(),
+            b"2 0 obj\n<</Type/Pages/Kids[2 0 R]>>\nendobj"
+                .as_slice()
+                .as_ref(),
+        )]
+        .into();
+        let root = PageTreeNode::extract(&mut b"<</Kids[2 0 R]>>".as_slice().as_ref()).unwrap();
+
+        assert!(root.list_pages(&objects).is_err());
+    }
+
+    #[test]
+    fn page_tree_lists_a_node_shared_by_siblings_twice() {
+        let objects: HashMap<ReferenceId, &BStr> = [
+            (
+                (2, 0).into(),
+                b"2 0 obj\n<</Type/Pages/Kids[3 0 R]>>\nendobj"
+                    .as_slice()
+                    .as_ref(),
+            ),
+            (
+                (3, 0).into(),
+                b"3 0 obj\n<</Type/Page>>\nendobj".as_slice().as_ref(),
+            ),
+        ]
+        .into();
+        let root =
+            PageTreeNode::extract(&mut b"<</Kids[2 0 R 2 0 R]>>".as_slice().as_ref()).unwrap();
+
+        assert_eq!(root.list_pages(&objects).unwrap().len(), 2);
     }
 
     #[test]
