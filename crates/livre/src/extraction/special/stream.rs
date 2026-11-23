@@ -297,15 +297,6 @@ mod tests {
         assert_eq!(raw, content);
     }
 
-    //#[rstest]
-    //#[case(b"<</Length 2/SomeOtherKey/Test>>", StreamDict{length: 2, filter: vec![], structured: Nil})]
-    //#[case(b"<</Length 42>>", StreamDict{length: 42, filter: vec![], structured: Nil})]
-    //#[case(b"<<  /SomeRandomKey (some text...)/Length 42>>", StreamDict{length: 42, filter: vec![], structured: Nil})]
-    //fn stream_dict(#[case] input: &[u8], #[case] expected: StreamDict<Nil>) {
-    //    let result = extract(&mut input.as_ref()).unwrap();
-    //    assert_eq!(expected, result);
-    //}
-
     #[derive(Debug, PartialEq, FromRawDict)]
     struct TestStruct {
         test: bool,
