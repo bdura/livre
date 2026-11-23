@@ -1,11 +1,10 @@
 use winnow::{
-    combinator::{fail, trace},
     error::{ContextError, ErrMode},
-    BStr, ModalResult, Parser,
+    BStr, ModalResult,
 };
 
 use crate::{
-    extraction::{extract, Extract, Name, RawDict, Reference},
+    extraction::{extract, name_enum, RawDict, Reference},
     follow_refs::{Build, Builder},
 };
 
@@ -32,26 +31,14 @@ pub enum PageLayout {
     TwoPageRight,
 }
 
-impl Extract<'_> for PageLayout {
-    fn extract(input: &mut &BStr) -> ModalResult<Self> {
-        trace("livre-page-layout", move |i: &mut &BStr| {
-            let Name(value) = extract(i)?;
-
-            let res = match value.as_slice() {
-                b"SinglePage" => Self::SinglePage,
-                b"OneColumn" => Self::OneColumn,
-                b"TwoColumnLeft" => Self::TwoColumnLeft,
-                b"TwoColumnRight" => Self::TwoColumnRight,
-                b"TwoPageLeft" => Self::TwoPageLeft,
-                b"TwoPageRight" => Self::TwoPageRight,
-                _ => fail(i)?,
-            };
-
-            Ok(res)
-        })
-        .parse_next(input)
-    }
-}
+name_enum!(PageLayout, "livre-page-layout":
+    SinglePage => b"SinglePage",
+    OneColumn => b"OneColumn",
+    TwoColumnLeft => b"TwoColumnLeft",
+    TwoColumnRight => b"TwoColumnRight",
+    TwoPageLeft => b"TwoPageLeft",
+    TwoPageRight => b"TwoPageRight",
+);
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
 pub enum PageMode {
@@ -70,26 +57,14 @@ pub enum PageMode {
     UseAttachments,
 }
 
-impl Extract<'_> for PageMode {
-    fn extract(input: &mut &BStr) -> ModalResult<Self> {
-        trace("livre-page-mode", move |i: &mut &BStr| {
-            let Name(value) = extract(i)?;
-
-            let res = match value.as_slice() {
-                b"UseNone" => Self::UseNone,
-                b"UseOutlines" => Self::UseOutlines,
-                b"UseThumbs" => Self::UseThumbs,
-                b"FullScreen" => Self::FullScreen,
-                b"UseOC" => Self::UseOC,
-                b"UseAttachments" => Self::UseAttachments,
-                _ => fail(i)?,
-            };
-
-            Ok(res)
-        })
-        .parse_next(input)
-    }
-}
+name_enum!(PageMode, "livre-page-mode":
+    UseNone => b"UseNone",
+    UseOutlines => b"UseOutlines",
+    UseThumbs => b"UseThumbs",
+    FullScreen => b"FullScreen",
+    UseOC => b"UseOC",
+    UseAttachments => b"UseAttachments",
+);
 
 /// The document catalog contains references to other objects defining the content of the
 /// document's content.
@@ -147,7 +122,7 @@ mod tests {
 
     use rstest::rstest;
 
-    use crate::extraction::ReferenceId;
+    use crate::extraction::{Extract, ReferenceId};
 
     use super::*;
 

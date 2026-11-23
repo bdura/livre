@@ -54,4 +54,5 @@ pub use special::{
     ReferenceId, Stream, Todo,
 };
 
+pub(crate) use special::name_enum;
 pub(crate) use utilities::{take_till_delimiter, Angles, Brackets, Parentheses};
