@@ -293,17 +293,16 @@ impl Page {
     where
         B: Builder,
     {
-        let contents: ModalResult<Vec<Vec<u8>>> = self
-            .contents
-            .iter()
-            .copied()
-            .map(|reference| {
-                let stream = builder.build_reference(reference)?;
-                Ok::<Vec<u8>, ErrMode<ContextError>>(stream.content)
-            })
-            .collect();
+        let mut content = Vec::new();
 
-        let content = contents?.into_iter().flatten().collect();
+        for (i, &reference) in self.contents.iter().enumerate() {
+            if i > 0 {
+                content.push(b'\n');
+            }
+            let stream: Stream<()> = builder.build_reference(reference)?;
+            content.extend_from_slice(&stream.content);
+        }
+
         Ok(content)
     }
 
@@ -531,6 +530,31 @@ mod tests {
         let width = |name: &str| fonts.get(&name.into()).unwrap().width(Code::one_byte(65));
         assert_eq!(width("F1"), GlyphWidth(667.0));
         assert_eq!(width("F2"), GlyphWidth(722.0));
+    }
+
+    #[test]
+    fn content_streams_are_separated_by_whitespace() {
+        let objects: HashMap<ReferenceId, &BStr> = [
+            (
+                (4, 0).into(),
+                b"4 0 obj\n<</Length 22>>\nstream\nBT /F1 12 Tf (a) Tj ET\nendstream\nendobj"
+                    .as_slice()
+                    .as_ref(),
+            ),
+            (
+                (5, 0).into(),
+                b"5 0 obj\n<</Length 12>>\nstream\nBT (b) Tj ET\nendstream\nendobj"
+                    .as_slice()
+                    .as_ref(),
+            ),
+        ]
+        .into();
+        let page = Page::extract(&mut b"<</Type/Page/Contents[4 0 R 5 0 R]>>".as_slice().as_ref())
+            .unwrap();
+
+        let content = page.build_content(&objects).unwrap();
+
+        assert_eq!(content, b"BT /F1 12 Tf (a) Tj ET\nBT (b) Tj ET");
     }
 
     #[test]
