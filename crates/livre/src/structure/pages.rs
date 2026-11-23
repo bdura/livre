@@ -11,7 +11,7 @@ use crate::{
         extract, Extract, FromRawDict, MaybeArray, Name, OptRef, RawDict, Rectangle, Reference,
         ReferenceId, Stream,
     },
-    follow_refs::{Build, Builder},
+    follow_refs::{build_via_extract, Builder},
 };
 
 /// Page resources.
@@ -23,14 +23,7 @@ pub struct Resources {
     pub font: HashMap<Name, Reference<Font>>,
 }
 
-impl Build for Resources {
-    fn build<B>(input: &mut &BStr, _builder: &B) -> ModalResult<Self>
-    where
-        B: Builder,
-    {
-        extract(input)
-    }
-}
+build_via_extract!(Resources);
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum RotationAngle {
@@ -55,14 +48,7 @@ impl Extract<'_> for RotationAngle {
     }
 }
 
-impl Build for RotationAngle {
-    fn build<B>(input: &mut &BStr, _builder: &B) -> ModalResult<Self>
-    where
-        B: Builder,
-    {
-        extract(input)
-    }
-}
+build_via_extract!(RotationAngle);
 
 /// Inheritable page properties. Each attribute shall be inherited as-is, without merging.
 ///
@@ -126,14 +112,7 @@ pub struct PageTreeNode {
     kids: Vec<Reference<PageElement>>,
 }
 
-impl Build for PageTreeNode {
-    fn build<B>(input: &mut &BStr, _: &B) -> ModalResult<Self>
-    where
-        B: Builder,
-    {
-        extract(input)
-    }
-}
+build_via_extract!(PageTreeNode);
 
 impl PageTreeNode {
     /// Flatten the tree into its pages, in document order.
@@ -299,14 +278,7 @@ impl FromRawDict<'_> for PageElement {
     }
 }
 
-impl Build for PageElement {
-    fn build<B>(input: &mut &BStr, _builder: &B) -> ModalResult<Self>
-    where
-        B: Builder,
-    {
-        extract(input)
-    }
-}
+build_via_extract!(PageElement);
 
 #[cfg(test)]
 mod tests {

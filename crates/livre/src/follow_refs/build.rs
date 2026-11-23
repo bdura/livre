@@ -8,8 +8,8 @@ use winnow::{
 };
 
 use crate::extraction::{
-    extract, multicomment0, multicomment1, HexadecimalString, Id, LiteralString, MaybeArray, Name,
-    Object, Rectangle,
+    multicomment0, multicomment1, HexadecimalString, Id, LiteralString, MaybeArray, Name, Object,
+    Rectangle,
 };
 
 use super::{Builder, BuilderParser, Built};
@@ -33,22 +33,29 @@ pub trait Build: Sized {
         B: Builder;
 }
 
-macro_rules! impl_build_for_primitive {
+/// Implements [`Build`] by delegating to [`Extract`](crate::extraction::Extract), for types
+/// that hold no reference; see [`Build`] for why this is not a blanket impl.
+macro_rules! build_via_extract {
     ($($t:ty)+) => {
         $(
-            impl Build for $t {
-                fn build<B>(input: &mut &BStr, _builder: &B) -> ModalResult<Self>
+            impl $crate::follow_refs::Build for $t {
+                fn build<B>(
+                    input: &mut &::winnow::BStr,
+                    _builder: &B,
+                ) -> ::winnow::ModalResult<Self>
                 where
-                    B: Builder,
+                    B: $crate::follow_refs::Builder,
                 {
-                    extract(input)
+                    $crate::extraction::extract(input)
                 }
             }
         )+
     };
 }
 
-impl_build_for_primitive!(
+pub(crate) use build_via_extract;
+
+build_via_extract!(
   i8 i16 i32 i64 i128 isize
   u8 u16 u32 u64 u128 usize
   f32 f64

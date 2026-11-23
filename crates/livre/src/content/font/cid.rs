@@ -12,7 +12,7 @@ use winnow::{
 use super::{Cid, GlyphWidth};
 use crate::{
     extraction::{Extract, Name, RawDict},
-    follow_refs::{Build, BuildFromRawDict, Builder},
+    follow_refs::{build_via_extract, BuildFromRawDict, Builder},
 };
 
 /// The descendant of a `Type0` font (ISO 32000-2, 9.7.4): CID-keyed metrics.
@@ -69,14 +69,7 @@ impl Extract<'_> for CidFontSubtype {
     }
 }
 
-impl Build for CidFontSubtype {
-    fn build<B>(input: &mut &BStr, _builder: &B) -> ModalResult<Self>
-    where
-        B: Builder,
-    {
-        Self::extract(input)
-    }
-}
+build_via_extract!(CidFontSubtype);
 
 /// `/W` and `/DW`: the horizontal advance of each CID, in thousandths of text space.
 #[derive(Debug, Clone, PartialEq)]
@@ -237,15 +230,8 @@ impl Extract<'_> for WElement {
     }
 }
 
-/// The enclosing array's [`Build`] resolves a referenced element, so this only extracts.
-impl Build for WElement {
-    fn build<B>(input: &mut &BStr, _builder: &B) -> ModalResult<Self>
-    where
-        B: Builder,
-    {
-        Self::extract(input)
-    }
-}
+// The enclosing array's `Build` resolves a referenced element, so this only extracts.
+build_via_extract!(WElement);
 
 /// `number` as a CID, if it is an integer in `0..=65535`.
 fn to_cid(number: f32) -> Option<Cid> {
@@ -417,6 +403,8 @@ impl BuildFromRawDict for CidFont {
 #[cfg(test)]
 mod tests {
     use rstest::rstest;
+
+    use crate::follow_refs::Build;
 
     use super::*;
 

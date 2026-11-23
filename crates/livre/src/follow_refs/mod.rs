@@ -56,6 +56,7 @@ mod builder;
 mod from_raw_dict;
 mod primitive;
 
+pub(crate) use build::build_via_extract;
 pub use build::Build;
 pub use builder::{Builder, BuilderParser, LivreBuilder};
 pub use from_raw_dict::BuildFromRawDict;
