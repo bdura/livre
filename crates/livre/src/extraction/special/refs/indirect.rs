@@ -29,7 +29,7 @@ impl<'de, T> Indirect<T> {
     /// Allows more generic extraction method by supplying a dedicated parser.
     ///
     /// This allows Livre to have `Indirect` be [`Extract`], and still support an ersatz of
-    /// [`Build`](crate::follow_refs::Build).
+    /// [`Build`].
     ///
     /// We go the extra mile and extract the trailing `endobj` tag. This is not actually needed,
     /// although it does serve as a kind of sanity check.

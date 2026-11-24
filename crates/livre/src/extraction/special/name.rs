@@ -29,6 +29,40 @@ use crate::extraction::{utilities::escaped_sequence, Extract};
 #[derive(PartialEq, Hash, Eq, Clone)]
 pub struct Name(pub Vec<u8>);
 
+/// Implements [`Extract`] for a fieldless enum written in PDF as a [`Name`], mapping each
+/// name to a variant under the given `trace` label. Any other name is a backtrack error,
+/// with the input already consumed past the name.
+///
+/// ```text
+/// name_enum!(PageLayout, "livre-page-layout":
+///     SinglePage => b"SinglePage",
+///     OneColumn => b"OneColumn",
+/// );
+/// ```
+macro_rules! name_enum {
+    ($ty:ty, $label:literal: $($variant:ident => $name:literal),+ $(,)?) => {
+        impl $crate::extraction::Extract<'_> for $ty {
+            fn extract(input: &mut &::winnow::BStr) -> ::winnow::ModalResult<Self> {
+                ::winnow::Parser::parse_next(
+                    &mut ::winnow::combinator::trace($label, move |i: &mut &::winnow::BStr| {
+                        let $crate::extraction::Name(value) = $crate::extraction::extract(i)?;
+
+                        let res = match value.as_slice() {
+                            $($name => Self::$variant,)+
+                            _ => ::winnow::combinator::fail(i)?,
+                        };
+
+                        Ok(res)
+                    }),
+                    input,
+                )
+            }
+        }
+    };
+}
+
+pub(crate) use name_enum;
+
 impl Debug for Name {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let text = String::from_utf8_lossy(&self.0);

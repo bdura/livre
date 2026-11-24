@@ -336,6 +336,9 @@ Showing text with no font selected is `NoFontSelected`.
   in the `extraction/primitives/` or `extraction/special/` modules.
 - **Add support for a new PDF structure type**: Define a struct and implement
   `Extract` and `Build` as needed, typically in the `structure/` module.
+  Two crate-private macros, invoked beside the type, cover the trivial cases:
+  `build_via_extract!` gives `Build` to a type holding no reference, and
+  `name_enum!` gives `Extract` to a fieldless enum written as a PDF name.
 - **Add a new content operator**: Add a variant to `content::operators::Operator`
   and implement its parsing in the appropriate text or graphics submodule.
   A text operator also implements `TextStateOperation`, `TextPositioningOperation`

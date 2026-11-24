@@ -16,6 +16,7 @@ pub use date::Date;
 pub use id::Id;
 pub use map::{Map, Nil, RawDict};
 pub use maybe_array::MaybeArray;
+pub(crate) use name::name_enum;
 pub use name::Name;
 pub use object::Object;
 pub use rectangle::Rectangle;

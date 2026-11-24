@@ -8,8 +8,6 @@ mod differences;
 mod glyph_name;
 mod tables;
 
-use winnow::{BStr, ModalResult};
-
 pub(crate) use differences::{Differences, EncodingSpec};
 pub use glyph_name::GlyphName;
 pub(crate) use tables::Table;
@@ -17,8 +15,8 @@ use tables::{MAC_EXPERT, MAC_ROMAN, STANDARD, SYMBOL, WIN_ANSI, ZAPF_DINGBATS};
 
 use super::Code;
 use crate::{
-    extraction::{extract, Extract, Name},
-    follow_refs::{Build, Builder},
+    extraction::{Extract, Name},
+    follow_refs::build_via_extract,
 };
 
 /// The font descriptor's `/Flags` (ISO 32000-2, 9.8.2, Table 121). Defaults to no flag set.
@@ -45,14 +43,7 @@ impl Flags {
     }
 }
 
-impl Build for Flags {
-    fn build<B>(input: &mut &BStr, _builder: &B) -> ModalResult<Self>
-    where
-        B: Builder,
-    {
-        extract(input)
-    }
-}
+build_via_extract!(Flags);
 
 /// The table a predefined encoding name denotes.
 fn named_table(name: &Name) -> Option<&'static Table> {
@@ -153,6 +144,9 @@ mod tests {
     use std::borrow::Cow;
 
     use rstest::rstest;
+    use winnow::BStr;
+
+    use crate::{extraction::extract, follow_refs::Build};
 
     use super::*;
 

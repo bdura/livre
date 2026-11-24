@@ -50,7 +50,5 @@ mod trailer_block;
 pub use catalog::{Catalog, PageLayout, PageMode};
 pub use content::ContentStream;
 pub use object_stream::ObjectStream;
-pub use pages::{
-    IndividualPageProperties, InheritablePageProperties, Page, PageTreeNode, Resources,
-};
+pub use pages::{InheritablePageProperties, Page, PageTreeNode, Resources};
 pub use trailer_block::{RefLocation, StartXRef, Trailer, XRefTrailerBlock};

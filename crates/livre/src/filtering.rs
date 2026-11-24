@@ -14,7 +14,7 @@ mod predictor;
 
 use crate::{
     extraction::{extract, Extract, FromRawDict, Name},
-    follow_refs::{Build, BuildFromRawDict, Builder},
+    follow_refs::{build_via_extract, BuildFromRawDict},
 };
 
 /// Main filter objects, that represents any kind of PDF filter.
@@ -80,14 +80,7 @@ impl Extract<'_> for Filter {
     }
 }
 
-impl Build for Filter {
-    fn build<B>(input: &mut &BStr, _builder: &B) -> ModalResult<Self>
-    where
-        B: Builder,
-    {
-        extract(input)
-    }
-}
+build_via_extract!(Filter);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FlateDecode;

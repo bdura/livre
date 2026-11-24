@@ -31,20 +31,6 @@ pub trait Builder: Sized {
     fn build_reference<T>(&self, reference: Reference<T>) -> ModalResult<T>
     where
         T: Build;
-    //{
-    //    let input = &mut self
-    //        .follow_reference(id)
-    //        .ok_or(ErrMode::Cut(ContextError::new()))?;
-    //
-    //    let Indirect {
-    //        id: reference_id,
-    //        inner,
-    //    } = Indirect::parse(input, self.as_parser())?;
-    //
-    //    debug_assert_eq!(reference_id, id);
-    //
-    //    Ok(inner)
-    //}
 }
 
 /// The unit type is a context-less builder, making `().as_parser` somewhat equivalent to

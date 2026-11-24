@@ -22,7 +22,7 @@ use crate::{
 /// Coordinates are row vectors, so a point `(x, y)` maps to
 /// `(a·x + c·y + e, b·x + d·y + f)`, and the product `M1 × M2` applies `M1` first.
 ///
-/// The spaces are markers such as [`Text`](super::Text) and [`User`](super::User):
+/// The spaces are markers such as [`Text`] and [`User`](super::User):
 /// [`then`](Self::then) only composes matrices whose inner spaces agree, and
 /// [`apply`](Self::apply) only takes points of `From`.
 pub struct Matrix<From, To> {
