@@ -94,6 +94,9 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `TextObject::move_to(x, y)` becomes `move_by(offset)`, taking a `Displacement<Text>`:
   the move is relative to the start of the current line, as `Td` is.
   The new `set_matrix` sets both the text and the line matrix, as `Tm` does
+- `TextObject`'s text and line matrices are read through `matrix()` and
+  `line_matrix()` and changed through `set_matrix` and `move_by`, no longer as
+  public fields. The `buffer` field is no longer public
 - `ContentError::NoFontSelected`, when text is shown with no font selected,
   replaces `UnexpectedTextShowingOperator`; a text operator outside `BT`/`ET` is
   skipped with a warning

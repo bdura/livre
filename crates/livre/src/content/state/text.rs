@@ -208,18 +208,33 @@ pub struct Run {
     pub text: String,
 }
 
+/// The part of a [`TextObject`] that does not borrow the graphics state. The text object
+/// is opened under a short borrow and rebuilt from this under the stream's, once it is
+/// known to show text.
+struct TextObjectState {
+    matrix: Matrix<Text, User>,
+    line_matrix: Matrix<Text, User>,
+    /// The strings and `TJ` offsets of the last showing operator not yet yielded, in order.
+    /// `Tj`, `'` and `"` buffer a single string.
+    buffer: Option<VecDeque<TextArrayElement>>,
+}
+
+impl TextObjectState {
+    /// The state at `BT`: identity text and line matrices, nothing to show yet.
+    fn begin() -> Self {
+        Self {
+            matrix: Matrix::coincident(),
+            line_matrix: Matrix::coincident(),
+            buffer: None,
+        }
+    }
+}
+
 /// A text object: the state the text operators act on between `BT` and `ET`.
 ///
 /// Its shown strings are read through the [`TextObjectStream`] that owns it.
 pub struct TextObject<'a, 'f> {
-    /// Text matrix, `Tm`. Governs the transformation of text space to user space. Showing
-    /// operators and `TJ` offsets advance it; line moves reset it to the
-    /// [line matrix](Self::line_matrix).
-    pub matrix: Matrix<Text, User>,
-    /// Text line matrix, `Tlm`: the text matrix at the start of the current line. `Td`,
-    /// `TD` and `T*` move from it rather than from the text matrix, so the advance along a
-    /// line does not leak into the next one (ISO 32000-2, 9.4.2).
-    pub line_matrix: Matrix<Text, User>,
+    state: TextObjectState,
     /// The current transformation matrix in force at `BT`. Governs the transformation of
     /// user space to default user space. Constant for the whole text object, since `cm`,
     /// `q` and `Q` are not allowed inside one.
@@ -231,26 +246,36 @@ pub struct TextObject<'a, 'f> {
     pub parameters: &'a mut TextStateParameters<'f>,
     /// The page's fonts, which `Tf` selects from.
     pub fonts: &'f Fonts,
-    /// The strings and `TJ` offsets of the last showing operator not yet yielded, in order.
-    /// `Tj`, `'` and `"` buffer a single string.
-    pub buffer: Option<VecDeque<TextArrayElement>>,
 }
 
 impl<'a, 'f> TextObject<'a, 'f> {
-    /// The text object at `BT`: identity text matrix, nothing to show yet.
+    /// The text object in `state`, under the CTM and text state in force at its `BT`.
     fn begin(
+        state: TextObjectState,
         ctm: Matrix<User, DefaultUser>,
         parameters: &'a mut TextStateParameters<'f>,
         fonts: &'f Fonts,
     ) -> Self {
         Self {
-            matrix: Matrix::coincident(),
-            line_matrix: Matrix::coincident(),
+            state,
             ctm,
             parameters,
             fonts,
-            buffer: None,
         }
+    }
+
+    /// Text matrix, `Tm`. Governs the transformation of text space to user space. Showing
+    /// operators and `TJ` offsets advance it; line moves reset it to the
+    /// [line matrix](Self::line_matrix).
+    pub fn matrix(&self) -> Matrix<Text, User> {
+        self.state.matrix
+    }
+
+    /// Text line matrix, `Tlm`: the text matrix at the start of the current line. `Td`,
+    /// `TD` and `T*` move from it rather than from the text matrix, so the advance along a
+    /// line does not leak into the next one (ISO 32000-2, 9.4.2).
+    pub fn line_matrix(&self) -> Matrix<Text, User> {
+        self.state.line_matrix
     }
 
     /// The matrix mapping text space to default user space: `Tm × CTM`. Its translation is
@@ -258,19 +283,19 @@ impl<'a, 'f> TextObject<'a, 'f> {
     /// Its other components carry the orientation and scale of the text, before the font
     /// size is applied.
     pub fn transformation(&self) -> Matrix<Text, DefaultUser> {
-        self.matrix.then(self.ctm)
+        self.state.matrix.then(self.ctm)
     }
 
     /// Start a new line at `offset` from the start of the current one, expressed in text
     /// space (`Td`): translate the line matrix, and reset the text matrix to it.
     pub fn move_by(&mut self, offset: Displacement<Text>) {
-        self.line_matrix.translate(offset);
-        self.matrix = self.line_matrix;
+        self.state.line_matrix.translate(offset);
+        self.state.matrix = self.state.line_matrix;
     }
     /// Set both the text matrix and the line matrix (`Tm`).
     pub fn set_matrix(&mut self, matrix: Matrix<Text, User>) {
-        self.matrix = matrix;
-        self.line_matrix = matrix;
+        self.state.matrix = matrix;
+        self.state.line_matrix = matrix;
     }
     /// Start a new line, down by the leading from the start of the current one (`T*`).
     pub fn move_to_next_line(&mut self) {
@@ -278,12 +303,12 @@ impl<'a, 'f> TextObject<'a, 'f> {
     }
     /// Buffer a shown string (`Tj`), to be yielded as the next run.
     pub fn add_text(&mut self, text: PDFString) {
-        self.buffer = Some(VecDeque::from([TextArrayElement::Text(text)]));
+        self.state.buffer = Some(VecDeque::from([TextArrayElement::Text(text)]));
     }
     /// Buffer the strings and offsets of a `TJ` array, to be yielded as runs in order, each
     /// offset moving the text matrix before the string that follows it.
     pub fn add_text_array(&mut self, array: Vec<TextArrayElement>) {
-        self.buffer = Some(array.into());
+        self.state.buffer = Some(array.into());
     }
 
     /// The current text position in default user space: the point `(0, rise)` of text
@@ -331,7 +356,7 @@ impl<'a, 'f> TextObject<'a, 'f> {
                     spacing,
                     horizontal_scaling,
                 );
-                self.matrix.translate(shift);
+                self.state.matrix.translate(shift);
 
                 let decoded = font.decode(code);
                 match &decoded {
@@ -361,7 +386,7 @@ impl<'a, 'f> TextObject<'a, 'f> {
     /// The next run buffered by the last showing operator, if any. Consumes the `TJ`
     /// offsets met before it, moving the text matrix.
     fn next_run(&mut self) -> Option<Run> {
-        let buffer = self.buffer.as_mut()?;
+        let buffer = self.state.buffer.as_mut()?;
         loop {
             match buffer.pop_front()? {
                 TextArrayElement::Text(text) => return Some(self.show(&text)),
@@ -373,21 +398,12 @@ impl<'a, 'f> TextObject<'a, 'f> {
                             *size,
                             self.parameters.horizontal_scaling,
                         );
-                        self.matrix.translate(shift);
+                        self.state.matrix.translate(shift);
                     }
                 }
             }
         }
     }
-}
-
-/// The part of a [`TextObject`] that does not borrow the graphics state. The text object
-/// is opened under a short borrow and rebuilt from this under the stream's, once it is
-/// known to show text.
-struct Started {
-    matrix: Matrix<Text, User>,
-    line_matrix: Matrix<Text, User>,
-    buffer: Option<VecDeque<TextArrayElement>>,
 }
 
 /// The text objects of a content stream, in order.
@@ -478,22 +494,13 @@ where
                 None => return Ok(None),
                 Some(Operator::BeginText(_)) => {
                     self.open = true;
-                    if let Some(Started {
-                        matrix,
-                        line_matrix,
-                        buffer,
-                    }) = self.start()?
-                    {
-                        let text_object = TextObject {
-                            matrix,
-                            line_matrix,
-                            buffer,
-                            ..TextObject::begin(
-                                self.graphics_state.ctm(),
-                                self.graphics_state.text_state_mut(),
-                                self.fonts,
-                            )
-                        };
+                    if let Some(state) = self.start()? {
+                        let text_object = TextObject::begin(
+                            state,
+                            self.graphics_state.ctm(),
+                            self.graphics_state.text_state_mut(),
+                            self.fonts,
+                        );
                         return Ok(Some(TextObjectStream {
                             text_object,
                             ops: &mut self.ops,
@@ -520,9 +527,11 @@ where
     }
 
     /// Apply the operators following a `BT` until the first showing operator, and return
-    /// the text object as it shows it. `None` if `ET` comes first: the object is empty.
-    fn start(&mut self) -> Result<Option<Started>> {
+    /// the text object's state as it shows it. `None` if `ET` comes first: the object is
+    /// empty.
+    fn start(&mut self) -> Result<Option<TextObjectState>> {
         let mut text_object = TextObject::begin(
+            TextObjectState::begin(),
             self.graphics_state.ctm(),
             self.graphics_state.text_state_mut(),
             self.fonts,
@@ -539,18 +548,7 @@ where
                         return Err(ContentError::NoFontSelected);
                     }
                     op.apply(&mut text_object);
-
-                    let TextObject {
-                        matrix,
-                        line_matrix,
-                        buffer,
-                        ..
-                    } = text_object;
-                    return Ok(Some(Started {
-                        matrix,
-                        line_matrix,
-                        buffer,
-                    }));
+                    return Ok(Some(text_object.state));
                 }
                 Operator::Text(op) => op.apply(&mut text_object)?,
                 _ => {
@@ -656,7 +654,7 @@ mod tests {
     use std::sync::LazyLock;
 
     use super::*;
-    use crate::content::font::tests::{fonts, HELVETICA};
+    use crate::content::font::tests::{fonts, HELVETICA, HELVETICA_STANDARD};
 
     /// Parse a content stream into its operators.
     pub(super) fn operators(input: &[u8]) -> Vec<Operator> {
@@ -924,6 +922,30 @@ mod tests {
         assert_eq!((start, text), (Point::new(0.0, -14.0), "a".to_string()));
         assert_eq!(stream.text_object().parameters.word_spacing, 3.0);
         assert_eq!(stream.text_object().parameters.character_spacing, 1.0);
+    }
+
+    #[test]
+    fn text_object_exposes_its_matrices() {
+        // The standard-14 widths, so that `a` and `b` advance the text matrix.
+        let fonts = fonts(&[("F1", HELVETICA_STANDARD)]);
+        let mut objects = objects_with(b"/F1 10 Tf BT 10 20 Td (ab) Tj ET", &fonts);
+        let mut stream = objects.next_object().unwrap().unwrap();
+        let Run { end, .. } = stream.next().unwrap();
+
+        let text_object = stream.text_object();
+        assert_eq!(
+            text_object.line_matrix().translation(),
+            Point::new(10.0, 20.0)
+        );
+        // Identity CTM and zero rise: the text matrix's translation is the run's end.
+        let Point { x, y, .. } = text_object.matrix().translation();
+        assert!(
+            (x - end.x).abs() < 1e-3 && (y - end.y).abs() < 1e-3,
+            "expected ({}, {}), got ({x}, {y})",
+            end.x,
+            end.y
+        );
+        assert!(x > 10.0, "the text matrix did not advance past the run");
     }
 }
 
