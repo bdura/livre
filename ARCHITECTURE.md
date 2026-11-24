@@ -128,9 +128,9 @@ and the root manifest only lists the members and their shared package metadata.
 ├── src/
 │   ├── lib.rs                 # Main exports: InMemoryDocument, module re-exports
 │   ├── document.rs            # InMemoryDocument, InMemoryBuilder - the main document types
-│   ├── filtering.rs           # Stream filters (FlateDecode) and their /DecodeParms
+│   ├── filtering.rs           # Stream filters (FlateDecode), each carrying its /DecodeParms
 │   ├── filtering/
-│   │   └── predictor.rs       # Undoes PNG and TIFF predictors after inflation
+│   │   └── predictor.rs       # Predictor, validated from /DecodeParms; undoes PNG and TIFF after inflation
 │   │
 │   ├── extraction/            # Low-level primitive type extraction
 │   │   ├── mod.rs             # Extract trait, FromRawDict trait, core types
@@ -356,8 +356,11 @@ Showing text with no font selected is `NoFontSelected`.
   crate's README), then map its name in `EncodingCMap`'s predefined-name match in
   `content/font/cmap/cid.rs`, which today knows only `Identity-H` and `Identity-V`
   and warns on every other name.
-- **Add a new stream filter**: Implement the `Filtering` trait for your filter
-  type in `filtering.rs`.
+- **Add a new stream filter**: In `filtering.rs`, add a variant to `Filter`,
+  backed by a type implementing `Filtering::decode(&self, bytes)`. The filter is
+  extracted from its `/Filter` name; if it takes parameters, its arm of
+  `Filter::with_params` validates its `/DecodeParms` entry and stores it in the
+  filter, where `decode` reads it.
 - **Create a custom builder**: Implement the `Builder` trait for your type to
   provide a custom reference resolution strategy.
 - **Update the font data**: Replace the file under `crates/livre-font-data/data/`,
@@ -389,9 +392,12 @@ lazy resolution of objects without reparsing.
 
 **Stream decoding**: The `Filtering` trait abstracts over different compression
 algorithms. Currently only `FlateDecode` (zlib) is implemented; others return
-unsupported errors. `StreamConfig` reads `/DecodeParms` alongside `/Filter`
-(a single dictionary or an array parallel to it, `null` for no parameters),
-and FlateDecode undoes PNG (10 to 15) and TIFF (2) predictors after inflating.
+unsupported errors. When the stream dictionary is read, `StreamConfig` pairs
+each `/Filter` entry with its `/DecodeParms` entry (a single dictionary or an
+array parallel to it, `null` for no parameters) and validates the parameters,
+so invalid ones fail there, before the content is read. A `/DecodeParms` of
+another length than `/Filter` is warned and tolerated. FlateDecode carries a
+`Predictor` and undoes PNG (10 to 15) and TIFF (2) predictors after inflating.
 
 **Browser demo**: `crates/livre-wasm` (unpublished) exposes `analyze_pdf`,
 which runs livre on a PDF's bytes and returns plain DTOs (`dto.rs`), so serde

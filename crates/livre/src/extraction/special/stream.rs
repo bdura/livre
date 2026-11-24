@@ -23,16 +23,78 @@ use super::{MaybeArray, Nil, RawDict};
 ///
 /// Since `StreamConfig` is needed to extract the content of a stream, Livre implements [`Parser`]
 /// for it.
-#[derive(Debug, PartialEq, Eq, FromRawDict, BuildFromRawDict)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct StreamConfig {
+    length: usize,
+    /// Applied in order, each carrying its `/DecodeParms` entry.
+    filters: Vec<Filter>,
+}
+
+/// The keys as written: `/Filter` and `/DecodeParms` are still parallel here.
+#[derive(FromRawDict, BuildFromRawDict)]
+struct StreamKeys {
     length: usize,
     #[livre(from = MaybeArray<Filter>, default)]
     filter: Vec<Filter>,
-    /// Parallel to `filter`, `None` where an array entry is `null`. Not
-    /// checked against `filter`'s length: a missing entry means no
-    /// parameters, extra entries are ignored.
+    /// `None` where an array entry is `null`.
     #[livre(from = MaybeArray<Option<FlateParams>>, default)]
     decode_parms: Vec<Option<FlateParams>>,
+}
+
+impl TryFrom<StreamKeys> for StreamConfig {
+    type Error = ErrMode<ContextError>;
+
+    /// Pair each filter with its `/DecodeParms` entry.
+    ///
+    /// The two arrays may differ in length, which is tolerated: a missing entry
+    /// means no parameters, extra entries are dropped without being validated.
+    /// The mismatch is logged only when `/DecodeParms` is present, since an
+    /// absent one is the usual way to give no filter parameters.
+    ///
+    /// Invalid parameters for their filter are an [`ErrMode::Cut`].
+    fn try_from(keys: StreamKeys) -> Result<Self, Self::Error> {
+        let StreamKeys {
+            length,
+            filter,
+            decode_parms,
+        } = keys;
+
+        if filter.len() != decode_parms.len() && !decode_parms.is_empty() {
+            tracing::warn!(
+                filters = filter.len(),
+                decode_parms = decode_parms.len(),
+                "/DecodeParms does not match /Filter in length"
+            );
+        }
+
+        let mut params = decode_parms.into_iter();
+        let filters = filter
+            .into_iter()
+            .map(|filter| match params.next().flatten() {
+                Some(p) => filter
+                    .with_params(p)
+                    .map_err(|()| ErrMode::Cut(ContextError::new())),
+                None => Ok(filter),
+            })
+            .collect::<Result<_, _>>()?;
+
+        Ok(Self { length, filters })
+    }
+}
+
+impl<'de> FromRawDict<'de> for StreamConfig {
+    fn from_raw_dict(dict: &mut RawDict<'de>) -> ModalResult<Self> {
+        StreamKeys::from_raw_dict(dict)?.try_into()
+    }
+}
+
+impl BuildFromRawDict for StreamConfig {
+    fn build_from_raw_dict<B>(dict: &mut RawDict<'_>, builder: &B) -> ModalResult<Self>
+    where
+        B: Builder,
+    {
+        StreamKeys::build_from_raw_dict(dict, builder)?.try_into()
+    }
 }
 
 impl Parser<&BStr, Vec<u8>, ErrMode<ContextError>> for StreamConfig {
@@ -48,10 +110,9 @@ impl Parser<&BStr, Vec<u8>, ErrMode<ContextError>> for StreamConfig {
         .parse_next(input)?;
 
         let mut decoded = content.to_vec();
-        for (i, filter) in self.filter.iter().enumerate() {
-            let params = self.decode_parms.get(i).copied().flatten();
+        for filter in &self.filters {
             decoded = filter
-                .decode(&decoded, params.as_ref())
+                .decode(&decoded)
                 .map_err(|_| ErrMode::Cut(ContextError::new()))?;
         }
         Ok(decoded)
@@ -202,12 +263,25 @@ mod tests {
 
     use super::*;
 
+    /// A `/FlateDecode` filter per entry of `decode_parms`, each with that entry attached.
     fn flate_config(length: usize, decode_parms: Vec<Option<FlateParams>>) -> StreamConfig {
-        StreamConfig {
-            length,
-            filter: vec![Filter::FlateDecode(FlateDecode)],
-            decode_parms,
-        }
+        // An absent `/DecodeParms` still means one filter.
+        let decode_parms = if decode_parms.is_empty() {
+            vec![None]
+        } else {
+            decode_parms
+        };
+        let filters = decode_parms
+            .into_iter()
+            .map(|params| {
+                let filter = Filter::FlateDecode(FlateDecode::default());
+                match params {
+                    Some(p) => filter.with_params(p).unwrap(),
+                    None => filter,
+                }
+            })
+            .collect();
+        StreamConfig { length, filters }
     }
 
     fn params(predictor: u8, columns: usize) -> FlateParams {
@@ -220,9 +294,9 @@ mod tests {
     }
 
     #[rstest]
-    #[case(b"<</Length 2/SomeOtherKey/Test>>", StreamConfig{length: 2, filter: vec![], decode_parms: vec![]})]
-    #[case(b"<</Length 42>>", StreamConfig{length: 42, filter: vec![], decode_parms: vec![]})]
-    #[case(b"<<  /SomeRandomKey (some text...)/Length 42>>", StreamConfig{length: 42, filter: vec![], decode_parms: vec![]})]
+    #[case(b"<</Length 2/SomeOtherKey/Test>>", StreamConfig{length: 2, filters: vec![]})]
+    #[case(b"<</Length 42>>", StreamConfig{length: 42, filters: vec![]})]
+    #[case(b"<<  /SomeRandomKey (some text...)/Length 42>>", StreamConfig{length: 42, filters: vec![]})]
     #[case(b"<</Length 3/Filter/FlateDecode>>", flate_config(3, vec![]))]
     #[case(
         b"<</Length 3/Filter /FlateDecode /DecodeParms <</Predictor 12/Columns 4>>>>",
@@ -232,17 +306,49 @@ mod tests {
         b"<</Length 3/Filter [/FlateDecode /FlateDecode] /DecodeParms [null <</Columns 5>>]>>",
         StreamConfig {
             length: 3,
-            filter: vec![Filter::FlateDecode(FlateDecode); 2],
-            decode_parms: vec![None, Some(params(1, 5))],
+            filters: vec![Filter::FlateDecode(FlateDecode::default()); 2],
         },
     )]
     #[case(
         b"<</Length 3/Filter/FlateDecode/DecodeParms<</EarlyChange 0/Predictor 2/Columns 3>>>>",
         flate_config(3, vec![Some(params(2, 3))]),
     )]
+    #[case(
+        b"<</Length 3/Filter /FlateDecode /DecodeParms <</Predictor 0>>>>",
+        StreamConfig {
+            length: 3,
+            filters: vec![Filter::FlateDecode(FlateDecode::default())],
+        },
+    )]
+    // `/DecodeParms` shorter than `/Filter`: the second filter has no parameters.
+    #[case(
+        b"<</Length 3/Filter [/FlateDecode /FlateDecode] /DecodeParms <</Predictor 12/Columns 4>>>>",
+        StreamConfig {
+            length: 3,
+            filters: vec![
+                Filter::FlateDecode(FlateDecode::default()).with_params(params(12, 4)).unwrap(),
+                Filter::FlateDecode(FlateDecode::default()),
+            ],
+        },
+    )]
+    // `/DecodeParms` longer than `/Filter`: the extra entry is not validated.
+    #[case(
+        b"<</Length 3/Filter /FlateDecode /DecodeParms [null <</Predictor 99>>]>>",
+        StreamConfig {
+            length: 3,
+            filters: vec![Filter::FlateDecode(FlateDecode::default())],
+        },
+    )]
     fn stream_config(#[case] input: &[u8], #[case] expected: StreamConfig) {
         let result = extract(&mut input.as_ref()).unwrap();
         assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn invalid_decode_parms_cut() {
+        let input = b"<</Length 3/Filter/FlateDecode/DecodeParms<</Predictor 99>>>>";
+        let result: ModalResult<StreamConfig> = extract(&mut input.as_slice().as_ref());
+        assert!(matches!(result, Err(ErrMode::Cut(_))), "{result:?}");
     }
 
     /// Two 4-byte rows, PNG-Up predicted, then zlib-compressed.

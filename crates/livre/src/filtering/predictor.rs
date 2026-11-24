@@ -1,48 +1,91 @@
 //! Undo the `/Predictor` step of `FlateDecode` and `LZWDecode` streams
 //! (ISO 32000-2, §7.4.4.4).
 
-/// Turn inflated, predicted bytes back into raw rows.
+use super::FlateParams;
+
+/// A validated `/Predictor`, with the row geometry it needs.
 ///
-/// The parameters mirror the `/DecodeParms` entries of the same name:
-///
-/// - `predictor`: `1` means no prediction and returns `data` untouched,
-///   without validating the other parameters. `2` is TIFF Predictor 2.
-///   `10..=15` are PNG predictors; the value is only a hint, since every row
-///   carries a leading tag byte (0 None, 1 Sub, 2 Up, 3 Average, 4 Paeth)
-///   that decides how that row is decoded. Tag bytes are stripped.
-/// - `colors`: interleaved colour components per sample.
-/// - `bits_per_component`: bits per colour component.
-/// - `columns`: samples per row.
-///
-/// If `data` does not divide into whole rows, the final partial row is
-/// decoded as far as it goes. Empty input decodes to empty output.
-///
-/// Returns `Err(())` when `predictor` is not in `{1, 2, 10..=15}`, a PNG tag
-/// is above 4, `colors` or `columns` is zero, `bits_per_component` is not in
-/// `{1, 2, 4, 8, 16}`, or TIFF is asked for anything but 8 bits per component.
-pub(crate) fn undo(
-    data: Vec<u8>,
-    predictor: u8,
-    colors: usize,
-    bits_per_component: usize,
-    columns: usize,
-) -> Result<Vec<u8>, ()> {
-    if predictor == 1 {
-        return Ok(data);
+/// Built once from a `/DecodeParms` dictionary with [`Predictor::try_from`],
+/// then applied to inflated bytes with [`Predictor::undo`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(crate) enum Predictor {
+    /// Predictor 1: no prediction.
+    #[default]
+    None,
+    /// TIFF Predictor 2, at 8 bits per component.
+    Tiff {
+        /// Interleaved colour components per sample: how many bytes back
+        /// each difference reaches.
+        colors: usize,
+        /// Bytes per row.
+        row_len: usize,
+    },
+    /// PNG predictors, `/Predictor` `10..=15`. The value is only a hint,
+    /// since every row carries a leading tag byte (0 None, 1 Sub, 2 Up,
+    /// 3 Average, 4 Paeth) that decides how that row is decoded.
+    Png {
+        /// Bytes per complete pixel, at least 1.
+        bpp: usize,
+        /// Bytes per row, tag byte excluded.
+        row_len: usize,
+    },
+}
+
+impl TryFrom<FlateParams> for Predictor {
+    type Error = ();
+
+    /// Validate the `/DecodeParms` entries that describe the predictor.
+    ///
+    /// Predictors `0` and `1` give [`Predictor::None`] without validating the
+    /// other entries.
+    ///
+    /// Returns `Err(())` when `predictor` is not in `{0, 1, 2, 10..=15}`,
+    /// `colors` or `columns` is zero, `bits_per_component` is not in
+    /// `{1, 2, 4, 8, 16}`, TIFF is asked for anything but 8 bits per
+    /// component, or the row length overflows `usize`.
+    fn try_from(params: FlateParams) -> Result<Self, ()> {
+        let FlateParams {
+            predictor,
+            colors,
+            bits_per_component,
+            columns,
+        } = params;
+
+        // `/Predictor 0` is outside the spec but has always decoded as no prediction.
+        if predictor <= 1 {
+            return Ok(Self::None);
+        }
+
+        if colors == 0 || columns == 0 || !matches!(bits_per_component, 1 | 2 | 4 | 8 | 16) {
+            return Err(());
+        }
+
+        let bits_per_pixel = colors.checked_mul(bits_per_component).ok_or(())?;
+        let bpp = (bits_per_pixel / 8).max(1);
+        let row_len = bits_per_pixel.checked_mul(columns).ok_or(())?.div_ceil(8);
+
+        match predictor {
+            2 if bits_per_component == 8 => Ok(Self::Tiff { colors, row_len }),
+            10..=15 => Ok(Self::Png { bpp, row_len }),
+            _ => Err(()),
+        }
     }
+}
 
-    if colors == 0 || columns == 0 || !matches!(bits_per_component, 1 | 2 | 4 | 8 | 16) {
-        return Err(());
-    }
-
-    let bits_per_pixel = colors.checked_mul(bits_per_component).ok_or(())?;
-    let bpp = (bits_per_pixel / 8).max(1);
-    let row_len = bits_per_pixel.checked_mul(columns).ok_or(())?.div_ceil(8);
-
-    match predictor {
-        2 if bits_per_component == 8 => Ok(undo_tiff(data, colors, row_len)),
-        10..=15 => undo_png(&data, bpp, row_len),
-        _ => Err(()),
+impl Predictor {
+    /// Turn inflated, predicted bytes back into raw rows.
+    ///
+    /// [`Predictor::None`] returns `data` untouched. PNG tag bytes are
+    /// stripped. If `data` does not divide into whole rows, the final partial
+    /// row is decoded as far as it goes. Empty input decodes to empty output.
+    ///
+    /// Returns `Err(())` when a PNG row tag is above 4.
+    pub(crate) fn undo(self, data: Vec<u8>) -> Result<Vec<u8>, ()> {
+        match self {
+            Self::None => Ok(data),
+            Self::Tiff { colors, row_len } => Ok(undo_tiff(data, colors, row_len)),
+            Self::Png { bpp, row_len } => undo_png(&data, bpp, row_len),
+        }
     }
 }
 
@@ -112,6 +155,23 @@ mod tests {
     use rstest::rstest;
 
     use super::*;
+
+    /// Build a [`Predictor`] from loose `/DecodeParms` values and apply it.
+    fn undo(
+        data: Vec<u8>,
+        predictor: u8,
+        colors: usize,
+        bits_per_component: usize,
+        columns: usize,
+    ) -> Result<Vec<u8>, ()> {
+        Predictor::try_from(FlateParams {
+            predictor,
+            colors,
+            bits_per_component,
+            columns,
+        })?
+        .undo(data)
+    }
 
     #[rstest]
     #[case(vec![1, 2, 3], 1, 1, 8, 0)]
@@ -261,5 +321,73 @@ mod tests {
             undo(data, predictor, colors, bits_per_component, columns),
             Err(())
         );
+    }
+
+    #[rstest]
+    #[case::predictor_3(3, 1, 8, 1)]
+    #[case::predictor_9(9, 1, 8, 1)]
+    #[case::predictor_16(16, 1, 8, 1)]
+    #[case::colors_0(12, 0, 8, 1)]
+    #[case::columns_0(12, 1, 8, 0)]
+    #[case::bits_3(12, 1, 3, 1)]
+    #[case::tiff_bits_16(2, 1, 16, 1)]
+    #[case::tiff_bits_4(2, 1, 4, 1)]
+    fn rejected_when_built(
+        #[case] predictor: u8,
+        #[case] colors: usize,
+        #[case] bits_per_component: usize,
+        #[case] columns: usize,
+    ) {
+        let params = FlateParams {
+            predictor,
+            colors,
+            bits_per_component,
+            columns,
+        };
+        assert_eq!(Predictor::try_from(params), Err(()));
+    }
+
+    #[rstest]
+    #[case(vec![5, 1])]
+    #[case(vec![0, 1, 5])]
+    fn png_tag_is_rejected_by_undo(#[case] data: Vec<u8>) {
+        let params = FlateParams {
+            predictor: 12,
+            colors: 1,
+            bits_per_component: 8,
+            columns: 1,
+        };
+        let predictor = Predictor::try_from(params).expect("valid PNG parameters");
+        assert_eq!(predictor.undo(data), Err(()));
+    }
+
+    #[test]
+    fn predictor_1_ignores_the_geometry() {
+        let params = FlateParams {
+            predictor: 1,
+            colors: 0,
+            bits_per_component: 3,
+            columns: 0,
+        };
+        assert_eq!(Predictor::try_from(params), Ok(Predictor::None));
+    }
+
+    #[rstest]
+    #[case(1, 8, 4)]
+    #[case(1, 8, 0)]
+    #[case(0, 3, 0)]
+    #[case(3, 16, 2)]
+    fn predictor_0_is_none(
+        #[case] colors: usize,
+        #[case] bits_per_component: usize,
+        #[case] columns: usize,
+    ) {
+        let params = FlateParams {
+            predictor: 0,
+            colors,
+            bits_per_component,
+            columns,
+        };
+        assert_eq!(Predictor::try_from(params), Ok(Predictor::None));
     }
 }
