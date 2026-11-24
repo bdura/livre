@@ -12,6 +12,8 @@ use flate2::read::ZlibDecoder;
 
 mod predictor;
 
+use predictor::Predictor;
+
 use crate::{
     extraction::{extract, Extract, FromRawDict, Name},
     follow_refs::{build_via_extract, BuildFromRawDict},
@@ -92,9 +94,8 @@ impl Filtering for FlateDecode {
         d.read_to_end(&mut buf).map_err(|_| ())?;
 
         match params {
-            Some(p) if p.predictor > 1 => {
-                predictor::undo(buf, p.predictor, p.colors, p.bits_per_component, p.columns)
-            }
+            // `/Predictor 0` is outside the spec but has always decoded as no prediction.
+            Some(p) if p.predictor > 1 => Predictor::try_from(*p)?.undo(buf),
             _ => Ok(buf),
         }
     }
