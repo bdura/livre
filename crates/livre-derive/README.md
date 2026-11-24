@@ -8,7 +8,7 @@ Use them through `livre`, which re-exports each next to its trait:
 use livre::extraction::{FromRawDict, MaybeArray};
 
 #[derive(FromRawDict)]
-struct StreamConfig {
+struct StreamKeys {
     // Reads `/Length`.
     length: usize,
     // `/Filter` may be one filter or an array; absent means none.
