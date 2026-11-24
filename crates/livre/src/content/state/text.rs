@@ -107,6 +107,36 @@ impl Default for TextStateParameters<'_> {
 }
 
 impl<'f> TextStateParameters<'f> {
+    /// The displacement of the current point after the glyph of `code`, in text space
+    /// (ISO 32000-2, 9.4.4). `Tw` applies to the one-byte code 32 only. Zero with no font
+    /// selected.
+    pub(crate) fn advance(&self, code: Code) -> Displacement<Text> {
+        let Some(SelectedFont { font, size, .. }) = &self.font else {
+            return Displacement::new(0.0, 0.0);
+        };
+        let spacing = if code.word_spacing_applies() {
+            self.character_spacing + self.word_spacing
+        } else {
+            self.character_spacing
+        };
+        font.writing_mode().advance(
+            font.glyph_displacement(code),
+            *size,
+            spacing,
+            self.horizontal_scaling,
+        )
+    }
+
+    /// The displacement of a number `n` of a `TJ` array, in text space. Zero with no font
+    /// selected: the size is then zero, so the offset moves nothing.
+    pub(crate) fn adjustment(&self, n: f32) -> Displacement<Text> {
+        let Some(SelectedFont { font, size, .. }) = &self.font else {
+            return Displacement::new(0.0, 0.0);
+        };
+        font.writing_mode()
+            .adjustment(n, *size, self.horizontal_scaling)
+    }
+
     /// Select the font and font size (`Tf`).
     pub fn set_font(&mut self, font: SelectedFont<'f>) {
         self.font = Some(font);
@@ -334,28 +364,10 @@ impl<'a, 'f> TextObject<'a, 'f> {
         let mut characters = Vec::new();
         let mut text = String::new();
 
-        if let Some(SelectedFont { font, size, .. }) = self.parameters.font {
-            let mode = font.writing_mode();
-            let TextStateParameters {
-                character_spacing,
-                word_spacing,
-                horizontal_scaling,
-                ..
-            } = *self.parameters;
-
+        if let Some(SelectedFont { font, .. }) = self.parameters.font {
             for code in font.codes(string) {
                 let start = self.origin();
-                let spacing = if code.word_spacing_applies() {
-                    character_spacing + word_spacing
-                } else {
-                    character_spacing
-                };
-                let shift = mode.advance(
-                    font.glyph_displacement(code),
-                    size,
-                    spacing,
-                    horizontal_scaling,
-                );
+                let shift = self.parameters.advance(code);
                 self.state.matrix.translate(shift);
 
                 let decoded = font.decode(code);
@@ -391,15 +403,8 @@ impl<'a, 'f> TextObject<'a, 'f> {
             match buffer.pop_front()? {
                 TextArrayElement::Text(text) => return Some(self.show(&text)),
                 TextArrayElement::Offset(offset) => {
-                    // With no font selected the size is zero: the offset moves nothing.
-                    if let Some(SelectedFont { font, size, .. }) = &self.parameters.font {
-                        let shift = font.writing_mode().adjustment(
-                            offset,
-                            *size,
-                            self.parameters.horizontal_scaling,
-                        );
-                        self.state.matrix.translate(shift);
-                    }
+                    let shift = self.parameters.adjustment(offset);
+                    self.state.matrix.translate(shift);
                 }
             }
         }
@@ -1271,6 +1276,17 @@ mod advance_tests {
         assert_close(runs[1].end, (13.34, 0.0));
         assert_close(runs[2].start, (0.0, -12.0));
         assert_close(runs[2].end, (6.67, -12.0));
+    }
+
+    #[test]
+    fn advance_and_adjustment_are_zero_without_a_font() {
+        let parameters = TextStateParameters {
+            character_spacing: 2.0,
+            ..TextStateParameters::default()
+        };
+        let zero = Displacement::new(0.0, 0.0);
+        assert_eq!(parameters.advance(Code::new(65, 1)), zero);
+        assert_eq!(parameters.adjustment(-500.0), zero);
     }
 }
 
