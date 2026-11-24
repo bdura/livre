@@ -46,9 +46,10 @@ impl TryFrom<StreamKeys> for StreamConfig {
 
     /// Pair each filter with its `/DecodeParms` entry.
     ///
-    /// The two arrays may differ in length, which is logged and tolerated: a
-    /// missing entry means no parameters, extra entries are dropped without
-    /// being validated.
+    /// The two arrays may differ in length, which is tolerated: a missing entry
+    /// means no parameters, extra entries are dropped without being validated.
+    /// The mismatch is logged only when `/DecodeParms` is present, since an
+    /// absent one is the usual way to give no filter parameters.
     ///
     /// Invalid parameters for their filter are an [`ErrMode::Cut`].
     fn try_from(keys: StreamKeys) -> Result<Self, Self::Error> {
