@@ -48,14 +48,12 @@ pub static IDENTITY_CODESPACE: [CodespaceRange; 1] = [CodespaceRange::new(2, 0, 
 pub enum EncodingCMap {
     /// `Identity-H` or `Identity-V`: two-byte codes, CID equal to code.
     Identity(WritingMode),
-    /// An embedded CMap stream.
-    Embedded {
-        /// The stream's codespace ranges and `cidchar` and `cidrange` mappings.
-        cmap: CMap<Cid>,
-        /// Set by `/Identity-H usecmap` or `/Identity-V usecmap`: a two-byte code the CMap
-        /// does not map is its own CID, and the codespace includes every two-byte code.
-        use_identity: bool,
-    },
+    /// An embedded CMap stream: its codespace ranges and `cidchar` and `cidrange` mappings.
+    ///
+    /// With `/Identity-H usecmap` or `/Identity-V usecmap` ([`CMap::use_identity`]), a
+    /// two-byte code the CMap does not map is its own CID, and the codespace includes every
+    /// two-byte code.
+    Embedded(CMap<Cid>),
 }
 
 impl EncodingCMap {
@@ -92,13 +90,12 @@ impl EncodingCMap {
             });
         }
 
-        let use_identity = cmap.use_identity;
         // The parent's codespace is inherited along with its mappings.
-        if use_identity && !cmap.codespace.contains(&IDENTITY_CODESPACE[0]) {
+        if cmap.use_identity() && !cmap.codespace.contains(&IDENTITY_CODESPACE[0]) {
             cmap.codespace.push(IDENTITY_CODESPACE[0]);
         }
 
-        Self::Embedded { cmap, use_identity }
+        Self::Embedded(cmap)
     }
 
     /// The CID `code` maps to, or `None` when the CMap does not map it.
@@ -110,9 +107,9 @@ impl EncodingCMap {
         };
         match self {
             Self::Identity(_) => identity(),
-            Self::Embedded { cmap, use_identity } => cmap
+            Self::Embedded(cmap) => cmap
                 .get(code)
-                .or_else(|| use_identity.then(identity).flatten()),
+                .or_else(|| cmap.use_identity().then(identity).flatten()),
         }
     }
 
@@ -120,7 +117,7 @@ impl EncodingCMap {
     pub fn codespace(&self) -> &[CodespaceRange] {
         match self {
             Self::Identity(_) => &IDENTITY_CODESPACE,
-            Self::Embedded { cmap, .. } => cmap.codespace(),
+            Self::Embedded(cmap) => cmap.codespace(),
         }
     }
 
@@ -128,7 +125,7 @@ impl EncodingCMap {
     pub fn writing_mode(&self) -> WritingMode {
         match self {
             Self::Identity(mode) => *mode,
-            Self::Embedded { cmap, .. } => cmap.writing_mode(),
+            Self::Embedded(cmap) => cmap.writing_mode(),
         }
     }
 }
