@@ -141,7 +141,7 @@
 //!
 //! ```rust,ignore
 //! #[derive(FromRawDict)]
-//! struct StreamConfig {
+//! struct StreamKeys {
 //!     // An absent `/Filter` gives an empty `Vec`.
 //!     #[livre(from = MaybeArray<Filter>, default)]
 //!     filter: Vec<Filter>,

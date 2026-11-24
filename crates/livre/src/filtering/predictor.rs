@@ -36,10 +36,10 @@ impl TryFrom<FlateParams> for Predictor {
 
     /// Validate the `/DecodeParms` entries that describe the predictor.
     ///
-    /// Predictor `1` gives [`Predictor::None`] without validating the other
-    /// entries.
+    /// Predictors `0` and `1` give [`Predictor::None`] without validating the
+    /// other entries.
     ///
-    /// Returns `Err(())` when `predictor` is not in `{1, 2, 10..=15}`,
+    /// Returns `Err(())` when `predictor` is not in `{0, 1, 2, 10..=15}`,
     /// `colors` or `columns` is zero, `bits_per_component` is not in
     /// `{1, 2, 4, 8, 16}`, TIFF is asked for anything but 8 bits per
     /// component, or the row length overflows `usize`.
@@ -51,7 +51,8 @@ impl TryFrom<FlateParams> for Predictor {
             columns,
         } = params;
 
-        if predictor == 1 {
+        // `/Predictor 0` is outside the spec but has always decoded as no prediction.
+        if predictor <= 1 {
             return Ok(Self::None);
         }
 
@@ -367,6 +368,25 @@ mod tests {
             colors: 0,
             bits_per_component: 3,
             columns: 0,
+        };
+        assert_eq!(Predictor::try_from(params), Ok(Predictor::None));
+    }
+
+    #[rstest]
+    #[case(1, 8, 4)]
+    #[case(1, 8, 0)]
+    #[case(0, 3, 0)]
+    #[case(3, 16, 2)]
+    fn predictor_0_is_none(
+        #[case] colors: usize,
+        #[case] bits_per_component: usize,
+        #[case] columns: usize,
+    ) {
+        let params = FlateParams {
+            predictor: 0,
+            colors,
+            bits_per_component,
+            columns,
         };
         assert_eq!(Predictor::try_from(params), Ok(Predictor::None));
     }
