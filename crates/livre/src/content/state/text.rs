@@ -439,12 +439,20 @@ pub struct TextObjects<'f, Ops> {
     ops: Ops,
     fonts: &'f Fonts,
     graphics_state: GraphicsState<'f>,
+    status: ObjectStatus,
+}
+
+/// Where a [`TextObjects`] stands relative to its text objects, shared with the
+/// [`TextObjectStream`] it lends.
+enum ObjectStatus {
+    /// Outside any text object.
+    Closed,
     /// Inside a text object whose `ET` has not been read yet: its stream was dropped before
     /// the end, or opening it failed.
-    open: bool,
-    /// The error that ended the last stream early, returned by the next
-    /// [`next_object`](Self::next_object).
-    error: Option<ContentError>,
+    Open,
+    /// Inside a text object whose stream ended on this error, returned by the next
+    /// [`TextObjects::next_object`].
+    Failed(ContentError),
 }
 
 impl<'f, Ops> TextObjects<'f, Ops>
@@ -458,8 +466,7 @@ where
             ops,
             fonts,
             graphics_state: GraphicsState::default(),
-            open: false,
-            error: None,
+            status: ObjectStatus::Closed,
         }
     }
 
@@ -481,19 +488,21 @@ where
     ///   the way winnow's `iterator` reports its error through `finish` after the loop. The
     ///   call after that resumes past the text object's `ET`.
     pub fn next_object(&mut self) -> Result<Option<TextObjectStream<'_, 'f, Ops>>> {
-        if let Some(error) = self.error.take() {
-            return Err(error);
-        }
-
-        if self.open {
-            self.skip_to_end()?;
+        match std::mem::replace(&mut self.status, ObjectStatus::Closed) {
+            ObjectStatus::Failed(error) => {
+                // Still inside the failed text object: the next call skips to its `ET`.
+                self.status = ObjectStatus::Open;
+                return Err(error);
+            }
+            ObjectStatus::Open => self.skip_to_end()?,
+            ObjectStatus::Closed => {}
         }
 
         loop {
             match self.ops.next() {
                 None => return Ok(None),
                 Some(Operator::BeginText(_)) => {
-                    self.open = true;
+                    self.status = ObjectStatus::Open;
                     if let Some(state) = self.start()? {
                         let text_object = TextObject::begin(
                             state,
@@ -504,8 +513,7 @@ where
                         return Ok(Some(TextObjectStream {
                             text_object,
                             ops: &mut self.ops,
-                            open: &mut self.open,
-                            error: &mut self.error,
+                            status: &mut self.status,
                         }));
                     }
                 }
@@ -540,7 +548,7 @@ where
         for operator in &mut self.ops {
             match operator {
                 Operator::EndText(_) => {
-                    self.open = false;
+                    self.status = ObjectStatus::Closed;
                     return Ok(None);
                 }
                 Operator::Text(TextOperator::TextShowingOperator(op)) => {
@@ -557,14 +565,14 @@ where
             }
         }
 
-        self.open = false;
+        self.status = ObjectStatus::Closed;
         Err(ContentError::IncompleteTextObject)
     }
 
     /// Skip to the `ET` of a text object left open, applying its text state operators: they
     /// stay in force after it.
     fn skip_to_end(&mut self) -> Result<()> {
-        self.open = false;
+        self.status = ObjectStatus::Closed;
 
         for operator in &mut self.ops {
             match operator {
@@ -593,10 +601,8 @@ where
 pub struct TextObjectStream<'a, 'f, Ops> {
     text_object: TextObject<'a, 'f>,
     ops: &'a mut Ops,
-    /// Whether the owning [`TextObjects`] is inside a text object: lowered on `ET`.
-    open: &'a mut bool,
-    /// Where the error that ends the stream early is kept for the owning [`TextObjects`].
-    error: &'a mut Option<ContentError>,
+    /// The owning [`TextObjects`]'s status: closed on `ET`, failed on an operator error.
+    status: &'a mut ObjectStatus,
 }
 
 impl<'a, 'f, Ops> TextObjectStream<'a, 'f, Ops> {
@@ -616,7 +622,7 @@ where
     /// The next shown string, applying the text operators before it. Ends at `ET`, with
     /// the operators, or at an operator that fails to apply.
     fn next(&mut self) -> Option<Run> {
-        if self.error.is_some() {
+        if let ObjectStatus::Failed(_) = self.status {
             return None;
         }
 
@@ -628,12 +634,12 @@ where
             let op = self.ops.next()?;
             match op {
                 Operator::EndText(_) => {
-                    *self.open = false;
+                    *self.status = ObjectStatus::Closed;
                     return None;
                 }
                 Operator::Text(op) => {
                     if let Err(error) = op.apply(&mut self.text_object) {
-                        *self.error = Some(error);
+                        *self.status = ObjectStatus::Failed(error);
                         return None;
                     }
                 }
