@@ -29,6 +29,8 @@
 
         fixtures = import ./nix/fixtures.nix pkgs;
 
+        corpus = import ./nix/corpus.nix pkgs;
+
         craneLib = (crane.mkLib pkgs).overrideToolchain (_: toolchain.stable);
 
         src = import ./nix/source.nix {
@@ -55,6 +57,9 @@
           inherit pkgs craneLib src;
           rev = self.rev or self.dirtyRev or "unknown";
         };
+
+        # The extraction benchmark's documents, fetched by hash from `nix/corpus.toml`.
+        packages.bench-corpus = corpus;
 
         # Serves the built demo locally; extra arguments go to static-web-server.
         apps.demo = {
@@ -107,6 +112,8 @@
           ];
 
           RUST_BACKTRACE = "1";
+          # The directory of PDFs the extraction benchmark (`crates/livre/benches/`) reads.
+          LIVRE_BENCH_CORPUS = "${corpus}";
         };
       }
     );
