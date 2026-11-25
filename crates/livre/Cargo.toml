@@ -31,3 +31,9 @@ rstest = "0.26"
 indoc = "2"
 trybuild = "1"
 tracing-test = "0.2.6"
+criterion = "0.8"
+
+# Reads the documents of `LIVRE_BENCH_CORPUS`, which the dev shell sets.
+[[bench]]
+name = "extraction"
+harness = false

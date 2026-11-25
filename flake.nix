@@ -41,7 +41,7 @@
         # `nix flake check` runs these; so does CI.
         checks =
           import ./nix/checks.nix {
-            inherit pkgs fixtures craneLib src;
+            inherit pkgs fixtures corpus craneLib src;
             craneLibMsrv = (crane.mkLib pkgs).overrideToolchain (_: toolchain.msrv);
           }
           // {

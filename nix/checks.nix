@@ -8,6 +8,8 @@
 {
   pkgs,
   fixtures,
+  # The extraction benchmark's documents, from `corpus.nix`.
+  corpus,
   craneLib,
   craneLibMsrv,
   # The cargo sources, from `source.nix`.
@@ -59,6 +61,8 @@ in {
     // {
       inherit cargoArtifacts;
       cargoTestExtraArgs = "--all-targets -- --include-ignored";
+      # The bench targets read the corpus: each checks every document once.
+      LIVRE_BENCH_CORPUS = "${corpus}";
     }
   );
 
