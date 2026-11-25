@@ -37,3 +37,8 @@ criterion = "0.8"
 [[bench]]
 name = "extraction"
 harness = false
+
+# Counts the allocations of the same steps, over the same documents.
+[[bench]]
+name = "allocations"
+harness = false
