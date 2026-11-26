@@ -59,6 +59,7 @@ impl BuildFromRawDict for Type3Font {
             Flags::default(),
             to_unicode.as_deref(),
             false,
+            || None,
         );
 
         Ok(Self {

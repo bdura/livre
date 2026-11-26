@@ -6,16 +6,16 @@ use winnow::ModalResult;
 
 use super::{
     decoder::{pop_to_unicode, Decoder},
-    encoding::{EncodingSpec, Flags},
+    encoding::{builtin_encoding, Base, EncodingSpec, Flags},
     widths::{Widths, WidthsDict},
     Code, GlyphWidth,
 };
 use crate::{
-    extraction::{Name, RawDict},
+    extraction::{Name, RawDict, Reference, Stream},
     follow_refs::{BuildFromRawDict, Builder},
 };
 
-pub use super::widths::FontDescriptor;
+pub use super::widths::{FontDescriptor, FontFile};
 
 /// A `Type1`, `MMType1` or `TrueType` font: one byte per code, widths in thousandths of
 /// text space.
@@ -85,16 +85,19 @@ impl BuildFromRawDict for SimpleFont {
         } = SimpleFontDict::build_from_raw_dict(dict, builder)?;
         let to_unicode = pop_to_unicode(dict, builder, &base_font);
 
-        let (flags, missing) = widths
+        let (flags, missing, font_file) = widths
             .font_descriptor
             .as_ref()
-            .map_or((Flags::default(), 0.0), |d| (d.flags, d.missing_width));
+            .map_or((Flags::default(), 0.0, None), |d| {
+                (d.flags, d.missing_width, d.font_file.0)
+            });
         let decoder = Decoder::new(
             encoding.as_ref(),
             &base_font,
             flags,
             to_unicode.as_deref(),
             true,
+            || program_encoding(font_file?, builder, &base_font),
         );
 
         let standard = StandardFont::from_base_font(&String::from_utf8_lossy(&base_font));
@@ -117,6 +120,24 @@ impl BuildFromRawDict for SimpleFont {
             widths,
             decoder,
         })
+    }
+}
+
+/// The built-in encoding of the Type 1 program behind `font_file`. A program that cannot be
+/// read warns, naming `font`, and gives `None`, as does one without `/Encoding`.
+fn program_encoding<B>(font_file: Reference<Stream<()>>, builder: &B, font: &Name) -> Option<Base>
+where
+    B: Builder,
+{
+    match builder.build_reference(font_file) {
+        Ok(Stream { content, .. }) => builtin_encoding(&content),
+        Err(_) => {
+            tracing::warn!(
+                "Font {}: `/FontFile` cannot be read: ignored",
+                String::from_utf8_lossy(font)
+            );
+            None
+        }
     }
 }
 
