@@ -104,6 +104,8 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   among them: the selected font is a `SelectedFont` borrowing the `Font`,
   with its size as a `FontSize`. A `Tf` naming a font absent from the resources
   is `ContentError::UnknownFont`
+- `Operator::NotImplemented` holds an `OperatorName`, the operator's bytes,
+  read with `as_bytes` or `Display`, instead of a `String`
 
 ### Removed
 
