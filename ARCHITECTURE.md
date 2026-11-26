@@ -379,7 +379,9 @@ Showing text with no font selected is `NoFontSelected`.
   is deterministic and compares between runs with `diff`. To compare two states
   of the code, run `cargo bench -p livre --bench extraction -- --save-baseline before`
   on the first, then `cargo bench -p livre --bench extraction -- --baseline before`
-  on the second.
+  on the second. Trust only the `fonts`, `text` and `end_to_end` changes: the
+  sub-millisecond `open` and `content` benches settle on a different level in
+  each run, up to 13% apart on unchanged code.
 - **Add a document to the benchmark**: Add a `[[document]]` entry with
   `bench = true` to `nix/corpus.toml` (a URL that names a fixed version, and its
   sha256), then a row for it in `EXPECTED` in `crates/livre/benches/common/mod.rs`
