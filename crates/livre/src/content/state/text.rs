@@ -361,14 +361,17 @@ impl<'a, 'f> TextObject<'a, 'f> {
     /// characters.
     pub fn show(&mut self, string: &PDFString) -> Run {
         let start = self.origin();
+        // Each glyph starts where the previous one ended: one `origin` per glyph.
+        let mut position = start;
         let mut characters = Vec::new();
         let mut text = String::new();
 
         if let Some(SelectedFont { font, .. }) = self.parameters.font {
             for code in font.codes(string) {
-                let start = self.origin();
+                let start = position;
                 let shift = self.parameters.advance(code);
                 self.state.matrix.translate(shift);
+                position = self.origin();
 
                 let decoded = font.decode(code);
                 match &decoded {
@@ -381,7 +384,7 @@ impl<'a, 'f> TextObject<'a, 'f> {
                 characters.push(Character {
                     code,
                     start,
-                    end: self.origin(),
+                    end: position,
                     text: decoded.map(Into::into),
                 });
             }
@@ -389,7 +392,7 @@ impl<'a, 'f> TextObject<'a, 'f> {
 
         Run {
             start,
-            end: self.origin(),
+            end: position,
             characters,
             text,
         }
@@ -1391,6 +1394,19 @@ mod character_tests {
         assert_close(run.characters[0].start, (20.0, 40.0));
         assert_close(run.characters[0].end, (36.008, 40.0));
         assert_close(run.characters[1].end, (52.016, 40.0));
+    }
+
+    #[test]
+    fn each_glyph_starts_where_the_previous_ended() {
+        let run = run(b"q 0.5 0.25 -0.25 0.5 7 11 cm /F1 12 Tf BT 3 Ts 10 20 Td (ABA) Tj ET Q");
+        let [a, b, c] = &run.characters[..] else {
+            panic!("expected three characters, got {:?}", run.characters);
+        };
+        // Exact equality: both ends of a boundary are the same point, not two close ones.
+        assert_eq!(b.start, a.end);
+        assert_eq!(c.start, b.end);
+        assert_eq!(run.start, a.start);
+        assert_eq!(run.end, c.end);
     }
 }
 

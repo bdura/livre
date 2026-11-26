@@ -66,7 +66,43 @@ pub enum Operator {
     EndText(EndText),
     Text(TextOperator),
     GraphicsState(GraphicsStateOperator),
-    NotImplemented(String),
+    /// An operator livre does not model, with its operands dropped and its name kept.
+    NotImplemented(OperatorName),
+}
+
+/// The name of an operator livre does not model, such as `re`, `f` or `BDC`.
+///
+/// An operator token is one to three bytes, held inline: building one never allocates.
+/// [`Display`](std::fmt::Display) writes the bytes as UTF-8, replacing invalid sequences
+/// with U+FFFD.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct OperatorName {
+    bytes: [u8; 3],
+    len: u8,
+}
+
+impl OperatorName {
+    /// Keeps the first three bytes of `name`, the longest an operator token can be.
+    fn new(name: &[u8]) -> Self {
+        let len = name.len().min(3);
+        let mut bytes = [0; 3];
+        bytes[..len].copy_from_slice(&name[..len]);
+        Self {
+            bytes,
+            len: len as u8,
+        }
+    }
+
+    /// The operator's bytes, as read from the content stream.
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.bytes[..usize::from(self.len)]
+    }
+}
+
+impl std::fmt::Display for OperatorName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&String::from_utf8_lossy(self.as_bytes()))
+    }
 }
 
 macro_rules! impl_from {
@@ -154,7 +190,7 @@ fn parse_operator(input: &mut &BStr) -> ModalResult<Operator> {
         b"q" => SaveGraphicsState.into(),
         b"Q" => RestoreGraphicsState.into(),
         b"cm" => extract_operator::<ConcatenateMatrix>(&mut cursor)?,
-        _ => Operator::NotImplemented(String::from_utf8_lossy(op).to_string()),
+        _ => Operator::NotImplemented(OperatorName::new(op)),
     };
 
     Ok(operator)
@@ -287,5 +323,25 @@ mod tests {
             ]
         );
         assert!(input.is_empty());
+    }
+
+    #[rstest]
+    #[case(b"0 0 10 10 re", "re")]
+    #[case(b"f", "f")]
+    #[case(b"/Span <</MCID 0>> BDC", "BDC")]
+    #[case(b"W*", "W*")]
+    fn unmodelled_operator_keeps_its_name(#[case] input: &[u8], #[case] name: &str) {
+        let result: Operator = extract(&mut input.as_ref()).unwrap();
+        let Operator::NotImplemented(op) = result else {
+            panic!("expected NotImplemented, got {result:?}");
+        };
+        assert_eq!(op.as_bytes(), name.as_bytes());
+        assert_eq!(op.to_string(), name);
+    }
+
+    #[test]
+    fn operator_name_is_three_bytes_at_most() {
+        let name = OperatorName::new(b"BDCX");
+        assert_eq!(name.as_bytes(), b"BDC");
     }
 }

@@ -187,7 +187,7 @@ and the root manifest only lists the members and their shared package metadata.
 │       │   ├── type3.rs       # Type3
 │       │   └── composite.rs   # Type0: encoding CMap, descendant CIDFont, /ToUnicode
 │       ├── operators/         # Content stream operators
-│       │   ├── mod.rs         # Operator enum and parsing
+│       │   ├── mod.rs         # Operator enum and parsing; OperatorName, an unmodelled operator's bytes
 │       │   ├── graphics.rs    # Special graphics state operators (q, Q, cm)
 │       │   └── text/          # Text-specific operators
 │       │       ├── mod.rs     # Text operator categories
@@ -301,7 +301,9 @@ the page tree.
 
 **`InMemoryBuilder`** (document.rs): Implements the `Builder` trait to resolve
 references by looking up byte offsets in the cross-reference table and parsing
-the referenced objects from the raw input.
+the referenced objects from the raw input. An object compressed in an object
+stream is read from that stream, decoded once and kept in the builder's
+`ObjectStreamCache` for the other objects it holds.
 
 **`Extract` trait** (extraction/mod.rs): Defines how to parse a type from a byte
 stream. Implemented for all primitive PDF types and can be derived for custom types.
@@ -348,6 +350,8 @@ Showing text with no font selected is `NoFontSelected`.
   `name_enum!` gives `Extract` to a fieldless enum written as a PDF name.
 - **Add a new content operator**: Add a variant to `content::operators::Operator`
   and implement its parsing in the appropriate text or graphics submodule.
+  Until then, the operator parses as `Operator::NotImplemented`, which holds its
+  bytes inline in an `OperatorName` (an operator token is one to three bytes).
   A text operator also implements `TextStateOperation`, `TextPositioningOperation`
   or `TextShowingOperation`, depending on whether it mutates the text state
   parameters, the text matrix or the text object's buffered strings.
@@ -410,7 +414,16 @@ Misuse is a spanned compile error, checked by the trybuild cases in `tests/ui`.
 
 **Memory model**: `InMemoryDocument` loads the entire PDF into memory.
 The `InMemoryBuilder` holds the raw bytes and cross-reference table, allowing
-lazy resolution of objects without reparsing.
+lazy resolution of objects without reparsing. It also caches decoded object
+streams by stream number, so a stream holding many objects is inflated and its
+header parsed once per builder rather than once per object. The cache is a
+`Mutex<HashMap<usize, Arc<ObjectStream>>>`, which keeps the builder `Send` and
+`Sync`. No lock is held while a stream is built, since building re-enters
+`build_reference`: two threads may each build the same stream, and the first
+one stored is kept. Failed builds are not cached, and nothing is evicted. The
+cache is derived from the input rather than part of the builder's value: a
+clone starts with an empty cache, and two builders compare equal whatever their
+caches hold.
 
 **Stream decoding**: The `Filtering` trait abstracts over different compression
 algorithms. Currently only `FlateDecode` (zlib) is implemented; others return
