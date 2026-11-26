@@ -1,4 +1,8 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt,
+    sync::{Arc, Mutex, MutexGuard},
+};
 
 use winnow::{
     error::{ContextError, ErrMode},
@@ -34,12 +38,69 @@ impl Builder for HashMap<ReferenceId, &BStr> {
     }
 }
 
+/// Decoded object streams, keyed by the object number of the stream.
+///
+/// All the objects of an object stream share one compressed stream: without the cache, each
+/// of them would inflate the stream and parse its header again.
+///
+/// The cache is derived from the input, so it is not part of a builder's value: `Clone`
+/// returns an empty cache and `PartialEq` is always true, which lets [`InMemoryBuilder`] keep
+/// its derives and two builders over the same bytes compare equal.
+#[derive(Default)]
+struct ObjectStreamCache(Mutex<HashMap<usize, Arc<ObjectStream>>>);
+
+impl ObjectStreamCache {
+    /// Locks the map. A poisoned lock is recovered: the map only ever holds finished streams,
+    /// so a panic elsewhere cannot leave it half-written.
+    fn lock(&self) -> MutexGuard<'_, HashMap<usize, Arc<ObjectStream>>> {
+        self.0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    fn get(&self, stream_id: usize) -> Option<Arc<ObjectStream>> {
+        self.lock().get(&stream_id).cloned()
+    }
+
+    /// Stores `stream` unless another thread stored one first; returns the stream kept.
+    fn insert(&self, stream_id: usize, stream: Arc<ObjectStream>) -> Arc<ObjectStream> {
+        self.lock().entry(stream_id).or_insert(stream).clone()
+    }
+
+    #[cfg(test)]
+    fn len(&self) -> usize {
+        self.lock().len()
+    }
+}
+
+impl Clone for ObjectStreamCache {
+    fn clone(&self) -> Self {
+        Self::default()
+    }
+}
+
+impl PartialEq for ObjectStreamCache {
+    fn eq(&self, _: &Self) -> bool {
+        true
+    }
+}
+
+impl fmt::Debug for ObjectStreamCache {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ObjectStreamCache")
+            .field("streams", &self.lock().len())
+            .finish()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct InMemoryBuilder {
     /// The entire input slice
     input: Vec<u8>,
     /// The cross-reference table
     pub xrefs: HashMap<ReferenceId, RefLocation>,
+    /// Object streams decoded so far
+    object_streams: ObjectStreamCache,
 }
 
 impl Builder for InMemoryBuilder {
@@ -76,8 +137,16 @@ impl Builder for InMemoryBuilder {
                 // `index` is already contained within the stream.
                 index: _,
             } => {
-                let stream: ObjectStream =
-                    self.build_reference(ReferenceId::first(stream_id).into())?;
+                let stream = match self.object_streams.get(stream_id) {
+                    Some(stream) => stream,
+                    None => {
+                        // No lock is held while building: the stream's dictionary may hold
+                        // references, which re-enter this method.
+                        let stream: ObjectStream =
+                            self.build_reference(ReferenceId::first(stream_id).into())?;
+                        self.object_streams.insert(stream_id, Arc::new(stream))
+                    }
+                };
                 stream.build_object(&id, self)
             }
         }
@@ -133,6 +202,7 @@ impl Extract<'_> for InMemoryDocument {
         let builder = InMemoryBuilder {
             input: input.to_vec(),
             xrefs: cross_references,
+            object_streams: ObjectStreamCache::default(),
         };
 
         let catalog = builder.build_reference(root)?;
@@ -159,6 +229,8 @@ impl InMemoryDocument {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use crate::extraction::Object;
 
     #[test]
     fn startxref_past_the_end_is_an_error() {
@@ -222,8 +294,96 @@ mod tests {
         let builder = InMemoryBuilder {
             input: b"3 0 obj\ntrue\nendobj".to_vec(),
             xrefs: [((2, 0).into(), RefLocation::Plain(0))].into(),
+            object_streams: ObjectStreamCache::default(),
         };
         let result: ModalResult<bool> = builder.build_reference(ReferenceId::from((2, 0)).into());
         assert!(result.is_err());
+    }
+
+    fn read_resource(path: &str) -> InMemoryDocument {
+        let bytes = std::fs::read(path).unwrap();
+        InMemoryDocument::extract(&mut bytes.as_slice().as_ref()).unwrap()
+    }
+
+    /// Two objects stored in the same object stream, with that stream's object number.
+    fn two_compressed_objects(builder: &InMemoryBuilder) -> (usize, ReferenceId, ReferenceId) {
+        let mut by_stream: HashMap<usize, Vec<ReferenceId>> = HashMap::new();
+        for (&id, &location) in &builder.xrefs {
+            if let RefLocation::Compressed { stream_id, .. } = location {
+                by_stream.entry(stream_id).or_default().push(id);
+            }
+        }
+        let (stream_id, ids) = by_stream
+            .into_iter()
+            .find(|(_, ids)| ids.len() >= 2)
+            .expect("an object stream holding two objects");
+        (stream_id, ids[0], ids[1])
+    }
+
+    #[test]
+    fn compressed_objects_share_one_decoded_stream() {
+        let document = read_resource("tests/resources/text-xref-stream.pdf");
+        // Extracting the document already warmed its builder's cache: start from an empty one.
+        let builder = InMemoryBuilder {
+            object_streams: ObjectStreamCache::default(),
+            ..document.builder
+        };
+        let (stream_id, first, second) = two_compressed_objects(&builder);
+
+        let _: Object = builder.build_reference(first.into()).unwrap();
+        let _: Object = builder.build_reference(second.into()).unwrap();
+
+        assert_eq!(builder.object_streams.len(), 1);
+        assert!(builder.object_streams.get(stream_id).is_some());
+    }
+
+    #[test]
+    fn failed_object_stream_is_not_cached() {
+        // Object 5 is a boolean, not an object stream.
+        let builder = InMemoryBuilder {
+            input: b"5 0 obj\ntrue\nendobj".to_vec(),
+            xrefs: [
+                (
+                    (1, 0).into(),
+                    RefLocation::Compressed {
+                        stream_id: 5,
+                        index: 0,
+                    },
+                ),
+                ((5, 0).into(), RefLocation::Plain(0)),
+            ]
+            .into(),
+            object_streams: ObjectStreamCache::default(),
+        };
+
+        for _ in 0..2 {
+            let result: ModalResult<bool> =
+                builder.build_reference(ReferenceId::from((1, 0)).into());
+            assert!(result.is_err());
+        }
+        assert_eq!(builder.object_streams.len(), 0);
+    }
+
+    #[test]
+    fn cloned_builder_starts_with_an_empty_cache_and_compares_equal() {
+        let document = read_resource("tests/resources/text-xref-stream.pdf");
+        let builder = document.builder;
+        let (_, id, _) = two_compressed_objects(&builder);
+        let expected: Object = builder.build_reference(id.into()).unwrap();
+        assert!(builder.object_streams.len() > 0);
+
+        let clone = builder.clone();
+
+        assert_eq!(clone.object_streams.len(), 0);
+        assert_eq!(clone, builder);
+        let actual: Object = clone.build_reference(id.into()).unwrap();
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn in_memory_builder_is_send_and_sync() {
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send_sync::<InMemoryBuilder>();
+        assert_send_sync::<InMemoryDocument>();
     }
 }
