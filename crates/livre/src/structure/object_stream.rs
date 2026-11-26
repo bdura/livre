@@ -28,11 +28,10 @@ use crate::{
 /// objects. However, it is unclear whether a compressed object _could_ be referenced indirectly,
 /// that is, through a separate `ObjectStream` that extends the one that contains it.
 ///
-/// For now, we are making the assumption that a reference stream will always point to the correct
-/// `ObjectStream`, and do not instantiate the full object stream. However, in case this assumption
-/// is wrong, we keep the PDF reference around to instantiate it if need be. Note that this option
-/// is only available to owned types (see [`build_owned_object`](Self::build_owned_object)) for
-/// more detail.
+/// We are making the assumption that a cross-reference stream always points to the
+/// `ObjectStream` that holds the object, so an object is only looked up in the stream it is
+/// asked from. The reference is kept ([`extends`](Self::extends)) but the extended stream is
+/// never read.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ObjectStream {
     /// Mapping from ReferenceId to byte offset within the content
@@ -67,25 +66,10 @@ impl ObjectStream {
 }
 
 impl ObjectStream {
-    /// Owned types can be built following the linked list of `ObjectStream` if need be.
-    ///
-    /// This is only available to owned types because while following the linked list, we
-    /// instantiate transient objects that cannot be referenced into.
-    pub fn build_owned_object<B, T>(&self, reference: &ReferenceId, builder: &B) -> ModalResult<T>
-    where
-        T: Build,
-        B: Builder,
-    {
-        if let Some(mut input) = self.get_data(reference) {
-            builder.as_parser().parse_next(&mut input)
-        } else if let Some(extends) = self.extends {
-            tracing::debug!("Reference not found in this stream. Checking the extended stream.");
-
-            let stream = builder.build_reference(extends)?;
-            stream.build_object(reference, builder)
-        } else {
-            Err(ErrMode::Backtrack(ContextError::new()))
-        }
+    /// `/Extends`, the object stream this one extends, if any. It is not read: see the notes
+    /// on [`ObjectStream`].
+    pub fn extends(&self) -> Option<Reference<ObjectStream>> {
+        self.extends
     }
 }
 
@@ -161,6 +145,29 @@ mod tests {
                 .unwrap();
         let result: ModalResult<bool> = stream.build_object(&(12, 0).into(), &());
         assert!(result.is_err());
+    }
+
+    /// `/Extends` names another object stream: it is kept as a reference, and that stream is
+    /// not read, even through a builder that knows it.
+    #[test]
+    fn extends_is_kept_as_a_reference() {
+        let extended: &[u8] =
+            b"9 0 obj\n<</Type/ObjStm/Length 8/N 1/First 5>>\nstream\n12 0\n43\nendstream\nendobj";
+        let builder: HashMap<ReferenceId, &BStr> =
+            [((9, 0).into(), extended.into())].into_iter().collect();
+
+        let input: &[u8] =
+            b"<</Type/ObjStm/Length 8/N 1/First 5/Extends 9 0 R>>\nstream\n11 0\n42\nendstream";
+        let stream: ObjectStream = builder.as_parser().parse_next(&mut input.into()).unwrap();
+
+        assert_eq!(stream.extends(), Some((9, 0).into()));
+        assert_eq!(
+            stream.build_object::<_, u32>(&(11, 0).into(), &builder),
+            Ok(42)
+        );
+        assert!(stream
+            .build_object::<_, u32>(&(12, 0).into(), &builder)
+            .is_err());
     }
 
     #[test]

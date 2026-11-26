@@ -15,7 +15,7 @@ use crate::{
     follow_refs::{BuildFromRawDict, Builder},
 };
 
-pub use super::widths::{FontDescriptor, FontFile};
+pub use super::widths::FontDescriptor;
 
 /// A `Type1`, `MMType1` or `TrueType` font: one byte per code, widths in thousandths of
 /// text space.
@@ -89,7 +89,7 @@ impl BuildFromRawDict for SimpleFont {
             .font_descriptor
             .as_ref()
             .map_or((Flags::default(), 0.0, None), |d| {
-                (d.flags, d.missing_width, d.font_file.0)
+                (d.flags, d.missing_width, d.font_file)
             });
         let decoder = Decoder::new(
             encoding.as_ref(),
