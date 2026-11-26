@@ -4,6 +4,20 @@
 # `name` is the file name without `.pdf`; `bench` selects the entries the
 # benchmark reads. Every URL names a version or a commit, so its content
 # cannot change.
+#
+# Provenance:
+#
+# - The arXiv papers and `GeoTopo-book` come from the corpus of py-pdf's
+#   benchmarks (https://github.com/py-pdf/benchmarks). All are pdfTeX output.
+#   The papers carry pdfTeX's own object streams, and they are the ones
+#   livre reads without error.
+# - `GeoTopo-book` is the exception: 36 of its 117 pages fail. It is kept
+#   because it is much slower than its size suggests.
+# - `tracemonkey` comes from pdf.js's test suite. Quartz wrote it without
+#   object streams: the only document from another producer.
+#   `nix/corpus.nix` derives `tracemonkey-objstm` from it.
+
+# arXiv papers, from py-pdf's benchmarks.
 
 [[document]]
 name = "2201.00037"
@@ -47,11 +61,15 @@ url = "https://arxiv.org/pdf/2201.00200v1"
 sha256 = "edce7ae9870ad1608384ae40f86691566b8ce0013685496e3e4d1fda992dcac8"
 bench = true
 
+# py-pdf's sample files, also in py-pdf's benchmarks.
+
 [[document]]
 name = "GeoTopo-book"
 url = "https://github.com/py-pdf/sample-files/raw/80d67b91f3e28909756ca7807bbe8f43b599d12f/009-pdflatex-geotopo/GeoTopo.pdf"
 sha256 = "a0b9242aef9b5a2c4850160cc9aaf64f5c7b8be705d6872ae28aebf5ab512540"
 bench = true
+
+# pdf.js's test suite.
 
 [[document]]
 name = "tracemonkey"
