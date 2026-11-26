@@ -85,6 +85,8 @@ impl<T> Build for OptRef<T>
 where
     T: Build,
 {
+    const FOLLOW: bool = false;
+
     fn build<B>(input: &mut &BStr, builder: &B) -> ModalResult<Self>
     where
         B: Builder,
@@ -101,6 +103,8 @@ where
 }
 
 impl<T> Build for Reference<T> {
+    const FOLLOW: bool = false;
+
     fn build<B>(input: &mut &BStr, _: &B) -> ModalResult<Self>
     where
         B: Builder,

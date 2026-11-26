@@ -8,8 +8,8 @@ use winnow::{
 };
 
 use crate::extraction::{
-    multicomment0, multicomment1, HexadecimalString, Id, LiteralString, MaybeArray, Name, Object,
-    Rectangle,
+    extract, multicomment0, multicomment1, HexadecimalString, Id, LiteralString, MaybeArray, Name,
+    Object, Rectangle,
 };
 
 use super::{Builder, BuilderParser, Built};
@@ -21,7 +21,23 @@ use super::{Builder, BuilderParser, Built};
 /// implementation because of the [`OptRef`](crate::extraction::OptRef) type. Moreover,
 /// this would disallow implementing `Build` for [`BuildFromRawDict`](super::BuildFromRawDict),
 /// because the compiler would mark them as competing implementations.
+///
+/// ## Values written as references
+///
+/// Any value of a PDF may be written as a reference to an indirect object. `build` parses
+/// the direct form only; [`Built`] is what follows a reference, and the containers
+/// (`Option`, `Vec`, arrays, [`MaybeArray`]) build their items through it.
+///
+/// A type whose own value represents a reference sets [`FOLLOW`](Self::FOLLOW) to `false`
+/// to be kept as written.
 pub trait Build: Sized {
+    /// Whether a reference found where a `Self` is expected is followed by [`Built`].
+    ///
+    /// `false` for the types that hold a reference themselves:
+    /// [`Reference`](crate::extraction::Reference), [`OptRef`](crate::extraction::OptRef)
+    /// and [`Object`].
+    const FOLLOW: bool = true;
+
     /// Build an object that rely on a reference, which would be instantiated with the help of the
     /// supplied `builder`.
     ///
@@ -63,9 +79,20 @@ build_via_extract!(
   LiteralString HexadecimalString
   Id
   Name
-  Object
   Rectangle
 );
+
+/// An `Object` holds a reference as [`Object::Indirect`], at any depth.
+impl Build for Object {
+    const FOLLOW: bool = false;
+
+    fn build<B>(input: &mut &BStr, _: &B) -> ModalResult<Self>
+    where
+        B: Builder,
+    {
+        extract(input)
+    }
+}
 
 impl<T> Build for Option<T>
 where
@@ -192,3 +219,97 @@ impl_tuple!(9: T1, T2, T3, T4, T5, T6, T7, T8, T9);
 impl_tuple!(10: T1, T2, T3, T4, T5, T6, T7, T8, T9, T10);
 impl_tuple!(11: T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11);
 impl_tuple!(12: T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12);
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use rstest::rstest;
+
+    use crate::extraction::{OptRef, Reference, ReferenceId};
+
+    use super::*;
+
+    /// Builds a `T` from `input` through a builder that knows objects 9 (`42`) and 10 (`43`).
+    fn build<T: Build>(input: &[u8]) -> ModalResult<T> {
+        let builder: HashMap<ReferenceId, &BStr> = [
+            ((9, 0).into(), b"9 0 obj\n42\nendobj".as_slice().into()),
+            ((10, 0).into(), b"10 0 obj\n43\nendobj".as_slice().into()),
+        ]
+        .into_iter()
+        .collect();
+
+        T::build(&mut input.into(), &builder)
+    }
+
+    fn reference<T>(object: usize) -> Reference<T> {
+        (object, 0).into()
+    }
+
+    #[rstest]
+    #[case::option(b"9 0 R", Some(42))]
+    #[case::null(b"null", None)]
+    fn option_follows_a_reference_to_its_item(#[case] input: &[u8], #[case] expected: Option<u32>) {
+        assert_eq!(build::<Option<u32>>(input).unwrap(), expected);
+    }
+
+    #[test]
+    fn containers_follow_references_to_their_items() {
+        assert_eq!(build::<Vec<u32>>(b"[9 0 R 1 10 0 R]").unwrap(), [42, 1, 43]);
+        assert_eq!(build::<[u32; 2]>(b"[9 0 R 10 0 R]").unwrap(), [42, 43]);
+        assert_eq!(build::<MaybeArray<u32>>(b"9 0 R").unwrap().0, [42]);
+    }
+
+    #[rstest]
+    #[case::reference(b"9 0 R", Some(reference(9)))]
+    #[case::null(b"null", None)]
+    fn option_keeps_a_reference_item(
+        #[case] input: &[u8],
+        #[case] expected: Option<Reference<u32>>,
+    ) {
+        assert_eq!(build::<Option<Reference<u32>>>(input).unwrap(), expected);
+    }
+
+    #[test]
+    fn containers_keep_reference_items() {
+        assert_eq!(
+            build::<Vec<Reference<u32>>>(b"[9 0 R 10 0 R]").unwrap(),
+            [reference(9), reference(10)]
+        );
+        assert_eq!(
+            build::<[Reference<u32>; 2]>(b"[9 0 R 10 0 R]").unwrap(),
+            [reference(9), reference(10)]
+        );
+        assert_eq!(
+            build::<MaybeArray<Reference<u32>>>(b"[9 0 R 10 0 R]")
+                .unwrap()
+                .0,
+            [reference(9), reference(10)]
+        );
+    }
+
+    /// A lone reference is read as the single element, never as an indirect array: telling
+    /// the two apart would take a look at the target.
+    #[test]
+    fn maybe_array_reads_a_lone_reference_as_its_single_element() {
+        assert_eq!(
+            build::<MaybeArray<Reference<u32>>>(b"9 0 R").unwrap().0,
+            [reference(9)]
+        );
+    }
+
+    #[rstest]
+    #[case::reference(b"9 0 R", OptRef::Ref(reference(9)))]
+    #[case::direct(b"7", OptRef::Direct(7))]
+    fn option_keeps_an_optref_item_as_written(#[case] input: &[u8], #[case] expected: OptRef<u32>) {
+        assert_eq!(build::<Option<OptRef<u32>>>(input).unwrap(), Some(expected));
+    }
+
+    #[test]
+    fn vec_keeps_indirect_objects() {
+        assert_eq!(
+            build::<Vec<Object>>(b"[9 0 R 1]").unwrap(),
+            [Object::Indirect(reference(9)), Object::Integer(1)]
+        );
+    }
+}

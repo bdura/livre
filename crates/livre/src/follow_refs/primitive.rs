@@ -6,6 +6,9 @@ use super::{Build, Builder, BuilderParser};
 
 /// An eager build primitive. By wrapping a type into `Built`, you signal to Livre that the
 /// associated field may be a reference that should be followed.
+///
+/// A type that holds a reference itself is built as written instead: see
+/// [`Build::FOLLOW`].
 pub struct Built<T>(pub T);
 
 impl<T> Build for Built<T>
@@ -17,6 +20,10 @@ where
         B: Builder,
     {
         trace("livre-built", move |i: &mut &BStr| {
+            if !T::FOLLOW {
+                return T::build(i, builder);
+            }
+
             let optref: OptRef<T> = builder.as_parser().parse_next(i)?;
 
             match optref {
