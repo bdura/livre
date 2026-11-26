@@ -61,9 +61,11 @@ The system is designed as a layered architecture:
    `end` is `start` advanced past the shown glyphs, both in default user space,
    and each `Character` is one code with its own start, end and decoded text.
    Simple and `Type3` fonts decode codes through `/ToUnicode`, then their encoding
-   and the Adobe Glyph List. Composite (`Type0`) fonts split strings by their
-   encoding CMap's codespace ranges, map each code to a CID for the descendant
-   CIDFont's widths, and decode through `/ToUnicode` only. A font's `WritingMode`,
+   and the Adobe Glyph List; a symbolic simple font without a predefined encoding
+   starts from the built-in encoding of its embedded Type 1 program (`/FontFile`).
+   Composite (`Type0`) fonts split strings by their encoding CMap's codespace
+   ranges, map each code to a CID for the descendant CIDFont's widths, and decode
+   through `/ToUnicode` only. A font's `WritingMode`,
    horizontal or vertical, owns the advance arithmetic of 9.4.4: `show` and `TJ`
    go through it, so a vertical font's glyphs advance down the page. Matrices
    and points are typed by coordinate space (`Glyph`, `Text`, `User`,
@@ -178,10 +180,11 @@ and the root manifest only lists the members and their shared package metadata.
 │       │   │   ├── parse.rs   # PostScript tokens and the begin/end sections
 │       │   │   └── unicode.rs # UnicodeText, ToUnicode = CMap<UnicodeText>
 │       │   ├── encoding/      # Code to glyph name, for simple and Type3 fonts
-│       │   │   ├── mod.rs     # Encoding, Flags, the base table rule
+│       │   │   ├── mod.rs     # Encoding, Flags, Base, the base table rule
 │       │   │   ├── tables.rs  # The Annex D tables: Standard, WinAnsi, MacRoman, MacExpert, Symbol, ZapfDingbats
 │       │   │   ├── glyph_name.rs # GlyphName and the AGL rules (uniXXXX, uXXXX, suffixes, ligatures)
-│       │   │   └── differences.rs # /Encoding as a name or a dictionary, /Differences
+│       │   │   ├── differences.rs # /Encoding as a name or a dictionary, /Differences
+│       │   │   └── type1.rs   # Built-in encoding from a Type 1 program's clear text, before eexec
 │       │   ├── decoder.rs     # Decoder: /ToUnicode first, then the encoding
 │       │   ├── simple.rs      # Type1, MMType1, TrueType; standard 14 widths when /Widths is absent
 │       │   ├── type3.rs       # Type3
@@ -327,6 +330,9 @@ and decoding text needs: splitting strings into codes, glyph widths,
 and `Font::decode`, the text a code stands for. Simple and `Type3` fonts carry a
 `Decoder`, which owns the precedence of ISO 32000-2 9.10.2: `/ToUnicode`, then the
 glyph name their `Encoding` gives the code, through `livre-font-data`'s glyph list.
+A symbolic simple font with no predefined `/Encoding` takes its base names from its
+`/FontFile` program, which the descriptor keeps as an unresolved `FontFile` reference:
+only such a font inflates its program, while every other font leaves it unread.
 A composite font maps each code to a CID through its `EncodingCMap` and reads
 its widths from the descendant `CidFont`; `Font::writing_mode` and
 `Font::glyph_displacement` give the axis and size-1 displacement the advance uses.
@@ -411,6 +417,9 @@ literal, closure or expression; applied after `from`) and `flatten`.
 Generated code uses absolute `::livre::` and `::winnow::` paths; `livre` itself
 declares `extern crate self as livre` so those paths resolve inside the crate too.
 Misuse is a spanned compile error, checked by the trybuild cases in `tests/ui`.
+An `Option<T>` field builds through `Built<T>`, so a reference there is followed; a
+field that must keep a reference unresolved needs its own `Build` type (as `FontFile`
+does for `/FontFile`).
 
 **Memory model**: `InMemoryDocument` loads the entire PDF into memory.
 The `InMemoryBuilder` holds the raw bytes and cross-reference table, allowing
@@ -451,7 +460,8 @@ step allocates. The documents are real-world PDFs that Nix fetches by hash from
 none of the fetched ones is in the repository. The flake's test check runs each
 target once, which checks every document's expected outcome, but no timing or
 count is asserted: the benchmark informs optimisation work, it is not a
-regression guard.
+regression guard. The expected character counts include U+FFFD, one per code
+without text, so they do not detect a decoding regression.
 
 **Invariants**:
 

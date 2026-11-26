@@ -4,7 +4,7 @@
 use std::borrow::Cow;
 
 use super::{
-    encoding::{base_table, Differences, EncodingSpec},
+    encoding::{base_table, Base, Differences, EncodingSpec},
     Code, Encoding, Flags, GlyphName, ToUnicode,
 };
 use crate::{
@@ -27,17 +27,20 @@ impl Decoder {
     /// `/Flags` and the decoded content of its `/ToUnicode` stream.
     ///
     /// `base_table_applies` is `false` for a `Type3` font, whose encoding is its
-    /// `/Differences` alone. A `/ToUnicode` that maps no code warns and is ignored, as do the
-    /// unknown encoding names and symbolic fonts [`base_table`] warns about.
+    /// `/Differences` alone. `program` reads the built-in encoding of the font program, and is
+    /// only called for a symbolic font without a predefined encoding. A `/ToUnicode` that maps
+    /// no code warns and is ignored, as do the unknown encoding names and symbolic fonts
+    /// [`base_table`] warns about.
     pub(crate) fn new(
         encoding: Option<&EncodingSpec>,
         base_font: &Name,
         flags: Flags,
         to_unicode: Option<&[u8]>,
         base_table_applies: bool,
+        program: impl FnOnce() -> Option<Base>,
     ) -> Self {
         let base = if base_table_applies {
-            base_table(encoding, base_font, flags)
+            base_table(encoding, base_font, flags, program)
         } else {
             None
         };
@@ -59,7 +62,7 @@ impl Decoder {
 
         Self {
             to_unicode,
-            encoding: Encoding::new(base, differences),
+            encoding: Encoding::new(base.as_ref(), differences),
         }
     }
 
@@ -193,6 +196,58 @@ mod tests {
 
         assert!(logs_contain("symbolic font Wingdings without /Encoding"));
         assert_eq!(decode(&font, 0x41), None);
+    }
+
+    /// A pdfTeX Computer Modern subset: symbolic, no `/Encoding`, its glyph names in the
+    /// clear text of its `/FontFile`.
+    const CMR10: &[u8] = b"<</Type/Font/Subtype/Type1/BaseFont/RFIBRI+CMR10\
+        /FirstChar 11/LastChar 66/Widths[583]/FontDescriptor<</Flags 4/FontFile 9 0 R>>>>";
+
+    const CMR10_PROGRAM: &[u8] = indoc! {b"
+        %!PS-AdobeFont-1.0: CMR10 003.002
+        /FontName /RFIBRI+CMR10 def
+        /Encoding 256 array
+        0 1 255 {1 index exch /.notdef put} for
+        dup 65 /A put
+        dup 11 /ff put
+        readonly def
+        currentdict end
+        currentfile eexec
+        dup 66 /B put
+    "};
+
+    #[tracing_test::traced_test]
+    #[rstest]
+    #[case::letter(65, Some("A"))]
+    #[case::ligature(11, Some("ﬀ"))]
+    #[case::not_in_the_program(12, None)]
+    #[case::after_eexec(66, None)]
+    fn symbolic_type1_decodes_through_its_program_encoding(
+        #[case] code: u8,
+        #[case] expected: Option<&str>,
+    ) {
+        let font = font_with_stream(CMR10, CMR10_PROGRAM);
+
+        assert_eq!(decode(&font, code).as_deref(), expected);
+        assert!(!logs_contain("without /Encoding"));
+    }
+
+    #[tracing_test::traced_test]
+    #[rstest]
+    #[case::null(&b"/FontDescriptor<</Flags 4/FontFile null>>>>"[..])]
+    #[case::without_encoding(&b"/FontDescriptor<</Flags 4/FontFile 9 0 R>>>>"[..])]
+    fn symbolic_type1_without_program_encoding_decodes_nothing(#[case] descriptor: &[u8]) {
+        let font = font_with_stream(
+            &[
+                &b"<</Type/Font/Subtype/Type1/BaseFont/F/FirstChar 65/Widths[500]"[..],
+                descriptor,
+            ]
+            .concat(),
+            b"/FontName /F def\ncurrentfile eexec",
+        );
+
+        assert_eq!(decode(&font, 0x41), None);
+        assert!(logs_contain("symbolic font F without /Encoding"));
     }
 
     #[test]

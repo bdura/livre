@@ -1,17 +1,19 @@
 //! Encodings of simple fonts: from a one-byte code to a glyph name (ISO 32000-2, 9.6.5).
 //!
 //! A font's [`Encoding`] starts from a built-in table, chosen from its `/Encoding`, its
-//! `/BaseFont` and its descriptor's `/Flags`, then applies the `/Differences` of its encoding
-//! dictionary.
+//! `/BaseFont` and its descriptor's `/Flags`, or from the built-in encoding of its embedded
+//! Type 1 program, then applies the `/Differences` of its encoding dictionary.
 
 mod differences;
 mod glyph_name;
 mod tables;
+mod type1;
 
 pub(crate) use differences::{Differences, EncodingSpec};
 pub use glyph_name::GlyphName;
 pub(crate) use tables::Table;
 use tables::{MAC_EXPERT, MAC_ROMAN, STANDARD, SYMBOL, WIN_ANSI, ZAPF_DINGBATS};
+pub(crate) use type1::builtin_encoding;
 
 use super::Code;
 use crate::{
@@ -64,17 +66,28 @@ fn strip_subset_tag(base_font: &[u8]) -> &[u8] {
     }
 }
 
-/// Which built-in table the font's codes start from, before `/Differences`.
+/// The names a simple font's codes start from, before `/Differences`.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum Base {
+    /// A predefined encoding.
+    Table(&'static Table),
+    /// The codes a font program's built-in encoding names, in program order.
+    Names(Differences),
+}
+
+/// Which names the font's codes start from, before `/Differences`.
 ///
 /// In order: the predefined encoding `spec` names, directly or as `/BaseEncoding`; the Symbol
-/// or ZapfDingbats table for those fonts; nothing for a font flagged symbolic, whose built-in
-/// encoding is in its program; else `StandardEncoding`. An unknown encoding name and a
-/// symbolic font without a table both warn.
+/// or ZapfDingbats table for those fonts; for a font flagged symbolic, the built-in encoding
+/// `program` reads from its font program, else nothing; else `StandardEncoding`. `program` is
+/// only called for a symbolic font. An unknown encoding name, and a symbolic font whose
+/// program gives no encoding, both warn.
 pub(crate) fn base_table(
     spec: Option<&EncodingSpec>,
     base_font: &Name,
     flags: Flags,
-) -> Option<&'static Table> {
+    program: impl FnOnce() -> Option<Base>,
+) -> Option<Base> {
     let font = String::from_utf8_lossy(base_font);
 
     let name = match spec {
@@ -84,7 +97,7 @@ pub(crate) fn base_table(
     };
     if let Some(name) = name {
         match named_table(name) {
-            Some(table) => return Some(table),
+            Some(table) => return Some(Base::Table(table)),
             None => tracing::warn!(
                 "Font {font}: unknown /Encoding /{}",
                 String::from_utf8_lossy(name)
@@ -93,12 +106,15 @@ pub(crate) fn base_table(
     }
 
     match strip_subset_tag(base_font) {
-        b"Symbol" | b"SymbolMT" => return Some(&SYMBOL),
-        b"ZapfDingbats" | b"Dingbats" => return Some(&ZAPF_DINGBATS),
+        b"Symbol" | b"SymbolMT" => return Some(Base::Table(&SYMBOL)),
+        b"ZapfDingbats" | b"Dingbats" => return Some(Base::Table(&ZAPF_DINGBATS)),
         _ => {}
     }
 
     if flags.is_symbolic() && !flags.is_nonsymbolic() {
+        if let Some(base) = program() {
+            return Some(base);
+        }
         tracing::warn!(
             "symbolic font {font} without /Encoding: built-in encoding unknown, \
              relying on /Differences and /ToUnicode"
@@ -106,7 +122,7 @@ pub(crate) fn base_table(
         return None;
     }
 
-    Some(&STANDARD)
+    Some(Base::Table(&STANDARD))
 }
 
 /// The code-to-glyph-name map of a simple font, base table and differences applied.
@@ -117,10 +133,21 @@ pub struct Encoding {
 
 impl Encoding {
     /// The names of `base`, if any, overwritten by `differences`.
-    pub(crate) fn new(base: Option<&'static Table>, differences: &Differences) -> Self {
+    pub(crate) fn new(base: Option<&Base>, differences: &Differences) -> Self {
+        let table = match base {
+            Some(Base::Table(table)) => Some(*table),
+            Some(Base::Names(_)) | None => None,
+        };
         let mut names: Box<[Option<GlyphName>; 256]> = Box::new(std::array::from_fn(|code| {
-            base.and_then(|table| table[code]).map(GlyphName::from)
+            table.and_then(|table| table[code]).map(GlyphName::from)
         }));
+        let base_names = match base {
+            Some(Base::Names(names)) => Some(names),
+            Some(Base::Table(_)) | None => None,
+        };
+        for (code, name) in base_names.into_iter().flat_map(Differences::iter) {
+            names[usize::from(code)] = Some(name.clone());
+        }
         for (code, name) in differences.iter() {
             names[usize::from(code)] = Some(name.clone());
         }
@@ -155,9 +182,9 @@ mod tests {
         Build::build(&mut input, &()).unwrap()
     }
 
-    fn same(left: Option<&'static Table>, right: Option<&'static Table>) -> bool {
+    fn same(left: Option<Base>, right: Option<&'static Table>) -> bool {
         match (left, right) {
-            (Some(left), Some(right)) => std::ptr::eq(left, right),
+            (Some(Base::Table(left)), Some(right)) => std::ptr::eq(left, right),
             (None, None) => true,
             _ => false,
         }
@@ -184,9 +211,11 @@ mod tests {
         #[case] expected: Option<&'static Table>,
     ) {
         let spec = input.map(spec);
-        let table = base_table(spec.as_ref(), &base_font.into(), Flags(flags));
+        let table = base_table(spec.as_ref(), &base_font.into(), Flags(flags), || {
+            panic!("font program read for a font that is not symbolic")
+        });
 
-        assert!(same(table, expected), "{table:?}");
+        assert!(same(table.clone(), expected), "{table:?}");
         assert!(!logs_contain("WARN"));
     }
 
@@ -197,6 +226,7 @@ mod tests {
             Some(&spec(b"/FooEncoding")),
             &"Helvetica".into(),
             Flags::default(),
+            || None,
         );
 
         assert!(same(table, Some(&STANDARD)));
@@ -206,12 +236,41 @@ mod tests {
     #[test]
     #[tracing_test::traced_test]
     fn symbolic_without_encoding_has_no_base() {
-        let table = base_table(None, &"ABCDEF+Wingdings".into(), Flags(4));
+        let table = base_table(None, &"ABCDEF+Wingdings".into(), Flags(4), || None);
 
         assert!(table.is_none());
         assert!(logs_contain(
             "symbolic font ABCDEF+Wingdings without /Encoding"
         ));
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn symbolic_takes_its_program_encoding() {
+        let program: Differences = extract(&mut b"[65/alpha]".as_slice().as_ref()).unwrap();
+
+        let table = base_table(None, &"ABCDEF+CMR10".into(), Flags(4), || {
+            Some(Base::Names(program.clone()))
+        });
+
+        assert_eq!(table, Some(Base::Names(program)));
+        assert!(!logs_contain("WARN"));
+    }
+
+    #[test]
+    fn differences_over_program_names() {
+        let program: Differences = extract(&mut b"[65/alpha/beta]".as_slice().as_ref()).unwrap();
+        let differences: Differences = extract(&mut b"[66/gamma]".as_slice().as_ref()).unwrap();
+        let encoding = Encoding::new(Some(&Base::Names(program)), &differences);
+
+        let name = |code| {
+            encoding
+                .glyph_name(Code::one_byte(code))
+                .map(GlyphName::as_str)
+        };
+        assert_eq!(name(65), Some("alpha"));
+        assert_eq!(name(66), Some("gamma"));
+        assert_eq!(name(67), None);
     }
 
     #[test]
@@ -225,7 +284,7 @@ mod tests {
     fn differences_over_a_table() {
         let differences: Differences =
             extract(&mut b"[39/quotesingle]".as_slice().as_ref()).unwrap();
-        let encoding = Encoding::new(Some(&STANDARD), &differences);
+        let encoding = Encoding::new(Some(&Base::Table(&STANDARD)), &differences);
 
         let quotesingle = encoding.glyph_name(Code::one_byte(39)).unwrap();
         assert_eq!(quotesingle.as_str(), "quotesingle");

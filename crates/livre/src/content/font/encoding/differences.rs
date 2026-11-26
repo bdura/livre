@@ -46,6 +46,12 @@ impl Differences {
     }
 }
 
+impl FromIterator<(u8, GlyphName)> for Differences {
+    fn from_iter<I: IntoIterator<Item = (u8, GlyphName)>>(iter: I) -> Self {
+        Self(iter.into_iter().collect())
+    }
+}
+
 /// An element of a `/Differences` array.
 enum Item {
     Code(i64),

@@ -23,9 +23,9 @@ mod state;
 pub use error::ContentError;
 pub use font::{
     CMap, Cid, CidFont, CidFontSubtype, CidWidths, Code, Codes, CodespaceRange, CompositeFont,
-    Decoder, Encoding, EncodingCMap, Flags, Font, FontDescriptor, Fonts, GlyphName, GlyphWidth,
-    SimpleFont, SimpleWidths, ToUnicode, Type3Font, UnicodeText, VerticalMetric, VerticalMetrics,
-    Widths, WritingMode,
+    Decoder, Encoding, EncodingCMap, Flags, Font, FontDescriptor, FontFile, Fonts, GlyphName,
+    GlyphWidth, SimpleFont, SimpleWidths, ToUnicode, Type3Font, UnicodeText, VerticalMetric,
+    VerticalMetrics, Widths, WritingMode,
 };
 pub use state::{
     Character, DefaultUser, Displacement, FontSize, Glyph, Matrix, Point, RenderingMode, Run,

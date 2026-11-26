@@ -1,11 +1,11 @@
 //! Glyph widths of fonts with one-byte codes, from `/FirstChar`, `/Widths` and the font
 //! descriptor's `/MissingWidth` (ISO 32000-2, 9.6.2, Table 109, and 9.8, Table 120).
 
-use winnow::ModalResult;
+use winnow::{combinator::alt, BStr, ModalResult, Parser};
 
 use crate::{
-    extraction::RawDict,
-    follow_refs::{BuildFromRawDict, Builder},
+    extraction::{extract, RawDict, Reference, Stream},
+    follow_refs::{Build, BuildFromRawDict, Builder},
 };
 
 use super::{encoding::Flags, Code};
@@ -122,6 +122,29 @@ pub struct FontDescriptor {
     /// `/Flags`, which tell a symbolic font from a Latin one. Defaults to none set.
     #[livre(default)]
     pub flags: Flags,
+    /// `/FontFile`, the embedded Type 1 program, left unresolved: only a symbolic font
+    /// without a predefined encoding reads it, for its built-in encoding.
+    #[livre(default)]
+    pub font_file: FontFile,
+}
+
+/// The descriptor's `/FontFile` reference, kept unresolved: `None` when the key is absent
+/// or `null`.
+///
+/// An `Option` field would follow the reference while building the descriptor, inflating
+/// every font program whether or not it is needed.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct FontFile(pub Option<Reference<Stream<()>>>);
+
+impl Build for FontFile {
+    fn build<B>(input: &mut &BStr, _: &B) -> ModalResult<Self>
+    where
+        B: Builder,
+    {
+        alt((extract.map(Some), b"null".value(None)))
+            .map(Self)
+            .parse_next(input)
+    }
 }
 
 #[cfg(test)]

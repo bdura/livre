@@ -30,7 +30,7 @@ pub use code::{Code, Codes};
 pub use composite::CompositeFont;
 pub use decoder::Decoder;
 pub use encoding::{Encoding, Flags, GlyphName};
-pub use simple::{FontDescriptor, SimpleFont, SimpleWidths};
+pub use simple::{FontDescriptor, FontFile, SimpleFont, SimpleWidths};
 pub use type3::Type3Font;
 pub use widths::{GlyphWidth, Widths};
 
