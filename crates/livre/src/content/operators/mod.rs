@@ -66,6 +66,7 @@ pub enum Operator {
     EndText(EndText),
     Text(TextOperator),
     GraphicsState(GraphicsStateOperator),
+    /// An operator livre does not model, with its operands dropped and its name kept.
     NotImplemented(OperatorName),
 }
 

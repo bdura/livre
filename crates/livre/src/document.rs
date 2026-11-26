@@ -93,6 +93,13 @@ impl fmt::Debug for ObjectStreamCache {
     }
 }
 
+/// Resolves references against a PDF held in memory, through its cross-reference table.
+///
+/// Each object stream is decoded once, on the first compressed object read from it, and
+/// kept for the builder's lifetime; a stream that fails to decode is not kept. The cache
+/// is shared across threads, so the builder stays `Send` and `Sync`. It is not part of the
+/// builder's value: a clone starts with an empty cache, and equality compares the input
+/// and the cross-reference table only.
 #[derive(Debug, Clone, PartialEq)]
 pub struct InMemoryBuilder {
     /// The entire input slice
