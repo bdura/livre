@@ -1,0 +1,78 @@
+# The real-world PDFs the extraction benchmark runs on. Nix fetches each one
+# by hash (`nix/corpus.nix`), so none of them is kept in the repository.
+#
+# `name` is the file name without `.pdf`; `bench` selects the entries the
+# benchmark reads. Every URL names a version or a commit, so its content
+# cannot change.
+#
+# Provenance:
+#
+# - The arXiv papers and `GeoTopo-book` come from the corpus of py-pdf's
+#   benchmarks (https://github.com/py-pdf/benchmarks). All are pdfTeX output.
+#   The papers carry pdfTeX's own object streams, and they are the ones
+#   livre reads without error.
+# - `GeoTopo-book` is the exception: 36 of its 117 pages fail. It is kept
+#   because it is much slower than its size suggests.
+# - `tracemonkey` comes from pdf.js's test suite. Quartz wrote it without
+#   object streams: the only document from another producer.
+#   `nix/corpus.nix` derives `tracemonkey-objstm` from it.
+
+# arXiv papers, from py-pdf's benchmarks.
+
+[[document]]
+name = "2201.00037"
+url = "https://arxiv.org/pdf/2201.00037v1"
+sha256 = "a1a62e45b4e3f3c89e2a0336de29631afa7e9e712d3a268f14f3ad5e35284a20"
+bench = true
+
+[[document]]
+name = "1602.06541"
+url = "https://arxiv.org/pdf/1602.06541v2"
+sha256 = "8618a96fc965a31e843e6b96709e68bcbe2a825f32dc6b2ca67a4e60d38614c3"
+bench = true
+
+[[document]]
+name = "2201.00022"
+url = "https://arxiv.org/pdf/2201.00022v2"
+sha256 = "c64924d5856c83bbd712aeec09cb7bbe6e4e71ef484eb6f8013aceccec015fa2"
+bench = true
+
+[[document]]
+name = "2201.00201"
+url = "https://arxiv.org/pdf/2201.00201v2"
+sha256 = "095227891d4fcb6190f74a133c4895af73d2cedcf3676c8292fdf5915e46ed47"
+bench = true
+
+[[document]]
+name = "2201.00021"
+url = "https://arxiv.org/pdf/2201.00021v3"
+sha256 = "984ace89eb23ff4cb9cd6705a191a3eeea267a6ef42d05c782a10ca97d0f579a"
+bench = true
+
+[[document]]
+name = "2201.00178"
+url = "https://arxiv.org/pdf/2201.00178v1"
+sha256 = "f30563de6c6973cfc6aa4670113d52855aadba7ddb006011a9978ca791f411f0"
+bench = true
+
+[[document]]
+name = "2201.00200"
+url = "https://arxiv.org/pdf/2201.00200v1"
+sha256 = "edce7ae9870ad1608384ae40f86691566b8ce0013685496e3e4d1fda992dcac8"
+bench = true
+
+# py-pdf's sample files, also in py-pdf's benchmarks.
+
+[[document]]
+name = "GeoTopo-book"
+url = "https://github.com/py-pdf/sample-files/raw/80d67b91f3e28909756ca7807bbe8f43b599d12f/009-pdflatex-geotopo/GeoTopo.pdf"
+sha256 = "a0b9242aef9b5a2c4850160cc9aaf64f5c7b8be705d6872ae28aebf5ab512540"
+bench = true
+
+# pdf.js's test suite.
+
+[[document]]
+name = "tracemonkey"
+url = "https://github.com/mozilla/pdf.js/raw/32fb05b3b7216a9d9f496284392f04a5601266fb/test/pdfs/tracemonkey.pdf"
+sha256 = "3662ff519e485810520552bf301d8c3b2b917fd2f83303f4965d7abed367e113"
+bench = true

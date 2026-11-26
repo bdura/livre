@@ -116,6 +116,8 @@ and the root manifest only lists the members and their shared package metadata.
 └── nix/                       # Flake checks (crane), toolchains, generated fixtures, demo site
     ├── source.nix             # The cargo source fileset shared by checks and the demo
     ├── checks.nix             # Crane checks, including `livre-wasm32` (the crates on wasm32)
+    ├── corpus.toml            # The benchmark's real-world PDFs: URL and hash of each
+    ├── corpus.nix             # `packages.bench-corpus`: fetches them, adds a qpdf object-stream rewrite
     ├── demo.nix               # `packages.demo`: wasm build, wasm-bindgen, page, Tailwind CSS, fixtures
     │                          # (`nix run .#demo`, defined in flake.nix, serves it locally)
     ├── fixtures.nix           # Generated test fixtures and their drift check
@@ -205,6 +207,11 @@ and the root manifest only lists the members and their shared package metadata.
 │   ├── doc.rs               # Parse document and extract page content
 │   ├── text.rs              # Extract text operators from pages
 │   └── text_objects.rs       # Work with text objects
+│
+├── benches/                   # Extraction benchmark over the corpus of `LIVRE_BENCH_CORPUS`
+│   ├── common/mod.rs          # The corpus, its expected-outcome table and check, the pipeline steps
+│   ├── extraction.rs          # criterion: times open, fonts, content, text, end_to_end per document
+│   └── allocations.rs         # Counting global allocator: allocations and bytes per document and step
 │
 └── tests/                    # Integration tests
     ├── content.rs           # Content parsing tests
@@ -365,6 +372,21 @@ Showing text with no font selected is `NoFontSelected`.
   provide a custom reference resolution strategy.
 - **Update the font data**: Replace the file under `crates/livre-font-data/data/`,
   then follow the crate's README to rebuild the blobs.
+- **Run the benchmark**: Inside the dev shell (`nix develop`), which sets
+  `LIVRE_BENCH_CORPUS`, run `cargo bench -p livre --bench extraction` for the
+  timings (filter steps with a trailing `-- text`) and
+  `cargo bench -p livre --bench allocations` for the allocation table, which
+  is deterministic and compares between runs with `diff`. To compare two states
+  of the code, run `cargo bench -p livre --bench extraction -- --save-baseline before`
+  on the first, then `cargo bench -p livre --bench extraction -- --baseline before`
+  on the second. Trust only the `fonts`, `text` and `end_to_end` changes: the
+  sub-millisecond `open` and `content` benches settle on a different level in
+  each run, up to 13% apart on unchanged code.
+- **Add a document to the benchmark**: Add a `[[document]]` entry with
+  `bench = true` to `nix/corpus.toml` (a URL that names a fixed version, and its
+  sha256), then a row for it in `EXPECTED` in `crates/livre/benches/common/mod.rs`
+  with its pages, failing pages and characters. Both bench targets check every
+  document against its row before measuring anything.
 
 ## Cross-cutting concerns
 
@@ -407,6 +429,16 @@ it fails the build. `nix/demo.nix` assembles the site (wasm, `tsc`, Tailwind,
 fixtures), which is a flake check, deployed to GitHub Pages and served locally
 by `nix run .#demo`. The page overlays livre's runs on pdf.js's text layer,
 the visual harness for the font work.
+
+**Benchmark**: Two bench targets in `crates/livre/benches/` measure text
+extraction in steps (open, fonts, content, text, and end to end): `extraction`
+times them with criterion, `allocations` counts the allocations and bytes each
+step allocates. The documents are real-world PDFs that Nix fetches by hash from
+`nix/corpus.toml` (`nix/corpus.nix`), plus two fixtures of `tests/resources/`;
+none of the fetched ones is in the repository. The flake's test check runs each
+target once, which checks every document's expected outcome, but no timing or
+count is asserted: the benchmark informs optimisation work, it is not a
+regression guard.
 
 **Invariants**:
 
