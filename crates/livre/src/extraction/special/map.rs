@@ -11,7 +11,7 @@ use winnow::{
 use crate::{
     extraction::{
         extract, multicomment0,
-        utilities::{Angles, Brackets, DoubleAngles, Parentheses},
+        utilities::{recognize_angled, Brackets, DoubleAngles, Parentheses},
         Extract, FromRawDict,
     },
     follow_refs::{Build, BuildFromRawDict, Builder},
@@ -120,7 +120,7 @@ impl<'de> Extract<'de> for RawValue<'de> {
             b'/' => Name::recognize,
             b'[' => Brackets::recognize,
             b'(' => Parentheses::recognize,
-            b'<' => Angles::recognize,
+            b'<' => recognize_angled,
             // Catch-all for values that start with bytes other than the dispatch arms above:
             // numbers (e.g. `42`, `-3.14`), booleans (`true`, `false`), and indirect references
             // (`1 0 R`). These all end at the next `/` (the start of the next key), at a `%`
@@ -251,6 +251,9 @@ mod tests {
     #[case(b"<</Key1 true/Key2 (test)>>")]
     #[case(b"<F3BB>")]
     #[case(b"[1 2 3 4 true]")]
+    #[case(b"[(a]b) ([)]")]
+    #[case(b"<</T (a>b)>>")]
+    #[case(b"<</K [<</B (>>)>>] /H <ab>>>")]
     fn raw_value(#[case] input: &[u8]) {
         let RawValue(value) = extract(&mut input.as_ref()).unwrap();
         assert_eq!(input, value.as_ref())
@@ -292,6 +295,24 @@ mod tests {
 
         let input: &[u8] =
             b"<< % leading\n/Key1 % before\ntrue/Key2 false% after\n/Key3 42 % see /Key2\n/Key4 1 0 R%\n>>";
+        let result = RawDict::extract(&mut input.as_ref()).unwrap();
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn raw_dict_with_delimiters_in_strings_and_comments() {
+        let expected: RawDict = vec![
+            ("T", b"(a>b)".as_slice()),
+            ("A", b"[(a]b) ([)]".as_slice()),
+            ("H", b"<ab>".as_slice()),
+            ("D", b"<</K (>>)>>".as_slice()),
+            ("N", b"1".as_slice()),
+        ]
+        .into_iter()
+        .collect();
+
+        let input: &[u8] = b"<</T (a>b) /A [(a]b) ([)] /H <ab> /D <</K (>>)>> /N 1 % x > y\n>>";
         let result = RawDict::extract(&mut input.as_ref()).unwrap();
 
         assert_eq!(result, expected);

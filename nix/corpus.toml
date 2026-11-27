@@ -11,8 +11,7 @@
 #   benchmarks (https://github.com/py-pdf/benchmarks). All are pdfTeX output.
 #   The papers carry pdfTeX's own object streams, and they are the ones
 #   livre reads without error.
-# - `GeoTopo-book` is the exception: 36 of its 117 pages fail. It is kept
-#   because it is much slower than its size suggests.
+# - `GeoTopo-book` is kept because it is much slower than its size suggests.
 # - `tracemonkey` comes from pdf.js's test suite. Quartz wrote it without
 #   object streams: the only document from another producer.
 #   `nix/corpus.nix` derives `tracemonkey-objstm` from it.
