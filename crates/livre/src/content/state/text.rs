@@ -1106,6 +1106,45 @@ Q";
         assert_close(Point::new(transformation.b, transformation.c), (0.0, 0.0));
         assert_close(transformation.translation(), (132.4946, 695.1359));
     }
+
+    /// Every run of a content stream, as its text and its start.
+    fn shown(input: &[u8]) -> (Vec<String>, Vec<Point<DefaultUser>>) {
+        let mut objects = objects(input);
+        let mut shown = (Vec::new(), Vec::new());
+
+        while let Some(stream) = objects.next_object().unwrap() {
+            for Run { text, start, .. } in stream {
+                shown.0.push(text);
+                shown.1.push(start);
+            }
+        }
+
+        shown
+    }
+
+    #[test]
+    fn bracket_in_a_shown_string_does_not_end_the_text_object() {
+        // pdfTeX shows a lone bracket this way: the `[` in the string opens nothing.
+        let (texts, _) = shown(b"BT /F1 10 Tf [([)]TJ [([0)]TJ (a) Tj ET");
+        assert_eq!(texts, ["[", "[0", "a"]);
+    }
+
+    #[test]
+    fn bracket_in_a_shown_string_does_not_swallow_the_operators_up_to_the_next_bracket() {
+        // Page 2 of arXiv 2201.00037v1, with the fonts of the tests. The `]` closing the
+        // next array must not be taken for the end of the first: the `Tf`, the two `Td`
+        // and the name in between are operators, and the last `Td` undoes the first two.
+        let (texts, starts) = shown(
+            b"BT /F1 10 Tf 100 700 Td [(plane)-333([)]TJ /F2 10 Tf 403.71 0 Td \
+              [(Colomb)51(o)]TJ /F1 10 Tf 37.8 0 Td [(,)]TJ -441.51 -13.151 Td [(1966;)]TJ ET",
+        );
+
+        assert_eq!(texts, ["plane", "[", "Colomb", "o", ",", "1966;"]);
+        // 100 + 403.71, then + 37.8, then - 441.51 and a line down.
+        assert_close(starts[2], (503.71, 700.0));
+        assert_close(starts[4], (541.51, 700.0));
+        assert_close(starts[5], (100.0, 686.849));
+    }
 }
 
 #[cfg(test)]

@@ -37,7 +37,7 @@ use winnow::{
 };
 
 use crate::extraction::{
-    multicomment0, take_till_delimiter, Angles, Brackets, Extract, Name, Parentheses,
+    multicomment0, recognize_angled, take_till_delimiter, Brackets, Extract, Name, Parentheses,
 };
 
 /// Content stream operator.
@@ -132,7 +132,7 @@ fn recognize_operand<'de>(input: &mut &'de BStr) -> ModalResult<&'de [u8]> {
         b'/' => Name::recognize,
         b'[' => Brackets::recognize,
         b'(' => Parentheses::recognize,
-        b'<' => Angles::recognize,
+        b'<' => recognize_angled,
         b'+' | b'-' | b'.' | b'0'..=b'9' => take_till_delimiter(1..).map_err(ErrMode::Backtrack),
         _ => fail
     }
@@ -329,6 +329,8 @@ mod tests {
     #[case(b"0 0 10 10 re", "re")]
     #[case(b"f", "f")]
     #[case(b"/Span <</MCID 0>> BDC", "BDC")]
+    #[case(b"/Span <</ActualText (a>b)>> BDC", "BDC")]
+    #[case(b"/Span <</ActualText <FEFF005D> /E (])>> BDC", "BDC")]
     #[case(b"W*", "W*")]
     fn unmodelled_operator_keeps_its_name(#[case] input: &[u8], #[case] name: &str) {
         let result: Operator = extract(&mut input.as_ref()).unwrap();
