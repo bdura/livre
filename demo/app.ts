@@ -32,9 +32,12 @@ function $<T extends Element>(id: string, kind: abstract new () => T): T {
 
 const ui = {
   fixture: $("fixture", HTMLSelectElement),
-  fileOption: $("file-option", HTMLOptionElement),
+  opened: $("opened", HTMLOptGroupElement),
   open: $("open", HTMLButtonElement),
   file: $("file", HTMLInputElement),
+  urlForm: $("url-form", HTMLFormElement),
+  url: $("url", HTMLInputElement),
+  urlLoad: $("url-load", HTMLButtonElement),
   prev: $("prev", HTMLButtonElement),
   next: $("next", HTMLButtonElement),
   page: $("page", HTMLInputElement),
@@ -78,6 +81,10 @@ interface RunIndices {
 /** Everything the page knows about the loaded document. */
 interface State {
   name: string | null;
+  /** The document's value in the menu. */
+  key: string | null;
+  /** The link the document was fetched from, null for a sample or a local file. */
+  link: string | null;
   bytes: Uint8Array | null;
   /** livre's analysis; its `pages` may be shorter than the document on failure. */
   analysis: Analysis | null;
@@ -99,6 +106,8 @@ interface State {
 
 export const state: State = {
   name: null,
+  key: null,
+  link: null,
   bytes: null,
   analysis: null,
   pdf: null,
@@ -151,6 +160,14 @@ overlays.push(async (svg, { pdf, pageNumber, viewport }) => {
 let hoveredRun: RunIndices | null = null;
 let highlightedObject: number | null = null;
 let loadToken = 0;
+
+/**
+ * A file or link the visitor opened, kept for the menu. Not its bytes: a file is read
+ * again and a link fetched again, so that only the shown document stays in memory.
+ */
+type Opened = { name: string; file: File } | { name: string; link: string };
+// By menu value, in the order they were first opened.
+const opened = new Map<string, Opened>();
 // The pdf.js loading task of the current document: destroying it frees its worker side.
 let loadingTask: PDFDocumentLoadingTask | null = null;
 let renderTask: RenderTask | null = null;
@@ -159,13 +176,24 @@ let renderGeneration = 0;
 
 await init();
 
-/** Analyse and open `bytes`, then show page 1. Later loads supersede earlier ones. */
-async function load(name: string, bytes: Uint8Array): Promise<void> {
+/**
+ * Analyse and open `bytes`, then show page 1. They are a `sample`, or a document fetched
+ * from `link` if not null, or a local file. Later loads supersede earlier ones.
+ */
+async function load(
+  name: string,
+  bytes: Uint8Array,
+  { sample = false, link = null }: { sample?: boolean; link?: string | null } = {},
+): Promise<void> {
   const token = ++loadToken;
+
+  const key = sample ? name : link !== null ? `link:${link}` : `file:${name}`;
 
   void loadingTask?.destroy();
   Object.assign(state, {
     name,
+    key,
+    link,
     bytes,
     analysis: analyze_pdf(bytes),
     pdf: null,
@@ -175,7 +203,7 @@ async function load(name: string, bytes: Uint8Array): Promise<void> {
     zoom: 1,
   } satisfies Partial<State>);
   updateZoom();
-  showSource(name);
+  showSource();
 
   let pdfError: unknown = null;
   try {
@@ -201,14 +229,149 @@ async function load(name: string, bytes: Uint8Array): Promise<void> {
 async function loadFixture(name: string): Promise<void> {
   const response = await fetch(`./fixtures/${encodeURIComponent(name)}`);
   if (!response.ok) {
+    selectShown();
     showBanners(null, `could not fetch fixtures/${name}: HTTP ${response.status}`);
     return;
   }
-  await load(name, new Uint8Array(await response.arrayBuffer()));
+  await load(name, new Uint8Array(await response.arrayBuffer()), { sample: true });
 }
 
 async function loadFile(file: File): Promise<void> {
-  await load(file.name, new Uint8Array(await file.arrayBuffer()));
+  const token = loadToken;
+  const key = `file:${file.name}`;
+  let bytes: Uint8Array;
+  try {
+    bytes = new Uint8Array(await file.arrayBuffer());
+  } catch {
+    // The browser reads a file again on each call, and refuses once it moved or changed.
+    if (opened.delete(key)) renderOpened();
+    if (token !== loadToken) return;
+    selectShown();
+    showBanners(null, `could not read ${file.name}: it moved or changed since it was opened. Open it again.`);
+    return;
+  }
+  if (token !== loadToken) return;
+  remember(key, { name: file.name, file });
+  await load(file.name, bytes);
+}
+
+/** Open the menu entry `key`: a file read again or a link fetched again, or else a sample. */
+async function loadEntry(key: string): Promise<void> {
+  const entry = opened.get(key);
+  if (!entry) await loadFixture(key);
+  else if ("file" in entry) await loadFile(entry.file);
+  else await loadUrl(entry.link);
+}
+
+/**
+ * Keep an opened file or link in the menu, so that the visitor can come back to it.
+ * Opening it again keeps its place.
+ */
+function remember(key: string, entry: Opened): void {
+  opened.set(key, entry);
+  renderOpened();
+}
+
+function renderOpened(): void {
+  ui.opened.replaceChildren(
+    ...[...opened].map(([value, entry]) => {
+      const option = document.createElement("option");
+      option.value = value;
+      if ("file" in entry) {
+        option.textContent = entry.name;
+      } else {
+        option.textContent = `${entry.name} · ${new URL(entry.link, window.location.href).hostname}`;
+        option.title = entry.link;
+      }
+      return option;
+    }),
+  );
+  ui.opened.hidden = opened.size === 0;
+}
+
+/** Select the shown document in the menu again, after picking another one failed. */
+function selectShown(): void {
+  if (state.key !== null) ui.fixture.value = state.key;
+}
+
+/**
+ * Fetch the PDF at `url` from the browser and open it. Most hosts send no CORS header,
+ * which the browser reports as a bare network error: the banner suggests the way around.
+ */
+async function loadUrl(url: string): Promise<void> {
+  const token = loadToken;
+  // Something else was opened while the link downloaded: it wins.
+  const superseded = () => token !== loadToken;
+  ui.urlForm.setAttribute("aria-busy", "true");
+  syncLinkButton();
+  try {
+    let response: Response;
+    try {
+      response = await fetch(downloadUrl(url));
+    } catch {
+      if (!superseded()) {
+        selectShown();
+        showBanners(
+          null,
+          `could not fetch ${url}: the host is unreachable or does not allow cross-origin downloads. Download the PDF and open it instead.`,
+        );
+      }
+      return;
+    }
+    if (!response.ok) {
+      if (!superseded()) {
+        selectShown();
+        showBanners(null, `could not fetch ${url}: HTTP ${response.status}`);
+      }
+      return;
+    }
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (superseded()) return;
+    const name = linkName(url);
+    remember(`link:${url}`, { name, link: url });
+    await load(name, bytes, { link: url });
+  } finally {
+    ui.urlForm.removeAttribute("aria-busy");
+    syncLinkButton();
+  }
+}
+
+/**
+ * Where to download a link from. github.com sends no CORS header, but its raw host does:
+ * a file page (`/owner/repo/blob/ref/path`, or `/raw/` in its place) maps onto it.
+ * Anything else is fetched as given.
+ */
+function downloadUrl(url: string): string {
+  let link: URL;
+  try {
+    link = new URL(url, window.location.href);
+  } catch {
+    return url;
+  }
+  const [, owner, repo, kind, ...rest] = link.pathname.split("/");
+  const github = link.hostname === "github.com" || link.hostname === "www.github.com";
+  if (!github ||(kind !== "blob" && kind !== "raw") || rest.length < 2) return url;
+  return `https://raw.githubusercontent.com/${owner}/${repo}/${rest.join("/")}`;
+}
+
+/** The file name a link points to, or its host when the path names none. */
+function linkName(url: string): string {
+  const { hostname, pathname } = new URL(url, window.location.href);
+  const last = pathname.split("/").findLast(Boolean);
+  if (!last) return hostname;
+  try {
+    return decodeURIComponent(last);
+  } catch {
+    return last;
+  }
+}
+
+/** Keep `?url=` in the address bar in step with the document, so a linked PDF can be shared. */
+function setLinkParam(url: string | null): void {
+  const address = new URL(window.location.href);
+  if (url === null) address.searchParams.delete("url");
+  else address.searchParams.set("url", url);
+  window.history.replaceState(null, "", address);
 }
 
 /** Show page `n`, clamped to the pages pdf.js found. */
@@ -225,16 +388,28 @@ async function show(n: number, pdfError: unknown = null): Promise<void> {
   await render();
 }
 
-/** Name the shown document in the sample select, through a stand-in option for a file. */
-function showSource(name: string): void {
-  const fixture = [...ui.fixture.options].find((option) => option !== ui.fileOption && option.value === name);
-  ui.fileOption.hidden = Boolean(fixture);
-  if (fixture) {
-    ui.fixture.value = name;
-  } else {
-    ui.fileOption.textContent = name;
-    ui.fileOption.selected = true;
-  }
+/**
+ * Select the shown document in the menu. The link field and `?url=` hold the link of the
+ * shown document, and are emptied for any other.
+ */
+function showSource(): void {
+  const { key, link } = state;
+  if (key !== null) ui.fixture.value = key;
+  ui.fixture.title = link ?? "";
+  ui.url.value = link ?? "";
+  setLinkParam(link);
+  syncLinkButton();
+}
+
+/**
+ * The link button says what submitting would do: nothing while a download runs or when
+ * the field holds the link already shown, so it reads "Shown" then.
+ */
+function syncLinkButton(): void {
+  const busy = ui.urlForm.hasAttribute("aria-busy");
+  const shown = state.link !== null && ui.url.value.trim() === state.link;
+  ui.urlLoad.disabled = busy || shown;
+  ui.urlLoad.textContent = busy ? "Loading…" : shown ? "Shown" : "Load";
 }
 
 /** livre's DTO for the current page, if livre got that far. */
@@ -695,8 +870,13 @@ async function showVersion(): Promise<void> {
   }
 }
 
-ui.fixture.addEventListener("change", () => loadFixture(ui.fixture.value));
+ui.fixture.addEventListener("change", () => loadEntry(ui.fixture.value));
 ui.open.addEventListener("click", () => ui.file.click());
+ui.urlForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  void loadUrl(ui.url.value.trim());
+});
+ui.url.addEventListener("input", syncLinkButton);
 ui.file.addEventListener("change", () => {
   const file = ui.file.files?.[0];
   if (file) void loadFile(file);
@@ -805,4 +985,11 @@ ui.viewer.addEventListener(
 );
 
 void showVersion();
-await loadFixture(ui.fixture.value);
+// `?url=` opens a linked PDF, so that a shared address shows the same document.
+const linked = new URLSearchParams(window.location.search).get("url");
+if (linked) {
+  // Shown while it downloads, and left there to correct if it fails.
+  ui.url.value = linked;
+  await loadUrl(linked);
+}
+else await loadFixture(ui.fixture.value);
