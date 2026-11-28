@@ -7,6 +7,38 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.6.0](https://github.com/bdura/livre/compare/livre-v0.5.0...livre-v0.6.0) - 2026-11-28
+
+### Added
+
+- composite fonts ([#70](https://github.com/bdura/livre/pull/70))
+- simple font decoding ([#68](https://github.com/bdura/livre/pull/68))
+- *(content)* advance runs through simple-font widths ([#66](https://github.com/bdura/livre/pull/66))
+- *(content)* keep text state in the graphics state ([#65](https://github.com/bdura/livre/pull/65))
+- WASM demo ([#61](https://github.com/bdura/livre/pull/61))
+
+### Fixed
+
+- *(structure)* read an indirect /Font resource dictionary ([#81](https://github.com/bdura/livre/pull/81))
+- *(extraction)* scan balanced delimiters lexically ([#80](https://github.com/bdura/livre/pull/80))
+- *(follow_refs)* [**breaking**] keep reference-holding types unresolved inside containers ([#79](https://github.com/bdura/livre/pull/79))
+- *(font)* read the built-in encoding of embedded Type 1 programs ([#78](https://github.com/bdura/livre/pull/78))
+- return errors instead of panicking on malformed input ([#73](https://github.com/bdura/livre/pull/73))
+- *(structure)* reject page tree cycles instead of overflowing the stack ([#72](https://github.com/bdura/livre/pull/72))
+- *(structure)* separate page content streams with whitespace ([#71](https://github.com/bdura/livre/pull/71))
+- comments handling ([#69](https://github.com/bdura/livre/pull/69))
+- *(content)* track the CTM through cm, q and Q so run positions land in page space ([#62](https://github.com/bdura/livre/pull/62))
+- flate predictors ([#60](https://github.com/bdura/livre/pull/60))
+- *(document)* let newer xref sections take precedence and stop on /Prev cycles ([#59](https://github.com/bdura/livre/pull/59))
+
+### Other
+
+- cache object streams and store unmodelled operator names inline ([#77](https://github.com/bdura/livre/pull/77))
+- benchmark text extraction over a real-document corpus ([#76](https://github.com/bdura/livre/pull/76))
+- internal regrouping ([#75](https://github.com/bdura/livre/pull/75))
+- boilerplate cleanup ([#74](https://github.com/bdura/livre/pull/74))
+- use a crates/ layout ([#58](https://github.com/bdura/livre/pull/58))
+
 ### Added
 
 - `livre::VERSION`: the crate version, as published
