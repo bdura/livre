@@ -406,7 +406,10 @@ mod tests {
         let expected: Reference<Font> = (7, 0).into();
         assert_eq!(
             resources.font,
-            Some(OptRef::Direct(HashMap::from([(Name::from("F1"), expected)])))
+            Some(OptRef::Direct(HashMap::from([(
+                Name::from("F1"),
+                expected
+            )])))
         );
     }
 
@@ -431,8 +434,12 @@ mod tests {
             ),
         ]
         .into();
-        let page = Page::extract(&mut b"<</Type/Page/Resources<</Font 5 0 R>>>>".as_slice().as_ref())
-            .unwrap();
+        let page = Page::extract(
+            &mut b"<</Type/Page/Resources<</Font 5 0 R>>>>"
+                .as_slice()
+                .as_ref(),
+        )
+        .unwrap();
 
         let fonts = page.fonts(&objects).unwrap();
 
