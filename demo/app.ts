@@ -161,15 +161,12 @@ let hoveredRun: RunIndices | null = null;
 let highlightedObject: number | null = null;
 let loadToken = 0;
 
-/** A file or link the visitor opened, kept for the menu. */
-interface Opened {
-  name: string;
-  link: string | null;
-  bytes: Uint8Array;
-}
-// Each keeps its bytes in memory: a few, not the whole session.
-const MAX_OPENED = 8;
-// By menu value, oldest first.
+/**
+ * A file or link the visitor opened, kept for the menu. Not its bytes: a file is read
+ * again and a link fetched again, so that only the shown document stays in memory.
+ */
+type Opened = { name: string; file: File } | { name: string; link: string };
+// By menu value, in the order they were first opened.
 const opened = new Map<string, Opened>();
 // The pdf.js loading task of the current document: destroying it frees its worker side.
 let loadingTask: PDFDocumentLoadingTask | null = null;
@@ -181,8 +178,7 @@ await init();
 
 /**
  * Analyse and open `bytes`, then show page 1. They are a `sample`, or a document fetched
- * from `link` if not null, or a local file; the last two join the menu. Later loads
- * supersede earlier ones.
+ * from `link` if not null, or a local file. Later loads supersede earlier ones.
  */
 async function load(
   name: string,
@@ -192,7 +188,6 @@ async function load(
   const token = ++loadToken;
 
   const key = sample ? name : link !== null ? `link:${link}` : `file:${name}`;
-  if (!sample) remember(key, { name, link, bytes });
 
   void loadingTask?.destroy();
   Object.assign(state, {
@@ -234,6 +229,7 @@ async function load(
 async function loadFixture(name: string): Promise<void> {
   const response = await fetch(`./fixtures/${encodeURIComponent(name)}`);
   if (!response.ok) {
+    selectShown();
     showBanners(null, `could not fetch fixtures/${name}: HTTP ${response.status}`);
     return;
   }
@@ -241,37 +237,61 @@ async function loadFixture(name: string): Promise<void> {
 }
 
 async function loadFile(file: File): Promise<void> {
-  await load(file.name, new Uint8Array(await file.arrayBuffer()));
+  const token = loadToken;
+  const key = `file:${file.name}`;
+  let bytes: Uint8Array;
+  try {
+    bytes = new Uint8Array(await file.arrayBuffer());
+  } catch {
+    // The browser reads a file again on each call, and refuses once it moved or changed.
+    if (opened.delete(key)) renderOpened();
+    if (token !== loadToken) return;
+    selectShown();
+    showBanners(null, `could not read ${file.name}: it moved or changed since it was opened. Open it again.`);
+    return;
+  }
+  if (token !== loadToken) return;
+  remember(key, { name: file.name, file });
+  await load(file.name, bytes);
 }
 
-/** Open the menu entry `key`: a document opened earlier, from memory, or else a sample. */
+/** Open the menu entry `key`: a file read again or a link fetched again, or else a sample. */
 async function loadEntry(key: string): Promise<void> {
   const entry = opened.get(key);
-  if (entry) await load(entry.name, entry.bytes, { link: entry.link });
-  else await loadFixture(key);
+  if (!entry) await loadFixture(key);
+  else if ("file" in entry) await loadFile(entry.file);
+  else await loadUrl(entry.link);
 }
 
 /**
  * Keep an opened file or link in the menu, so that the visitor can come back to it.
- * Opening it again replaces the entry in place; past `MAX_OPENED`, the oldest one is dropped.
+ * Opening it again keeps its place.
  */
 function remember(key: string, entry: Opened): void {
   opened.set(key, entry);
-  for (const old of opened.keys()) {
-    if (opened.size <= MAX_OPENED) break;
-    opened.delete(old);
-  }
+  renderOpened();
+}
 
+function renderOpened(): void {
   ui.opened.replaceChildren(
-    ...[...opened].map(([value, { name, link }]) => {
+    ...[...opened].map(([value, entry]) => {
       const option = document.createElement("option");
       option.value = value;
-      option.textContent = link === null ? name : `${name} · ${new URL(link, window.location.href).hostname}`;
-      if (link !== null) option.title = link;
+      if ("file" in entry) {
+        option.textContent = entry.name;
+      } else {
+        option.textContent = `${entry.name} · ${new URL(entry.link, window.location.href).hostname}`;
+        option.title = entry.link;
+      }
       return option;
     }),
   );
-  ui.opened.hidden = false;
+  ui.opened.hidden = opened.size === 0;
+}
+
+/** Select the shown document in the menu again, after picking another one failed. */
+function selectShown(): void {
+  if (state.key !== null) ui.fixture.value = state.key;
 }
 
 /**
@@ -290,6 +310,7 @@ async function loadUrl(url: string): Promise<void> {
       response = await fetch(downloadUrl(url));
     } catch {
       if (!superseded()) {
+        selectShown();
         showBanners(
           null,
           `could not fetch ${url}: the host is unreachable or does not allow cross-origin downloads. Download the PDF and open it instead.`,
@@ -298,12 +319,17 @@ async function loadUrl(url: string): Promise<void> {
       return;
     }
     if (!response.ok) {
-      if (!superseded()) showBanners(null, `could not fetch ${url}: HTTP ${response.status}`);
+      if (!superseded()) {
+        selectShown();
+        showBanners(null, `could not fetch ${url}: HTTP ${response.status}`);
+      }
       return;
     }
     const bytes = new Uint8Array(await response.arrayBuffer());
     if (superseded()) return;
-    await load(linkName(url), bytes, { link: url });
+    const name = linkName(url);
+    remember(`link:${url}`, { name, link: url });
+    await load(name, bytes, { link: url });
   } finally {
     ui.urlForm.removeAttribute("aria-busy");
     syncLinkButton();
