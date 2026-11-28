@@ -281,7 +281,7 @@ The tests fail when a committed blob no longer matches its source.
 
 ```text
 ├── index.html            # The page: header controls, error strips, canvas and overlay svg, inspector
-├── app.ts                # Loads the wasm and pdf.js, renders, navigates, reports errors, drives the inspector
+├── app.ts                # Loads the wasm and pdf.js, opens samples, files and links, renders, navigates, reports errors, drives the inspector
 ├── overlay-livre.ts      # livre's layer: run boxes from start to end, a tick at each character's start, text object hulls on highlight
 ├── overlay-pdfjs.ts      # Ground truth: pdf.js text items as boxes
 ├── svg.ts                # The overlays' SVG element helper
@@ -453,7 +453,12 @@ type-checked against the generated declarations, so a DTO change that breaks
 it fails the build. `nix/demo.nix` assembles the site (wasm, `tsc`, Tailwind,
 fixtures), which is a flake check, deployed to GitHub Pages and served locally
 by `nix run .#demo`. The page overlays livre's runs on pdf.js's text layer,
-the visual harness for the font work.
+the visual harness for the font work. It opens a bundled sample, a local file
+or a link (a field, or `?url=` in the address, kept in step with the shown
+document so it can be shared). The browser fetches links itself, so only hosts
+that send CORS headers work; github.com file pages are rewritten to
+`raw.githubusercontent.com`. Opened files and links join the document menu
+without their bytes: picking one reads the `File` or fetches the link again.
 
 **Benchmark**: Two bench targets in `crates/livre/benches/` measure text
 extraction in steps (open, fonts, content, text, and end to end): `extraction`
