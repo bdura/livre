@@ -417,12 +417,15 @@ literal, closure or expression; applied after `from`) and `flatten`.
 Generated code uses absolute `::livre::` and `::winnow::` paths; `livre` itself
 declares `extern crate self as livre` so those paths resolve inside the crate too.
 Misuse is a spanned compile error, checked by the trybuild cases in `tests/ui`.
-An `Option<T>` field builds through `Built<T>`, as do the items of `Vec`, arrays and
-`MaybeArray`, so a reference there is followed; a required field is read as written.
-A type that holds a reference itself sets `Build::FOLLOW` to `false` and is never
-followed: `Reference<T>`, `OptRef<T>` and `Object`. A field keeps a reference
-unresolved by being typed as one, as `FontDescriptor::font_file` and
-`ObjectStreamDict::extends` are.
+Every `BuildFromRawDict` field builds through `Built<T>`, as do the items of
+`Option`, `Vec`, arrays and `MaybeArray`, so any value may be written as a
+reference and is followed. A type that holds a reference itself sets
+`Build::FOLLOW` to `false` and is never followed: `Reference<T>`, `OptRef<T>`
+and `Object`. `Option<T>` sets it too, leaving the reference to its item. A field
+keeps a reference unresolved by being typed as one, as `FontDescriptor::font_file`
+and `ObjectStreamDict::extends` are. A dictionary value must be read whole
+(`RawValue::extract` and `RawValue::build`), so `10 0 R` is never taken for the
+integer `10`.
 
 **Memory model**: `InMemoryDocument` loads the entire PDF into memory.
 The `InMemoryBuilder` holds the raw bytes and cross-reference table, allowing
