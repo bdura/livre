@@ -51,6 +51,25 @@
       </button>
       <input id="file" type="file" accept="application/pdf,.pdf" class="sr-only" tabindex="-1" />
 
+      <!-- The browser fetches the link itself: it works only if the host allows cross-origin requests. -->
+      <form id="url-form" class="chip flex items-center has-focus-visible:ring-zinc-400 dark:has-focus-visible:ring-white/30">
+        <label for="url" class="sr-only">PDF link</label>
+        <input
+          id="url"
+          type="url"
+          required
+          placeholder="or paste a link to a PDF"
+          class="w-52 bg-transparent py-1.5 pl-3 text-zinc-800 placeholder:text-zinc-400 focus:outline-none dark:text-zinc-200 dark:placeholder:text-zinc-500"
+        />
+        <button
+          id="url-load"
+          type="submit"
+          class="px-3 py-1.5 font-medium text-zinc-500 hover:text-zinc-950 disabled:opacity-60 dark:hover:text-white"
+        >
+          Load
+        </button>
+      </form>
+
       <nav class="chip flex items-center lg:mx-auto" aria-label="Pages">
         <button id="prev" type="button" class="pager-button" aria-label="Previous page" disabled>‹</button>
         <label class="flex items-center gap-1.5 px-1 tabular-nums">

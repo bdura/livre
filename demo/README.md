@@ -10,6 +10,14 @@ the hovered or pinned run, the page's text objects (each expands into its runs,
 and hovering one fades the others on the page) and livre's JSON for the page,
 and an amber strip names each stage that failed. Nothing is uploaded anywhere.
 
+The top bar also takes a link to a PDF, which the browser fetches itself, so it
+works only for hosts that allow cross-origin requests (GitHub's raw files and
+arXiv do, many sites don't; a strip then says so). github.com does not, so a
+link to a file page there (`/blob/` or `/raw/`) is fetched from
+`raw.githubusercontent.com` instead. The link goes in the address
+as `?url=`, so `…/livre/?url=https://…/file.pdf` opens that document directly
+and can be shared, in a bug report say.
+
 No framework and no bundler. The scripts are TypeScript: `tsc` compiles each `.ts`
 file into the `.js` beside it, which `index.html` loads as an ES module as is.
 The wasm bindings' declarations (`pkg/livre_wasm.d.ts`, generated from the Rust

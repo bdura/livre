@@ -35,6 +35,9 @@ const ui = {
   fileOption: $("file-option", HTMLOptionElement),
   open: $("open", HTMLButtonElement),
   file: $("file", HTMLInputElement),
+  urlForm: $("url-form", HTMLFormElement),
+  url: $("url", HTMLInputElement),
+  urlLoad: $("url-load", HTMLButtonElement),
   prev: $("prev", HTMLButtonElement),
   next: $("next", HTMLButtonElement),
   page: $("page", HTMLInputElement),
@@ -199,6 +202,7 @@ async function load(name: string, bytes: Uint8Array): Promise<void> {
 }
 
 async function loadFixture(name: string): Promise<void> {
+  setLinkParam(null);
   const response = await fetch(`./fixtures/${encodeURIComponent(name)}`);
   if (!response.ok) {
     showBanners(null, `could not fetch fixtures/${name}: HTTP ${response.status}`);
@@ -208,7 +212,84 @@ async function loadFixture(name: string): Promise<void> {
 }
 
 async function loadFile(file: File): Promise<void> {
+  setLinkParam(null);
   await load(file.name, new Uint8Array(await file.arrayBuffer()));
+}
+
+/**
+ * Fetch the PDF at `url` from the browser and open it. Most hosts send no CORS header,
+ * which the browser reports as a bare network error: the banner suggests the way around.
+ */
+async function loadUrl(url: string): Promise<void> {
+  const token = loadToken;
+  // Something else was opened while the link downloaded: it wins.
+  const superseded = () => token !== loadToken;
+  ui.urlLoad.disabled = true;
+  ui.urlLoad.textContent = "Loading…";
+  try {
+    let response: Response;
+    try {
+      response = await fetch(downloadUrl(url));
+    } catch {
+      if (!superseded()) {
+        showBanners(
+          null,
+          `could not fetch ${url}: the host is unreachable or does not allow cross-origin downloads. Download the PDF and open it instead.`,
+        );
+      }
+      return;
+    }
+    if (!response.ok) {
+      if (!superseded()) showBanners(null, `could not fetch ${url}: HTTP ${response.status}`);
+      return;
+    }
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (superseded()) return;
+    setLinkParam(url);
+    ui.url.value = url;
+    await load(linkName(url), bytes);
+  } finally {
+    ui.urlLoad.disabled = false;
+    ui.urlLoad.textContent = "Load";
+  }
+}
+
+/**
+ * Where to download a link from. github.com sends no CORS header, but its raw host does:
+ * a file page (`/owner/repo/blob/ref/path`, or `/raw/` in its place) maps onto it.
+ * Anything else is fetched as given.
+ */
+function downloadUrl(url: string): string {
+  let link: URL;
+  try {
+    link = new URL(url, window.location.href);
+  } catch {
+    return url;
+  }
+  const [, owner, repo, kind, ...rest] = link.pathname.split("/");
+  const github = link.hostname === "github.com" || link.hostname === "www.github.com";
+  if (!github ||(kind !== "blob" && kind !== "raw") || rest.length < 2) return url;
+  return `https://raw.githubusercontent.com/${owner}/${repo}/${rest.join("/")}`;
+}
+
+/** The file name a link points to, or its host when the path names none. */
+function linkName(url: string): string {
+  const { hostname, pathname } = new URL(url, window.location.href);
+  const last = pathname.split("/").findLast(Boolean);
+  if (!last) return hostname;
+  try {
+    return decodeURIComponent(last);
+  } catch {
+    return last;
+  }
+}
+
+/** Keep `?url=` in the address bar in step with the document, so a linked PDF can be shared. */
+function setLinkParam(url: string | null): void {
+  const address = new URL(window.location.href);
+  if (url === null) address.searchParams.delete("url");
+  else address.searchParams.set("url", url);
+  window.history.replaceState(null, "", address);
 }
 
 /** Show page `n`, clamped to the pages pdf.js found. */
@@ -697,6 +778,10 @@ async function showVersion(): Promise<void> {
 
 ui.fixture.addEventListener("change", () => loadFixture(ui.fixture.value));
 ui.open.addEventListener("click", () => ui.file.click());
+ui.urlForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  void loadUrl(ui.url.value.trim());
+});
 ui.file.addEventListener("change", () => {
   const file = ui.file.files?.[0];
   if (file) void loadFile(file);
@@ -805,4 +890,7 @@ ui.viewer.addEventListener(
 );
 
 void showVersion();
-await loadFixture(ui.fixture.value);
+// `?url=` opens a linked PDF, so that a shared address shows the same document.
+const linked = new URLSearchParams(window.location.search).get("url");
+if (linked) await loadUrl(linked);
+else await loadFixture(ui.fixture.value);
