@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{borrow::Cow, collections::HashMap};
 
 use winnow::{
     error::{ContextError, ErrMode},
@@ -11,19 +11,22 @@ use crate::{
         extract, Extract, FromRawDict, MaybeArray, Name, OptRef, RawDict, Rectangle, Reference,
         ReferenceId, Stream,
     },
-    follow_refs::{build_via_extract, Builder},
+    follow_refs::{build_via_extract, Build, Builder},
 };
 
 /// Page resources.
 #[derive(Debug, PartialEq, Clone, FromRawDict)]
 pub struct Resources {
     /// Font dictionary: the fonts the content streams select with `Tf`, by resource name.
-    /// Empty when the resources have no `/Font` entry.
-    #[livre(default)]
-    pub font: HashMap<Name, Reference<Font>>,
+    /// It may be written in place or as an indirect object. `None` when the resources have
+    /// no `/Font` entry.
+    pub font: Option<OptRef<FontMap>>,
 }
 
-build_via_extract!(Resources);
+/// A `/Font` resource dictionary, mapping resource names to font dictionaries.
+pub type FontMap = HashMap<Name, Reference<Font>>;
+
+build_via_extract!(Resources FontMap);
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum RotationAngle {
@@ -224,21 +227,30 @@ impl Page {
     where
         B: Builder,
     {
-        let built;
-        let resources = match &self.inheritable_props.resources {
-            None => return Ok(Fonts::empty()),
-            Some(OptRef::Direct(resources)) => resources,
-            Some(OptRef::Ref(reference)) => {
-                built = builder.build_reference(*reference)?;
-                &built
-            }
+        let Some(resources) = &self.inheritable_props.resources else {
+            return Ok(Fonts::empty());
+        };
+        let resources = resolve(resources, builder)?;
+        let Some(font) = &resources.font else {
+            return Ok(Fonts::empty());
         };
 
-        resources
-            .font
+        resolve(font, builder)?
             .iter()
             .map(|(name, &reference)| Ok((name.clone(), builder.build_reference(reference)?)))
             .collect()
+    }
+}
+
+/// The value `optref` holds, built through `builder` when it is a reference.
+fn resolve<'a, T, B>(optref: &'a OptRef<T>, builder: &B) -> ModalResult<Cow<'a, T>>
+where
+    T: Build + Clone,
+    B: Builder,
+{
+    match optref {
+        OptRef::Direct(value) => Ok(Cow::Borrowed(value)),
+        OptRef::Ref(reference) => builder.build_reference(*reference).map(Cow::Owned),
     }
 }
 
@@ -384,7 +396,7 @@ mod tests {
     #[test]
     fn resources_without_font_have_no_fonts() {
         let resources = Resources::extract(&mut b"<</ProcSet[/PDF]>>".as_slice().as_ref()).unwrap();
-        assert!(resources.font.is_empty());
+        assert_eq!(resources.font, None);
     }
 
     #[test]
@@ -394,8 +406,45 @@ mod tests {
         let expected: Reference<Font> = (7, 0).into();
         assert_eq!(
             resources.font,
-            HashMap::from([(Name::from("F1"), expected)])
+            Some(OptRef::Direct(HashMap::from([(
+                Name::from("F1"),
+                expected
+            )])))
         );
+    }
+
+    #[test]
+    fn resources_read_an_indirect_font_dictionary() {
+        let resources = Resources::extract(&mut b"<</Font 5 0 R>>".as_slice().as_ref()).unwrap();
+        assert_eq!(resources.font, Some(OptRef::Ref((5, 0).into())));
+    }
+
+    #[test]
+    fn page_fonts_resolve_an_indirect_font_dictionary() {
+        let objects: HashMap<ReferenceId, &BStr> = [
+            (
+                (5, 0).into(),
+                b"5 0 obj\n<</F1 7 0 R>>\nendobj".as_slice().as_ref(),
+            ),
+            (
+                (7, 0).into(),
+                b"7 0 obj\n<</Type/Font/Subtype/Type1/BaseFont/Helvetica/FirstChar 65/LastChar 65/Widths[667]>>\nendobj"
+                    .as_slice()
+                    .as_ref(),
+            ),
+        ]
+        .into();
+        let page = Page::extract(
+            &mut b"<</Type/Page/Resources<</Font 5 0 R>>>>"
+                .as_slice()
+                .as_ref(),
+        )
+        .unwrap();
+
+        let fonts = page.fonts(&objects).unwrap();
+
+        let width = fonts.get(&"F1".into()).unwrap().width(Code::one_byte(65));
+        assert_eq!(width, GlyphWidth(667.0));
     }
 
     #[test]
