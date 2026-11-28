@@ -16,7 +16,9 @@ arXiv do, many sites don't; a strip then says so). github.com does not, so a
 link to a file page there (`/blob/` or `/raw/`) is fetched from
 `raw.githubusercontent.com` instead. The link goes in the address
 as `?url=`, so `…/livre/?url=https://…/file.pdf` opens that document directly
-and can be shared, in a bug report say.
+and can be shared, in a bug report say. The files and links opened join the
+samples in the document menu, kept in memory (the last eight) so that switching
+back to one fetches nothing.
 
 No framework and no bundler. The scripts are TypeScript: `tsc` compiles each `.ts`
 file into the `.js` beside it, which `index.html` loads as an ES module as is.

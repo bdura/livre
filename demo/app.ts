@@ -32,7 +32,7 @@ function $<T extends Element>(id: string, kind: abstract new () => T): T {
 
 const ui = {
   fixture: $("fixture", HTMLSelectElement),
-  fileOption: $("file-option", HTMLOptionElement),
+  opened: $("opened", HTMLOptGroupElement),
   open: $("open", HTMLButtonElement),
   file: $("file", HTMLInputElement),
   urlForm: $("url-form", HTMLFormElement),
@@ -81,6 +81,10 @@ interface RunIndices {
 /** Everything the page knows about the loaded document. */
 interface State {
   name: string | null;
+  /** The document's value in the menu. */
+  key: string | null;
+  /** The link the document was fetched from, null for a sample or a local file. */
+  link: string | null;
   bytes: Uint8Array | null;
   /** livre's analysis; its `pages` may be shorter than the document on failure. */
   analysis: Analysis | null;
@@ -102,6 +106,8 @@ interface State {
 
 export const state: State = {
   name: null,
+  key: null,
+  link: null,
   bytes: null,
   analysis: null,
   pdf: null,
@@ -154,6 +160,17 @@ overlays.push(async (svg, { pdf, pageNumber, viewport }) => {
 let hoveredRun: RunIndices | null = null;
 let highlightedObject: number | null = null;
 let loadToken = 0;
+
+/** A file or link the visitor opened, kept for the menu. */
+interface Opened {
+  name: string;
+  link: string | null;
+  bytes: Uint8Array;
+}
+// Each keeps its bytes in memory: a few, not the whole session.
+const MAX_OPENED = 8;
+// By menu value, oldest first.
+const opened = new Map<string, Opened>();
 // The pdf.js loading task of the current document: destroying it frees its worker side.
 let loadingTask: PDFDocumentLoadingTask | null = null;
 let renderTask: RenderTask | null = null;
@@ -162,13 +179,26 @@ let renderGeneration = 0;
 
 await init();
 
-/** Analyse and open `bytes`, then show page 1. Later loads supersede earlier ones. */
-async function load(name: string, bytes: Uint8Array): Promise<void> {
+/**
+ * Analyse and open `bytes`, then show page 1. They are a `sample`, or a document fetched
+ * from `link` if not null, or a local file; the last two join the menu. Later loads
+ * supersede earlier ones.
+ */
+async function load(
+  name: string,
+  bytes: Uint8Array,
+  { sample = false, link = null }: { sample?: boolean; link?: string | null } = {},
+): Promise<void> {
   const token = ++loadToken;
+
+  const key = sample ? name : link !== null ? `link:${link}` : `file:${name}`;
+  if (!sample) remember(key, { name, link, bytes });
 
   void loadingTask?.destroy();
   Object.assign(state, {
     name,
+    key,
+    link,
     bytes,
     analysis: analyze_pdf(bytes),
     pdf: null,
@@ -178,7 +208,7 @@ async function load(name: string, bytes: Uint8Array): Promise<void> {
     zoom: 1,
   } satisfies Partial<State>);
   updateZoom();
-  showSource(name);
+  showSource();
 
   let pdfError: unknown = null;
   try {
@@ -202,18 +232,46 @@ async function load(name: string, bytes: Uint8Array): Promise<void> {
 }
 
 async function loadFixture(name: string): Promise<void> {
-  setLinkParam(null);
   const response = await fetch(`./fixtures/${encodeURIComponent(name)}`);
   if (!response.ok) {
     showBanners(null, `could not fetch fixtures/${name}: HTTP ${response.status}`);
     return;
   }
-  await load(name, new Uint8Array(await response.arrayBuffer()));
+  await load(name, new Uint8Array(await response.arrayBuffer()), { sample: true });
 }
 
 async function loadFile(file: File): Promise<void> {
-  setLinkParam(null);
   await load(file.name, new Uint8Array(await file.arrayBuffer()));
+}
+
+/** Open the menu entry `key`: a document opened earlier, from memory, or else a sample. */
+async function loadEntry(key: string): Promise<void> {
+  const entry = opened.get(key);
+  if (entry) await load(entry.name, entry.bytes, { link: entry.link });
+  else await loadFixture(key);
+}
+
+/**
+ * Keep an opened file or link in the menu, so that the visitor can come back to it.
+ * Opening it again replaces the entry in place; past `MAX_OPENED`, the oldest one is dropped.
+ */
+function remember(key: string, entry: Opened): void {
+  opened.set(key, entry);
+  for (const old of opened.keys()) {
+    if (opened.size <= MAX_OPENED) break;
+    opened.delete(old);
+  }
+
+  ui.opened.replaceChildren(
+    ...[...opened].map(([value, { name, link }]) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = link === null ? name : `${name} · ${new URL(link, window.location.href).hostname}`;
+      if (link !== null) option.title = link;
+      return option;
+    }),
+  );
+  ui.opened.hidden = false;
 }
 
 /**
@@ -224,8 +282,8 @@ async function loadUrl(url: string): Promise<void> {
   const token = loadToken;
   // Something else was opened while the link downloaded: it wins.
   const superseded = () => token !== loadToken;
-  ui.urlLoad.disabled = true;
-  ui.urlLoad.textContent = "Loading…";
+  ui.urlForm.setAttribute("aria-busy", "true");
+  syncLinkButton();
   try {
     let response: Response;
     try {
@@ -245,12 +303,10 @@ async function loadUrl(url: string): Promise<void> {
     }
     const bytes = new Uint8Array(await response.arrayBuffer());
     if (superseded()) return;
-    setLinkParam(url);
-    ui.url.value = url;
-    await load(linkName(url), bytes);
+    await load(linkName(url), bytes, { link: url });
   } finally {
-    ui.urlLoad.disabled = false;
-    ui.urlLoad.textContent = "Load";
+    ui.urlForm.removeAttribute("aria-busy");
+    syncLinkButton();
   }
 }
 
@@ -306,16 +362,28 @@ async function show(n: number, pdfError: unknown = null): Promise<void> {
   await render();
 }
 
-/** Name the shown document in the sample select, through a stand-in option for a file. */
-function showSource(name: string): void {
-  const fixture = [...ui.fixture.options].find((option) => option !== ui.fileOption && option.value === name);
-  ui.fileOption.hidden = Boolean(fixture);
-  if (fixture) {
-    ui.fixture.value = name;
-  } else {
-    ui.fileOption.textContent = name;
-    ui.fileOption.selected = true;
-  }
+/**
+ * Select the shown document in the menu. The link field and `?url=` hold the link of the
+ * shown document, and are emptied for any other.
+ */
+function showSource(): void {
+  const { key, link } = state;
+  if (key !== null) ui.fixture.value = key;
+  ui.fixture.title = link ?? "";
+  ui.url.value = link ?? "";
+  setLinkParam(link);
+  syncLinkButton();
+}
+
+/**
+ * The link button says what submitting would do: nothing while a download runs or when
+ * the field holds the link already shown, so it reads "Shown" then.
+ */
+function syncLinkButton(): void {
+  const busy = ui.urlForm.hasAttribute("aria-busy");
+  const shown = state.link !== null && ui.url.value.trim() === state.link;
+  ui.urlLoad.disabled = busy || shown;
+  ui.urlLoad.textContent = busy ? "Loading…" : shown ? "Shown" : "Load";
 }
 
 /** livre's DTO for the current page, if livre got that far. */
@@ -776,12 +844,13 @@ async function showVersion(): Promise<void> {
   }
 }
 
-ui.fixture.addEventListener("change", () => loadFixture(ui.fixture.value));
+ui.fixture.addEventListener("change", () => loadEntry(ui.fixture.value));
 ui.open.addEventListener("click", () => ui.file.click());
 ui.urlForm.addEventListener("submit", (event) => {
   event.preventDefault();
   void loadUrl(ui.url.value.trim());
 });
+ui.url.addEventListener("input", syncLinkButton);
 ui.file.addEventListener("change", () => {
   const file = ui.file.files?.[0];
   if (file) void loadFile(file);
@@ -892,5 +961,9 @@ ui.viewer.addEventListener(
 void showVersion();
 // `?url=` opens a linked PDF, so that a shared address shows the same document.
 const linked = new URLSearchParams(window.location.search).get("url");
-if (linked) await loadUrl(linked);
+if (linked) {
+  // Shown while it downloads, and left there to correct if it fails.
+  ui.url.value = linked;
+  await loadUrl(linked);
+}
 else await loadFixture(ui.fixture.value);
