@@ -116,9 +116,14 @@ pub const BUILD_FROM_RAW_DICT: DictTraits = DictTraits {
             }
         }
     },
+    // Through `Built`, so that any value may be written as a reference.
     simple_call: |l, ty| {
         let Locals { value, builder, .. } = l;
-        quote!(#value.build::<#ty, _>(#builder))
+        quote! {
+            #value
+                .build::<::livre::follow_refs::Built<#ty>, _>(#builder)
+                .map(|#value| #value.0)
+        }
     },
     flatten_call: |l| {
         let Locals { dict, builder, .. } = l;

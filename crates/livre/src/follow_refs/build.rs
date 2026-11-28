@@ -26,16 +26,18 @@ use super::{Builder, BuilderParser, Built};
 ///
 /// Any value of a PDF may be written as a reference to an indirect object. `build` parses
 /// the direct form only; [`Built`] is what follows a reference, and the containers
-/// (`Option`, `Vec`, arrays, [`MaybeArray`]) build their items through it.
+/// (`Option`, `Vec`, arrays, [`MaybeArray`]) build their items through it, as derived
+/// [`BuildFromRawDict`](super::BuildFromRawDict) types build their fields.
 ///
 /// A type whose own value represents a reference sets [`FOLLOW`](Self::FOLLOW) to `false`
-/// to be kept as written.
+/// to be kept as written. So does `Option`, which leaves the reference to its item.
 pub trait Build: Sized {
     /// Whether a reference found where a `Self` is expected is followed by [`Built`].
     ///
     /// `false` for the types that hold a reference themselves:
     /// [`Reference`](crate::extraction::Reference), [`OptRef`](crate::extraction::OptRef)
-    /// and [`Object`].
+    /// and [`Object`]. Also `false` for `Option`, whose item is built through [`Built`]:
+    /// a reference is the item's to follow, or to keep.
     const FOLLOW: bool = true;
 
     /// Build an object that rely on a reference, which would be instantiated with the help of the
@@ -98,6 +100,8 @@ impl<T> Build for Option<T>
 where
     T: Build,
 {
+    const FOLLOW: bool = false;
+
     fn build<B>(input: &mut &BStr, builder: &B) -> ModalResult<Self>
     where
         B: Builder,
@@ -268,6 +272,20 @@ mod tests {
         #[case] expected: Option<Reference<u32>>,
     ) {
         assert_eq!(build::<Option<Reference<u32>>>(input).unwrap(), expected);
+    }
+
+    /// `Built<Option<_>>` is what a derived optional field reads: the reference is the item's.
+    #[test]
+    fn built_option_leaves_the_reference_to_its_item() {
+        assert_eq!(build::<Built<Option<u32>>>(b"9 0 R").unwrap().0, Some(42));
+        assert_eq!(
+            build::<Built<Option<Reference<u32>>>>(b"9 0 R").unwrap().0,
+            Some(reference(9))
+        );
+        assert_eq!(
+            build::<Vec<Option<Reference<u32>>>>(b"[9 0 R null]").unwrap(),
+            [Some(reference(9)), None]
+        );
     }
 
     #[test]

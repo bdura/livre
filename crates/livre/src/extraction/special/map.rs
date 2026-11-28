@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use winnow::{
-    combinator::{iterator, peek, separated_pair, terminated, trace},
+    combinator::{eof, iterator, peek, separated_pair, terminated, trace},
     dispatch,
     error::{ContextError, ErrMode},
     token::{any, take_till},
@@ -75,20 +75,24 @@ pub struct RawValue<'de>(pub &'de BStr);
 
 impl<'de> RawValue<'de> {
     /// Extract the raw value into a strongly typed object.
+    ///
+    /// The whole value must be read: `10 0 R` is not the integer `10`.
     pub fn extract<T>(mut self) -> ModalResult<T>
     where
         T: Extract<'de>,
     {
-        extract(&mut self.0)
+        terminated(extract, eof).parse_next(&mut self.0)
     }
 
     /// Build the raw value into a strongly typed object.
+    ///
+    /// The whole value must be read, as with [`extract`](Self::extract).
     pub fn build<T, B>(mut self, builder: &B) -> ModalResult<T>
     where
         T: Build,
         B: Builder,
     {
-        T::build(&mut self.0, builder)
+        terminated(|i: &mut &BStr| T::build(i, builder), eof).parse_next(&mut self.0)
     }
 }
 
@@ -257,6 +261,12 @@ mod tests {
     fn raw_value(#[case] input: &[u8]) {
         let RawValue(value) = extract(&mut input.as_ref()).unwrap();
         assert_eq!(input, value.as_ref())
+    }
+
+    #[test]
+    fn raw_value_must_be_read_whole() {
+        let value = RawValue::from(b"10 0 R".as_slice());
+        assert!(value.extract::<usize>().is_err());
     }
 
     #[test]
