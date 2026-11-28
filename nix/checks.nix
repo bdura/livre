@@ -46,7 +46,7 @@
       doCheck = false;
     };
 in {
-  fmt = craneLib.cargoFmt {inherit src;};
+  fmt = craneLib.cargoFmt {inherit (commonArgs) src pname version;};
 
   clippy = craneLib.cargoClippy (
     commonArgs
