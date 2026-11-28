@@ -16,25 +16,27 @@
     class="flex min-h-dvh flex-col bg-zinc-100 font-sans text-sm text-zinc-700 antialiased lg:h-dvh dark:bg-zinc-950 dark:text-zinc-300"
   >
     <header
-      class="sticky top-0 z-10 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-zinc-200 bg-white/80 px-4 py-2.5 backdrop-blur lg:h-14 lg:flex-nowrap lg:py-0 dark:border-white/5 dark:bg-zinc-900/80"
+      class="sticky top-0 z-10 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-zinc-200 bg-white/80 px-4 py-2.5 backdrop-blur xl:h-14 xl:flex-nowrap xl:py-0 dark:border-white/5 dark:bg-zinc-900/80"
     >
       <h1 class="text-base font-semibold tracking-tight text-zinc-950 dark:text-white">livre</h1>
       <span class="h-5 w-px bg-zinc-200 dark:bg-white/10" aria-hidden="true"></span>
 
       <div class="relative">
-        <label for="fixture" class="sr-only">Sample PDF</label>
+        <label for="fixture" class="sr-only">Document</label>
         <select
           id="fixture"
-          class="chip appearance-none py-1.5 pr-8 pl-3 text-zinc-800 dark:text-zinc-200"
+          class="chip max-w-72 appearance-none truncate py-1.5 pr-8 pl-3 text-zinc-800 dark:text-zinc-200"
         >
-          <option value="text.pdf">text.pdf</option>
-          <option value="text-xref-stream.pdf">text-xref-stream.pdf</option>
-          <option value="font-before-bt.pdf">font-before-bt.pdf</option>
-          <option value="kerned.pdf">kerned.pdf</option>
-          <option value="encodings.pdf">encodings.pdf</option>
-          <option value="composite.pdf">composite.pdf</option>
-          <!-- Stands for a file the visitor opened, so the select names what is shown. -->
-          <option id="file-option" value="" hidden></option>
+          <optgroup label="Samples">
+            <option value="text.pdf">text.pdf</option>
+            <option value="text-xref-stream.pdf">text-xref-stream.pdf</option>
+            <option value="font-before-bt.pdf">font-before-bt.pdf</option>
+            <option value="kerned.pdf">kerned.pdf</option>
+            <option value="encodings.pdf">encodings.pdf</option>
+            <option value="composite.pdf">composite.pdf</option>
+          </optgroup>
+          <!-- The files and links the visitor opened, filled by the script. -->
+          <optgroup id="opened" label="Opened" hidden></optgroup>
         </select>
         <span
           class="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs text-zinc-400 dark:text-zinc-500"
@@ -45,13 +47,32 @@
       <button
         id="open"
         type="button"
-        class="rounded-lg bg-zinc-900 px-3 py-1.5 font-medium text-white hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200 dark:focus-visible:outline-white"
+        class="rounded-lg bg-zinc-900 px-3 py-1.5 whitespace-nowrap font-medium text-white hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200 dark:focus-visible:outline-white"
       >
         Open PDF…
       </button>
       <input id="file" type="file" accept="application/pdf,.pdf" class="sr-only" tabindex="-1" />
 
-      <nav class="chip flex items-center lg:mx-auto" aria-label="Pages">
+      <!-- The browser fetches the link itself: it works only if the host allows cross-origin requests. -->
+      <form id="url-form" class="chip flex items-center has-focus-visible:ring-zinc-400 dark:has-focus-visible:ring-white/30">
+        <label for="url" class="sr-only">PDF link</label>
+        <input
+          id="url"
+          type="url"
+          required
+          placeholder="or paste a link to a PDF"
+          class="w-52 bg-transparent py-1.5 pl-3 text-zinc-800 placeholder:text-zinc-400 focus:outline-none dark:text-zinc-200 dark:placeholder:text-zinc-500"
+        />
+        <button
+          id="url-load"
+          type="submit"
+          class="px-3 py-1.5 font-medium text-zinc-500 hover:text-zinc-950 disabled:opacity-60 dark:hover:text-white"
+        >
+          Load
+        </button>
+      </form>
+
+      <nav class="chip flex items-center xl:mx-auto" aria-label="Pages">
         <button id="prev" type="button" class="pager-button" aria-label="Previous page" disabled>‹</button>
         <label class="flex items-center gap-1.5 px-1 tabular-nums">
           Page
