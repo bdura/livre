@@ -403,6 +403,33 @@ mod tests {
         assert_eq!(raw, content);
     }
 
+    #[test]
+    fn stream_length_behind_reference() {
+        let input = b"<</Length 5 0 R>>stream\n0123456789\nendstream\n";
+
+        let mut builder: HashMap<ReferenceId, &BStr> = HashMap::new();
+        builder.insert(
+            ReferenceId::first(5),
+            b"5 0 obj\n10\nendobj".as_slice().as_ref(),
+        );
+
+        let Stream { content, .. }: Stream<()> =
+            Stream::build(&mut input.as_slice().as_ref(), &builder).unwrap();
+
+        assert_eq!(b"0123456789", content.as_slice());
+    }
+
+    /// Without a builder the reference cannot be followed, and must not be misread as the
+    /// integer it starts with.
+    #[test]
+    fn stream_length_reference_without_builder_fails() {
+        let input = b"<</Length 10 0 R>>stream\n0123456789\nendstream\n";
+
+        let result: ModalResult<Stream<()>> = extract(&mut input.as_slice().as_ref());
+
+        assert!(result.is_err(), "{result:?}");
+    }
+
     #[derive(Debug, PartialEq, FromRawDict)]
     struct TestStruct {
         test: bool,
