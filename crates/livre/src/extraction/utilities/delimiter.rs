@@ -104,6 +104,7 @@ fn hexadecimal_string_len(bytes: &[u8]) -> Option<usize> {
 }
 
 /// The length of the comment `bytes` starts with, up to its end of line and without it.
+/// `bytes` must start with `%`, which is not checked.
 /// `None` if the line never ends: the container holding the comment is then never closed.
 fn comment_len(bytes: &[u8]) -> Option<usize> {
     bytes.iter().position(|byte| matches!(byte, b'\r' | b'\n'))
@@ -111,12 +112,16 @@ fn comment_len(bytes: &[u8]) -> Option<usize> {
 
 /// The length of the array or dictionary `bytes` starts with, both delimiters included.
 ///
+/// `bytes` must start with `[` or `<<`: the scan does not check, and from anywhere else
+/// it would measure up to the end of whatever container comes next.
+///
 /// The scan is lexical: it skips literal strings, hexadecimal strings and comments as
 /// whole tokens, so a delimiter inside one of them neither opens nor closes anything.
 /// pdfTeX shows a lone bracket as `[([)]TJ`.
 ///
 /// `None` if the input ends before the container does, if a container is closed by the
-/// delimiter of the other kind, or if the nesting goes past [`MAX_DEPTH`].
+/// delimiter of the other kind, if a lone `>` appears, or if the nesting goes past
+/// [`MAX_DEPTH`].
 fn container_len(bytes: &[u8]) -> Option<usize> {
     let mut open = Open::default();
     let mut i = 0;
@@ -170,6 +175,9 @@ fn container_len(bytes: &[u8]) -> Option<usize> {
 }
 
 /// Take what `len` measures at the start of the input, which must begin with `opening`.
+///
+/// Fails with [`ErrMode::Backtrack`], never `Cut`, whether the opening is missing or `len`
+/// returns `None`: callers dispatching on the first byte may still try something else.
 fn take_measured<'de>(
     opening: &'static [u8],
     len: fn(&[u8]) -> Option<usize>,
@@ -185,10 +193,16 @@ fn take_measured<'de>(
     }
 }
 
-/// All PDF delimiters.
+/// The bytes that end a bare token: the PDF delimiters (ISO 32000-2, 7.2.3) and the usual
+/// whitespace. NUL and form feed, whitespace too according to the specification, are missing.
 static DELIMITERS: &[u8] = b"()<>[]{}/% \t\r\n";
 
-/// Useful for recognizing elements.
+/// Take a bare token, such as a number or a keyword: the bytes up to the first of
+/// [`DELIMITERS`], which is left in the input. `occurrences` bounds how many bytes may
+/// be taken.
+///
+/// The error is a plain [`ContextError`] rather than an [`ErrMode`]: callers pick the mode,
+/// usually with `.map_err(ErrMode::Backtrack)`.
 pub fn take_till_delimiter<'a>(
     occurrences: impl Into<Range>,
 ) -> impl Parser<&'a BStr, &'a [u8], ContextError> {
